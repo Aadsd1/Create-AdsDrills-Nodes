@@ -1,10 +1,6 @@
 package com.yourname.mycreateaddon.registry;// ModItems.java (만약 아이템을 직접 등록한다면)
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.yourname.mycreateaddon.MyCreateAddon;
-import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.bus.api.IEventBus;
-import net.minecraft.core.registries.Registries;
 // ... 다른 import ...
 
 

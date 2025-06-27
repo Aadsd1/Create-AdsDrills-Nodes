@@ -1,13 +1,12 @@
 package com.yourname.mycreateaddon.registry;
 
 import com.simibubi.create.foundation.data.AssetLookup;
-import com.simibubi.create.foundation.data.BlockStateGen;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.DrillCoreBlock;
-import com.yourname.mycreateaddon.content.kinetics.module.FrameModuleBlock;
+import com.yourname.mycreateaddon.content.kinetics.module.Frame.FrameModuleBlock;
 
 public class MyAddonBlocks {
 
@@ -36,10 +35,12 @@ public class MyAddonBlocks {
             .initialProperties(SharedProperties::stone)
             .properties(p -> p.noOcclusion())
             .loot((tables, block) -> tables.dropSelf(block))
-            // --- 여기도 AssetLookup을 사용하는 것이 더 안전합니다. ---
-            .blockstate((context, provider) -> provider.simpleBlock(context.get(), AssetLookup.partialBaseModel(context, provider)))
+            .blockstate((c, p) ->
+                    p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c,p)))
             .item()
-            .model((context, provider) -> provider.withExistingParent(context.getId().getPath(), provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
 

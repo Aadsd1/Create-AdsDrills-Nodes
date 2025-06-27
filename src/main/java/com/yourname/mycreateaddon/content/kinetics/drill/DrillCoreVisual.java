@@ -21,63 +21,92 @@ import java.util.function.Consumer;
 
 public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEntity> {
 
-    public enum ShaftComponent {
-        INPUT_SHAFT,
-        OUTPUT_SHAFT
-    }
-
-    protected final Map<ShaftComponent, RotatingInstance> components = new EnumMap<>(ShaftComponent.class);
+    public enum CoreShaft { INPUT, OUTPUT }
+    protected final Map<CoreShaft, RotatingInstance> coreShafts = new EnumMap<>(CoreShaft.class);
+    protected final Map<Direction, RotatingInstance> moduleShafts = new EnumMap<>(Direction.class);
     protected Direction sourceDirection;
 
     public DrillCoreVisual(VisualizationContext context, DrillCoreBlockEntity blockEntity, float partialTick) {
         super(context, blockEntity, partialTick);
-
-        // 1. 생성자에서 '변하지 않는' 위치와 방향을 단 한 번만 설정합니다.
-
-        // 현재 블록의 방향과 회전축을 가져옵니다.
         Direction facing = this.blockState.getValue(DirectionalKineticBlock.FACING);
 
-
-        // 입력 샤프트 생성 및 설정
         RotatingInstance inputShaft = createInstanceFor(AllPartialModels.SHAFT_HALF);
-        inputShaft.setPosition(getVisualPosition())
-                .rotateToFace(Direction.SOUTH, facing);
-        components.put(ShaftComponent.INPUT_SHAFT, inputShaft);
+        inputShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, facing);
+        coreShafts.put(CoreShaft.INPUT, inputShaft);
 
-        // 출력 샤프트 생성 및 설정
         RotatingInstance outputShaft = createInstanceFor(MyAddonPartialModels.SHAFT_FOR_DRILL);
-        outputShaft.setPosition(getVisualPosition())
-                .rotateToFace(Direction.SOUTH, facing.getOpposite());
-        components.put(ShaftComponent.OUTPUT_SHAFT, outputShaft);
+        outputShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, facing.getOpposite());
+        coreShafts.put(CoreShaft.OUTPUT, outputShaft);
 
-        // 초기 속도 설정을 위해 update 호출
         update(partialTick);
     }
 
     private RotatingInstance createInstanceFor(PartialModel model) {
-        return instancerProvider().instancer(AllInstanceTypes.ROTATING, Models.partial(model))
-                .createInstance();
+        return instancerProvider().instancer(AllInstanceTypes.ROTATING, Models.partial(model)).createInstance();
     }
 
     @Override
     public void update(float pt) {
-        // 2. update에서는 '변하는' 정보인 속도만 갱신합니다.
-
         updateSourceDirection();
 
         Direction facing = this.blockState.getValue(DirectionalKineticBlock.FACING);
-        Axis axis = facing.getAxis();
+        Axis primaryAxis = facing.getAxis();
         float speed = blockEntity.getSpeed();
 
-        // 입력 샤프트 속도 업데이트
-        RotatingInstance inputShaft = components.get(ShaftComponent.INPUT_SHAFT);
-        float inputSpeed = (sourceDirection == facing) ? speed : 0f;//.getOpposite()
-        inputShaft.setup(blockEntity, axis, inputSpeed).setChanged();
+        // 인풋/아웃풋 샤프트는 'primaryAxis'로 회전
+        coreShafts.get(CoreShaft.INPUT).setup(blockEntity, primaryAxis, (sourceDirection == facing) ? speed : 0f).setChanged();
+        coreShafts.get(CoreShaft.OUTPUT).setup(blockEntity, primaryAxis, 0f).setChanged();
 
-        // 출력 샤프트 속도 업데이트
-        RotatingInstance outputShaft = components.get(ShaftComponent.OUTPUT_SHAFT);
-        float outputSpeed = 0f;//(sourceDirection != null) ? speed :
-        outputShaft.setup(blockEntity, axis, outputSpeed).setChanged();
+        boolean changed = false;
+
+        // 동적 모듈 샤프트 업데이트
+        for (Direction dir : Direction.values()) {
+            if (dir.getAxis() == primaryAxis) continue;
+
+            boolean shouldExist = blockEntity.isModuleConnectedAt(dir);
+            boolean doesExist = moduleShafts.containsKey(dir);
+
+            if (shouldExist && !doesExist) {
+                RotatingInstance newShaft = createInstanceFor(MyAddonPartialModels.SHAFT_FOR_MODULE);
+                newShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, dir);
+                moduleShafts.put(dir, newShaft);
+                changed = true; // 변경 발생
+            } else if (!shouldExist && doesExist) {
+                moduleShafts.get(dir).delete();
+                moduleShafts.remove(dir);
+                changed = true; // 변경 발생
+            }
+
+            // 속도 갱신은 shouldExist일 때만 수행
+            if (shouldExist) {
+                moduleShafts.get(dir).setup(blockEntity, dir.getAxis(), speed).setChanged();
+            }
+        }
+
+        if (changed) {
+            // 인스턴스 목록이 변경되었으므로, 즉시 라이팅을 다시 계산합니다.
+            this.updateLight(pt);
+        }
+    }
+
+    @Override
+    public void updateLight(float partialTick) {
+        relight(coreShafts.values().toArray(new RotatingInstance[0]));
+        relight(moduleShafts.values().toArray(new RotatingInstance[0]));
+    }
+
+    @Override
+    protected void _delete() {
+        coreShafts.values().forEach(Instance::delete);
+        moduleShafts.values().forEach(Instance::delete);
+        coreShafts.clear();
+        moduleShafts.clear();
+    }
+
+    @Override
+    public void collectCrumblingInstances(Consumer<Instance> consumer) {
+        coreShafts.values().forEach(consumer);
+        moduleShafts.values().forEach(consumer);
     }
 
     protected void updateSourceDirection() {
@@ -87,23 +116,5 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
         } else {
             sourceDirection = null;
         }
-    }
-
-    // --- 나머지 유틸리티 메서드들 ---
-
-    @Override
-    public void updateLight(float partialTick) {
-        relight(components.values().toArray(new RotatingInstance[0]));
-    }
-
-    @Override
-    protected void _delete() {
-        components.values().forEach(Instance::delete);
-        components.clear();
-    }
-
-    @Override
-    public void collectCrumblingInstances(Consumer<Instance> consumer) {
-        components.values().forEach(consumer);
     }
 }

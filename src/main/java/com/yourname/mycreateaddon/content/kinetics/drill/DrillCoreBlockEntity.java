@@ -1,8 +1,10 @@
 package com.yourname.mycreateaddon.content.kinetics.drill;
 
+import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.MyCreateAddon;
-import com.yourname.mycreateaddon.content.kinetics.module.FrameModuleBlock;
+import com.yourname.mycreateaddon.content.kinetics.module.Frame.FrameModuleBlock;
+import com.yourname.mycreateaddon.content.kinetics.module.Frame.FrameModuleBlockEntity;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks; // SpeedModuleBlock을 위해 임포트 (가정)
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -10,15 +12,16 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
+
+
 
 public class DrillCoreBlockEntity extends KineticBlockEntity {
 
@@ -45,51 +48,87 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
 
     private void scanAndValidateStructure() {
-        Set<BlockPos> newStructure = new HashSet<>();
-        boolean wasValid = this.structureValid;
+        if (level == null || level.isClientSide()) return;
 
-        if (level == null) return;
+        Set<BlockPos> newStructure = new HashSet<>();
+        Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>(); // 연결 정보 수집용
+        boolean wasValid = this.structureValid;
 
         Set<BlockPos> visitedInScan = new HashSet<>();
         List<BlockPos> foundFunctionalModules = new ArrayList<>();
+        List<BlockPos> foundOtherCores = new ArrayList<>();
 
-        // searchStructureRecursive는 이제 루프와 다중 코어 여부를 반환합니다.
-        // 최상위 호출이므로 from 인자는 null 입니다.
-        StructureCheckResult result = searchStructureRecursive(this.worldPosition, null, visitedInScan, foundFunctionalModules, 0);
+        // 재귀 탐색을 통해 구조와 연결 정보를 수집
+        StructureCheckResult result = searchStructureRecursive(
+                this.worldPosition, null, visitedInScan, foundFunctionalModules, foundOtherCores, moduleConnections, 0);
 
         // 유효성 검사
         if (!result.loopDetected && !result.multipleCoresDetected && foundFunctionalModules.size() <= MAX_MODULES) {
             this.structureValid = true;
             newStructure.addAll(foundFunctionalModules);
-            MyCreateAddon.LOGGER.debug("Structure validated at {}. Found {} functional modules.", worldPosition, newStructure.size());
+
+            // --- ▼▼▼ 수정된 부분 시작 ▼▼▼ ---
+
+            // 유효한 구조에 포함된 모든 모듈들에게 렌더링 정보 전파
+            float currentSpeed = getSpeed();
+            Direction coreFacing = this.getBlockState().getValue(DirectionalKineticBlock.FACING);
+            Direction coreBack = coreFacing.getOpposite();
+
+            for (BlockPos modulePos : newStructure) {
+                if (level.getBlockEntity(modulePos) instanceof FrameModuleBlockEntity frameBE) {
+                    // 이 모듈이 가져야 할 모든 연결 방향을 가져옴
+                    Set<Direction> connections = new HashSet<>(moduleConnections.getOrDefault(modulePos, new HashSet<>()));
+
+                    // 만약 이 모듈이 코어의 앞쪽에 붙어있다면, 코어를 향하는 연결(coreBack)을 제거
+                    if (modulePos.equals(this.worldPosition.relative(coreFacing))) {
+                        connections.remove(coreBack);
+                    }
+                    // 만약 이 모듈이 코어의 뒤쪽에 붙어있다면, 코어를 향하는 연결(coreFacing)을 제거
+                    if (modulePos.equals(this.worldPosition.relative(coreBack))) {
+                        connections.remove(coreFacing);
+                    }
+
+                    frameBE.updateVisualConnections(connections, currentSpeed);
+                }
+            }
+            // --- ▲▲▲ 수정된 부분 끝 ▲▲▲ ---
+
         } else {
             this.structureValid = false;
+            // (오류 로그 부분은 기존과 동일하게 유지)
             if (result.multipleCoresDetected) {
                 MyCreateAddon.LOGGER.warn("Multiple cores detected in structure starting at {}!", worldPosition);
-            } else if (result.loopDetected) {
-                MyCreateAddon.LOGGER.warn("Loop detected in structure starting at {}!", worldPosition);
-            } else if (foundFunctionalModules.size() > MAX_MODULES) {
-                MyCreateAddon.LOGGER.warn("Structure at {} exceeds functional module limit ({} > {})!", worldPosition, foundFunctionalModules.size(), MAX_MODULES);
+                for (BlockPos corePos : foundOtherCores) {
+                    if (level.getBlockEntity(corePos) instanceof DrillCoreBlockEntity otherCore) {
+                        otherCore.scheduleStructureCheck();
+                    }
+                }
             }
         }
 
         // 구조가 변경되었는지 확인하고 동기화
         if (!this.structureCache.equals(newStructure) || this.structureValid != wasValid) {
+            // 비활성화되어야 할 모듈들을 찾아서 신호를 보냄
+            Set<BlockPos> detachedModules = new HashSet<>(this.structureCache);
+            detachedModules.removeAll(newStructure);
+            for (BlockPos detachedPos : detachedModules) {
+                if (level.getBlockEntity(detachedPos) instanceof FrameModuleBlockEntity frameBE) {
+                    frameBE.updateVisualConnections(new HashSet<>(), 0f); // 비활성화 신호
+                }
+            }
+
             this.structureCache = newStructure;
             setChanged();
             sendData();
         }
     }
 
-    // 재귀 탐색 결과를 담을 레코드
+    // 재귀 탐색 결과 레코드
     private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {}
 
-    // ★★★ 재귀 탐색 메서드 전체 수정 ★★★
-    private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction from, Set<BlockPos> visited, List<BlockPos> functionalModules, int depth) {
-        // 범위 초과 또는 이미 방문한 노드면 루프로 간주하고 중단
+    // ★★★ 재귀 탐색 메서드 시그니처 및 로직 수정 ★★★
+    private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction from, Set<BlockPos> visited, List<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
         if (depth > MAX_STRUCTURE_RANGE || !visited.add(currentPos)) {
-            // 이미 방문한 노드를 다른 경로로 다시 만나는 것은 루프입니다.
-            // from != null 조건은 최상위 노드(코어)가 스스로를 루프로 판단하는 것을 방지합니다.
             return new StructureCheckResult(from != null, false);
         }
 
@@ -98,7 +137,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         Block currentBlock = currentState.getBlock();
 
         if (currentBlock instanceof DrillCoreBlock && !isThisCore) {
-            return new StructureCheckResult(false, true); // 다른 코어 발견
+            otherCores.add(currentPos);
+            return new StructureCheckResult(false, true);
         }
 
         if (!isThisCore && !isValidStructureBlock(currentBlock)) {
@@ -111,24 +151,25 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
         // 자식 노드 탐색
         for (Direction dir : Direction.values()) {
-            // --- 왔던 길로는 되돌아가지 않습니다. ---
             if (from != null && dir == from.getOpposite()) {
                 continue;
             }
 
-            BlockPos neighbor = currentPos.relative(dir);
-            if (!level.isLoaded(neighbor)) continue;
+            BlockPos neighborPos = currentPos.relative(dir);
+            if (!level.isLoaded(neighborPos)) continue;
 
-            Block neighborBlock = level.getBlockState(neighbor).getBlock();
-            // 이웃이 유효한 구조 블록일 때만 탐색 진행
-            if (isValidStructureBlock(neighborBlock)) {
-                StructureCheckResult result = searchStructureRecursive(neighbor, dir, visited, functionalModules, depth + 1);
+            BlockState neighborState = level.getBlockState(neighborPos);
+            if (isValidStructureBlock(neighborState.getBlock())) {
+                // ★★★ 연결 정보 기록 ★★★
+                moduleConnections.computeIfAbsent(currentPos, k -> new HashSet<>()).add(dir);
+                moduleConnections.computeIfAbsent(neighborPos, k -> new HashSet<>()).add(dir.getOpposite());
+
+                StructureCheckResult result = searchStructureRecursive(neighborPos, dir, visited, functionalModules, otherCores, moduleConnections, depth + 1);
                 if (result.loopDetected || result.multipleCoresDetected) {
-                    return result; // 오류가 발견되면 즉시 전파
+                    return result;
                 }
             }
         }
-
         return new StructureCheckResult(false, false);
     }
 

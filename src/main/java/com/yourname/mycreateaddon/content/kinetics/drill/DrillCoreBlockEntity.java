@@ -3,22 +3,22 @@ package com.yourname.mycreateaddon.content.kinetics.drill;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.MyCreateAddon;
-import com.yourname.mycreateaddon.content.kinetics.module.Frame.FrameModuleBlock;
-import com.yourname.mycreateaddon.content.kinetics.module.Frame.FrameModuleBlockEntity;
-import com.yourname.mycreateaddon.registry.MyAddonBlocks; // SpeedModuleBlock을 위해 임포트 (가정)
+import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
+import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.*;
+
 
 
 public class DrillCoreBlockEntity extends KineticBlockEntity {
@@ -29,8 +29,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     private boolean needsStructureCheck = true;
     private static final int MAX_STRUCTURE_RANGE = 16;
     private static final int MAX_MODULES = 128;
-
     private float lastKnownSpeed = 0f;
+
+    // --- 모듈 효과 집계 필드 ---
+    private float totalSpeedBonus = 0f;
 
     public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -43,8 +45,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         if (level != null && !level.isClientSide()) {
             // 구조 캐시에 저장된 모든 모듈에게 비활성화 신호를 보냅니다.
             for (BlockPos modulePos : structureCache) {
-                if (level.getBlockEntity(modulePos) instanceof FrameModuleBlockEntity frameBE) {
-                    frameBE.updateVisualConnections(new HashSet<>(), 0f);
+                if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                    moduleBE.updateVisualConnections(new HashSet<>(), 0f);
                 }
             }
         }
@@ -63,9 +65,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     private void scanAndValidateStructure() {
         if (level == null || level.isClientSide()) return;
 
+        // 효과 집계 변수 초기화
+        float currentSpeedBonus = 0f;
+
         Set<BlockPos> newStructure = new HashSet<>();
         Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>();
         boolean wasValid = this.structureValid;
+        float oldSpeed = getSpeed();
 
         Set<BlockPos> visitedInScan = new HashSet<>();
         List<BlockPos> foundFunctionalModules = new ArrayList<>();
@@ -74,17 +80,30 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         StructureCheckResult result = searchStructureRecursive(
                 this.worldPosition, null, visitedInScan, foundFunctionalModules, foundOtherCores, moduleConnections, 0);
 
-        if (!result.loopDetected && !result.multipleCoresDetected && foundFunctionalModules.size() <= MAX_MODULES) {
+        // 집계된 효과를 BE 필드에 먼저 반영합니다. getSpeed()가 이를 사용하기 때문입니다.
+        if (!result.loopDetected && !result.multipleCoresDetected && (foundFunctionalModules.size() - 1) <= MAX_MODULES) {
+            for (BlockPos modulePos : foundFunctionalModules) {
+                if(level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                    ModuleType type = moduleBE.getModuleType();
+                    currentSpeedBonus += type.getSpeedBonus();
+                }
+            }
+        }
+        this.totalSpeedBonus = currentSpeedBonus;
+
+        // 유효성 검사 및 구조 업데이트
+        if (this.totalSpeedBonus == currentSpeedBonus && !result.loopDetected && !result.multipleCoresDetected && (foundFunctionalModules.size() - 1) <= MAX_MODULES) {
             this.structureValid = true;
             newStructure.addAll(foundFunctionalModules);
-            newStructure.remove(this.worldPosition);
+            newStructure.remove(this.worldPosition); // 구조 캐시에서는 코어 자신을 제외
 
-            float currentSpeed = getSpeed();
+            // 렌더링 정보 전파
+            float newSpeed = getSpeed();
             Direction coreFacing = this.getBlockState().getValue(DirectionalKineticBlock.FACING);
             Direction coreBack = coreFacing.getOpposite();
 
             for (BlockPos modulePos : newStructure) {
-                if (level.getBlockEntity(modulePos) instanceof FrameModuleBlockEntity frameBE) {
+                if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                     Set<Direction> connections = new HashSet<>(moduleConnections.getOrDefault(modulePos, new HashSet<>()));
 
                     if (modulePos.equals(this.worldPosition.relative(coreFacing))) {
@@ -94,12 +113,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
                         connections.remove(coreFacing);
                     }
 
-                    frameBE.updateVisualConnections(connections, currentSpeed);
+                    moduleBE.updateVisualConnections(connections, newSpeed);
                 }
             }
 
         } else {
             this.structureValid = false;
+            this.totalSpeedBonus = 0f; // 구조가 유효하지 않으면 보너스도 0
             if (result.multipleCoresDetected) {
                 MyCreateAddon.LOGGER.warn("Multiple cores detected in structure starting at {}!", worldPosition);
                 for (BlockPos corePos : foundOtherCores) {
@@ -110,12 +130,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
             }
         }
 
-        if (!this.structureCache.equals(newStructure) || this.structureValid != wasValid) {
+        // 구조나 속도에 변경이 있을 경우 클라이언트에 알림
+        if (!this.structureCache.equals(newStructure) || this.structureValid != wasValid || getSpeed() != oldSpeed) {
             Set<BlockPos> detachedModules = new HashSet<>(this.structureCache);
             detachedModules.removeAll(newStructure);
             for (BlockPos detachedPos : detachedModules) {
-                if (level.getBlockEntity(detachedPos) instanceof FrameModuleBlockEntity frameBE) {
-                    frameBE.updateVisualConnections(new HashSet<>(), 0f);
+                if (level.getBlockEntity(detachedPos) instanceof GenericModuleBlockEntity moduleBE) {
+                    moduleBE.updateVisualConnections(new HashSet<>(), 0f);
                 }
             }
 
@@ -170,18 +191,44 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     }
 
     private boolean isValidStructureBlock(Block block) {
-        return block instanceof DrillCoreBlock || block instanceof FrameModuleBlock;
+        return block instanceof DrillCoreBlock || block instanceof GenericModuleBlock;
     }
 
+    // ==================================================
+    //  Visual과의 연동을 위한 헬퍼 메서드
+    // ==================================================
+
     public boolean isModuleConnectedAt(Direction absoluteDirection) {
+        if (!absoluteDirection.getAxis().isHorizontal()) return false;
         BlockPos adjacentPos = this.worldPosition.relative(absoluteDirection);
         return this.structureCache.contains(adjacentPos);
     }
 
+    // ==================================================
+    //  속도 및 스트레스 계산
+    // ==================================================
+
+    @Override
+    public float getSpeed() {
+        if (isOverStressed()) return 0;
+        // getTheoreticalSpeed()는 이미 보너스가 적용된 속도를 반환합니다.
+        return getTheoreticalSpeed();
+    }
+
+    @Override
+    public float getTheoreticalSpeed() {
+        // 부모 클래스의 속도(기본 속도)에 계산된 보너스를 곱합니다.
+        return super.getTheoreticalSpeed() * (1.0f + this.totalSpeedBonus);
+    }
+
+    // ==================================================
+    //  NBT 데이터 처리
+    // ==================================================
     @Override
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(compound, registries, clientPacket);
         compound.putBoolean("StructureValid", this.structureValid);
+        compound.putFloat("SpeedBonus", this.totalSpeedBonus);
 
         if (clientPacket) {
             ListTag cacheList = new ListTag();
@@ -200,6 +247,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
         this.structureValid = compound.getBoolean("StructureValid");
+        this.totalSpeedBonus = compound.getFloat("SpeedBonus");
 
         if (clientPacket) {
             Set<BlockPos> newCache = new HashSet<>();
@@ -220,14 +268,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         }
     }
 
+    // ==================================================
+    //  틱 업데이트 및 효과
+    // ==================================================
+
     @Override
     public void tick() {
         super.tick();
         if (level != null && !level.isClientSide) {
-            float currentSpeed = getSpeed();
-            if (lastKnownSpeed != currentSpeed) {
+            // 기본 속도(입력 속도)가 변경되었는지 확인
+            float currentBaseSpeed = super.getTheoreticalSpeed();
+            if (lastKnownSpeed != currentBaseSpeed) {
                 scheduleStructureCheck();
-                lastKnownSpeed = currentSpeed;
+                lastKnownSpeed = currentBaseSpeed;
             }
 
             if (needsStructureCheck) {
@@ -237,13 +290,31 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         }
     }
 
+    // ==================================================
+    //  Goggle 정보 표시
+    // ==================================================
+
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        // 먼저 부모 클래스의 툴팁(기본 속도, 스트레스 등)을 추가합니다.
         super.addToGoggleTooltip(tooltip, isPlayerSneaking);
+
+        // 구조 상태 툴팁 추가
         Component structureStatus = structureValid
                 ? Component.translatable("tooltip.mycreateaddon.structure.valid", structureCache.size()).withStyle(ChatFormatting.GREEN)
                 : Component.translatable("tooltip.mycreateaddon.structure.invalid").withStyle(ChatFormatting.RED);
         tooltip.add(Component.literal(" ").append(structureStatus));
+
+        // 속도 보너스 툴팁 추가
+        if (structureValid && totalSpeedBonus > 0) {
+            tooltip.add(Component.literal(" ")
+                    .append(Component.translatable("tooltip.mycreateaddon.speed_bonus")
+                            .withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(" +" + (int)(totalSpeedBonus * 100) + "%")
+                            .withStyle(ChatFormatting.AQUA))
+            );
+        }
+
         return true;
     }
 }

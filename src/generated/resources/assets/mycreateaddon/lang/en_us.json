@@ -1,4 +1,5 @@
 {
   "block.mycreateaddon.drill_core": "Drill Core",
-  "block.mycreateaddon.frame_module": "Frame Module"
+  "block.mycreateaddon.frame_module": "Frame Module",
+  "block.mycreateaddon.speed_module": "Speed Module"
 }

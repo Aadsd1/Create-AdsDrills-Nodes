@@ -1,8 +1,7 @@
-package com.yourname.mycreateaddon.content.kinetics.module.Frame;
+package com.yourname.mycreateaddon.content.kinetics.module;
 
 import com.simibubi.create.content.kinetics.base.RotatingInstance;
 import com.simibubi.create.foundation.render.AllInstanceTypes;
-import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
@@ -10,7 +9,6 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntityVisual;
 import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -18,32 +16,22 @@ import java.util.function.Consumer;
 
 
 
-public class FrameModuleVisual extends KineticBlockEntityVisual<FrameModuleBlockEntity> {
+public class GenericModuleVisual extends KineticBlockEntityVisual<GenericModuleBlockEntity> {
 
     protected final Map<Direction, RotatingInstance> moduleShafts = new EnumMap<>(Direction.class);
 
-    public FrameModuleVisual(VisualizationContext context, FrameModuleBlockEntity blockEntity, float partialTick) {
+    // 생성자 이름 변경
+    public GenericModuleVisual(VisualizationContext context, GenericModuleBlockEntity blockEntity, float partialTick) {
         super(context, blockEntity, partialTick);
+        // 생성자에서 update를 호출하여 재접속 시 렌더링을 보장
         update(partialTick);
     }
 
     @Override
     public void update(float partialTick) {
-
-        CompoundTag nbt = blockEntity.getClientVisualNBT();
-
-        Set<Direction> requiredShafts = new HashSet<>();
-        if (nbt.contains("VisualConnections", 11)) { // 11 = IntArrayTag
-            int[] dirs = nbt.getIntArray("VisualConnections");
-            for (int dirOrdinal : dirs) {
-                if (dirOrdinal >= 0 && dirOrdinal < Direction.values().length) {
-                    requiredShafts.add(Direction.values()[dirOrdinal]);
-                }
-            }
-        }
-        float speed = nbt.getFloat("VisualSpeed");
-
-
+        // BlockEntity의 getter를 통해 현재 렌더링해야 할 상태를 가져옵니다.
+        Set<Direction> requiredShafts = blockEntity.getVisualConnections();
+        float speed = blockEntity.getVisualSpeed();
         boolean changed = false;
 
         // 존재하지만 더 이상 필요 없는 샤프트 제거
@@ -74,7 +62,6 @@ public class FrameModuleVisual extends KineticBlockEntityVisual<FrameModuleBlock
         }
     }
 
-    // --- 나머지 메서드는 기존과 동일 ---
     private RotatingInstance createInstanceFor(PartialModel model) {
         return instancerProvider().instancer(AllInstanceTypes.ROTATING, Models.partial(model))
                 .createInstance();

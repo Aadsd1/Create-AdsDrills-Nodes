@@ -12,10 +12,21 @@ import net.minecraft.world.level.block.entity.BlockEntityType; // BlockEntityTyp
 import net.minecraft.world.level.block.state.BlockState;
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.world.level.pathfinder.PathComputationType;
-
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 
 public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<DrillCoreBlockEntity> {
+
+    protected static final VoxelShape SHAPE = Shapes.box(0.0625, 0.0625, 0.0625, 0.9375, 0.9375, 0.9375);
+    // --- 나머지 메서드는 그대로 유지 ---
+    @Override
+    protected VoxelShape getShape(BlockState pState, net.minecraft.world.level.BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
+        return SHAPE;
+    }
+
+
     public DrillCoreBlock(Properties properties) {
         super(properties);
     }

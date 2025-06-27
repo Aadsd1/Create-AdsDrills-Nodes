@@ -6,7 +6,9 @@ import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.DrillCoreBlock;
-import com.yourname.mycreateaddon.content.kinetics.module.Frame.FrameModuleBlock;
+import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
+import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
+
 
 public class MyAddonBlocks {
 
@@ -17,26 +19,33 @@ public class MyAddonBlocks {
             .initialProperties(SharedProperties::stone)
             .properties(p -> p.noOcclusion())
             .loot((tables, block) -> tables.dropSelf(block))
-            // --- blockstate 빌더에 람다를 직접 전달하여 경로를 명시합니다. ---
-            .blockstate((context, provider) -> {
-                // Create의 directionalBlock 헬퍼를 사용하되, 모델 파일을 AssetLookup으로 찾도록 합니다.
-                provider.directionalBlock(context.get(), AssetLookup.partialBaseModel(context, provider));
-            })
+            .blockstate((c, p) -> p.directionalBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item()
-            .model((context, provider) -> {
-                // 아이템 모델은 블록 모델을 그대로 상속합니다.
-                provider.withExistingParent(context.getId().getPath(), provider.modLoc("block/" + context.getId().getPath() + "/block"));
-            })
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
 
-    public static final BlockEntry<FrameModuleBlock> FRAME_MODULE = REGISTRATE
-            .block("frame_module", FrameModuleBlock::new)
+    public static final BlockEntry<GenericModuleBlock> FRAME_MODULE = REGISTRATE
+            .block("frame_module", p -> new GenericModuleBlock(p, ModuleType.FRAME))
             .initialProperties(SharedProperties::stone)
             .properties(p -> p.noOcclusion())
             .loot((tables, block) -> tables.dropSelf(block))
-            .blockstate((c, p) ->
-                    p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c,p)))
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+
+    public static final BlockEntry<GenericModuleBlock> SPEED_MODULE = REGISTRATE
+            .block("speed_module", p -> new GenericModuleBlock(p, ModuleType.SPEED))
+            .initialProperties(SharedProperties::stone)
+            .properties(p -> p.noOcclusion())
+            .loot((tables, block) -> tables.dropSelf(block))
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item()
             .model((context, provider) ->
                     provider.withExistingParent(context.getId().getPath(),

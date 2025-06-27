@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "mycreateaddon:block/drill_core/block",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "mycreateaddon:block/drill_core/block",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "mycreateaddon:block/drill_core/block",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "mycreateaddon:block/drill_core/block",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "mycreateaddon:block/drill_core/block"
+    },
+    "facing=west": {
+      "model": "mycreateaddon:block/drill_core/block",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

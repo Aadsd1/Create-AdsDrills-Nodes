@@ -2,6 +2,7 @@ package com.yourname.mycreateaddon.content.kinetics.module.Frame;
 
 import com.simibubi.create.content.kinetics.base.RotatingInstance;
 import com.simibubi.create.foundation.render.AllInstanceTypes;
+import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
@@ -9,9 +10,11 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntityVisual;
 import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 
 import java.util.*;
 import java.util.function.Consumer;
+
 
 
 
@@ -21,42 +24,57 @@ public class FrameModuleVisual extends KineticBlockEntityVisual<FrameModuleBlock
 
     public FrameModuleVisual(VisualizationContext context, FrameModuleBlockEntity blockEntity, float partialTick) {
         super(context, blockEntity, partialTick);
+        update(partialTick);
     }
-
 
     @Override
     public void update(float partialTick) {
-        super.update(partialTick);
 
-        Set<Direction> requiredShafts = blockEntity.getVisualConnections();
-        float speed = blockEntity.getVisualSpeed();
-        boolean changed = false; // <<< 라이팅 업데이트를 위한 플래그
+        CompoundTag nbt = blockEntity.getClientVisualNBT();
 
-        // 현재 존재하는 모든 샤프트 방향을 순회
+        Set<Direction> requiredShafts = new HashSet<>();
+        if (nbt.contains("VisualConnections", 11)) { // 11 = IntArrayTag
+            int[] dirs = nbt.getIntArray("VisualConnections");
+            for (int dirOrdinal : dirs) {
+                if (dirOrdinal >= 0 && dirOrdinal < Direction.values().length) {
+                    requiredShafts.add(Direction.values()[dirOrdinal]);
+                }
+            }
+        }
+        float speed = nbt.getFloat("VisualSpeed");
+
+
+        boolean changed = false;
+
+        // 존재하지만 더 이상 필요 없는 샤프트 제거
         for (Direction dir : moduleShafts.keySet().stream().toList()) {
             if (!requiredShafts.contains(dir)) {
-                moduleShafts.get(dir).delete();
-                moduleShafts.remove(dir);
-                changed = true; // <<< 변경 발생
+                moduleShafts.remove(dir).delete();
+                changed = true;
             }
         }
 
-        // 필요한 모든 샤프트 방향을 순회
+        // 필요하지만 아직 없는 샤프트 생성
         for (Direction dir : requiredShafts) {
             if (!moduleShafts.containsKey(dir)) {
                 RotatingInstance newShaft = createInstanceFor(MyAddonPartialModels.SHAFT_FOR_MODULE);
                 newShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, dir);
                 moduleShafts.put(dir, newShaft);
-                changed = true; // <<< 변경 발생
+                changed = true;
             }
-            moduleShafts.get(dir).setup(blockEntity, dir.getAxis(), speed).setChanged();
         }
 
-        // ▼▼▼ 라이팅 업데이트 호출 ▼▼▼
+        // 모든 샤프트의 속도 업데이트
+        for (Map.Entry<Direction, RotatingInstance> entry : moduleShafts.entrySet()) {
+            entry.getValue().setup(blockEntity, entry.getKey().getAxis(), speed).setChanged();
+        }
+
         if (changed) {
-            this.updateLight(partialTick);
+            updateLight(partialTick);
         }
     }
+
+    // --- 나머지 메서드는 기존과 동일 ---
     private RotatingInstance createInstanceFor(PartialModel model) {
         return instancerProvider().instancer(AllInstanceTypes.ROTATING, Models.partial(model))
                 .createInstance();

@@ -51,4 +51,14 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
         return false;
     }
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        // 블록이 완전히 다른 블록으로 교체될 때(파괴될 때)만 로직을 실행합니다.
+        // isMoving 플래그는 Create의 이동 장치(Contraption)에 의해 이동될 때 true가 됩니다.
+        if (state.hasBlockEntity() && (!state.is(newState.getBlock()) || !newState.hasBlockEntity())) {
+            withBlockEntityDo(level, pos, DrillCoreBlockEntity::onBroken);
+        }
+
+        super.onRemove(state, level, pos, newState, isMoving);
+    }
 }

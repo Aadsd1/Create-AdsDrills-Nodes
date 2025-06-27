@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "mycreateaddon:block/frame_module/block"
+    }
+  }
+}

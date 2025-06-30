@@ -1,0 +1,21 @@
+package com.yourname.mycreateaddon.content.kinetics.drill.head;
+
+
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+
+// 나중에 자원 관리 시스템이 추가되면 IResourceAccessor 같은 파라미터를 추가하게 됩니다.
+public interface IDrillHead {
+
+    /**
+     * DrillCoreBlockEntity에 의해 매 틱 호출되어 실제 채굴 작업을 수행합니다.
+     * @param level 월드
+     * @param headPos 헤드 자신의 위치
+     * @param headState 헤드 자신의 블록 상태
+     * @param core The DrillCoreBlockEntity instance controlling this head.
+     */
+    void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core);
+
+}

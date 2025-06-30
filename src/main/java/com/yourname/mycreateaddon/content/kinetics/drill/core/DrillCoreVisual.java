@@ -1,11 +1,12 @@
 
-package com.yourname.mycreateaddon.content.kinetics.drill;
+package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityVisual;
 import com.simibubi.create.content.kinetics.base.RotatingInstance;
 import com.simibubi.create.foundation.render.AllInstanceTypes;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
@@ -31,11 +32,13 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
         Direction facing = this.blockState.getValue(DirectionalKineticBlock.FACING);
 
         RotatingInstance inputShaft = createInstanceFor(AllPartialModels.SHAFT_HALF);
-        inputShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, facing);
+        // 입력 샤프트는 FACING 방향에 위치합니다.
+        inputShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH,facing);
         coreShafts.put(CoreShaft.INPUT, inputShaft);
 
         RotatingInstance outputShaft = createInstanceFor(MyAddonPartialModels.SHAFT_FOR_DRILL);
-        outputShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, facing.getOpposite());
+        // 출력 샤프트는 FACING의 반대 방향에 위치합니다.
+        outputShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH,facing.getOpposite());
         coreShafts.put(CoreShaft.OUTPUT, outputShaft);
 
         update(partialTick);
@@ -51,11 +54,25 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
 
         Direction facing = this.blockState.getValue(DirectionalKineticBlock.FACING);
         Axis primaryAxis = facing.getAxis();
-        float speed = blockEntity.getSpeed();
 
-        // 인풋/아웃풋 샤프트는 'primaryAxis'로 회전
-        coreShafts.get(CoreShaft.INPUT).setup(blockEntity, primaryAxis, (sourceDirection == facing) ? speed : 0f).setChanged();
-        coreShafts.get(CoreShaft.OUTPUT).setup(blockEntity, primaryAxis, 0f).setChanged();
+        // 입력 샤프트는 순수 입력 속도를 따릅니다.
+        float inputSpeed = blockEntity.getInputSpeed();
+        coreShafts.get(CoreShaft.INPUT).setup(blockEntity, primaryAxis, (sourceDirection == facing) ? inputSpeed : 0f).setChanged();
+
+        // 출력 샤프트의 속도를 결정합니다.
+        Direction outputDir = facing.getOpposite();
+        boolean hasHead = this.level.getBlockState(this.pos.relative(outputDir)).getBlock() instanceof IDrillHead;
+
+        float outputSpeed;
+        if (hasHead) {
+            // 구조가 유효하면 모듈 보너스가 적용된 최종 속도를, 아니면 최소한 입력 속도를 보여줍니다.
+            outputSpeed = blockEntity.isStructureValid() ? blockEntity.getSpeed() : inputSpeed;
+        } else {
+            outputSpeed = 0f;
+        }
+        // 출력 샤프트는 코어와 반대 방향으로 회전해야 합니다.
+        coreShafts.get(CoreShaft.OUTPUT).setup(blockEntity, primaryAxis, -outputSpeed).setChanged();
+
 
         boolean changed = false;
 
@@ -68,23 +85,22 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
 
             if (shouldExist && !doesExist) {
                 RotatingInstance newShaft = createInstanceFor(MyAddonPartialModels.SHAFT_FOR_MODULE);
-                newShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, dir);
+                newShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH,dir);
                 moduleShafts.put(dir, newShaft);
-                changed = true; // 변경 발생
+                changed = true;
             } else if (!shouldExist && doesExist) {
                 moduleShafts.get(dir).delete();
                 moduleShafts.remove(dir);
-                changed = true; // 변경 발생
+                changed = true;
             }
 
-            // 속도 갱신은 shouldExist일 때만 수행
             if (shouldExist) {
-                moduleShafts.get(dir).setup(blockEntity, dir.getAxis(), speed).setChanged();
+                // 모듈 샤프트들은 증폭된 최종 속도를 따라야 합니다.
+                moduleShafts.get(dir).setup(blockEntity, dir.getAxis(), blockEntity.getSpeed()).setChanged();
             }
         }
 
         if (changed) {
-            // 인스턴스 목록이 변경되었으므로, 즉시 라이팅을 다시 계산합니다.
             this.updateLight(pt);
         }
     }

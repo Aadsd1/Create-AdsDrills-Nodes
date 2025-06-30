@@ -1,5 +1,16 @@
 {
   "block.mycreateaddon.drill_core": "ǝɹoƆ ןןıɹᗡ",
   "block.mycreateaddon.frame_module": "ǝןnpoW ǝɯɐɹℲ",
-  "block.mycreateaddon.speed_module": "ǝןnpoW pǝǝdS"
+  "block.mycreateaddon.ore_node": "ǝpoN ǝɹO",
+  "block.mycreateaddon.rotary_drill_head": "pɐǝH ןןıɹᗡ ʎɹɐʇoᴚ",
+  "block.mycreateaddon.speed_module": "ǝןnpoW pǝǝdS",
+  "goggle.mycreateaddon.drill_core.header": "ʎןqɯǝssⱯ ןןıɹᗡ",
+  "goggle.mycreateaddon.drill_core.invalid": "pıןɐʌuI ǝɹnʇɔnɹʇS",
+  "goggle.mycreateaddon.drill_core.reason.head_missing": "˙buıssıɯ pɐǝH ןןıɹᗡ :buıuɹɐM",
+  "goggle.mycreateaddon.drill_core.reason.loop_detected": "˙pǝʇɔǝʇǝp dooן ןɐɹnʇɔnɹʇS :ɹoɹɹƎ",
+  "goggle.mycreateaddon.drill_core.reason.multiple_cores": "˙ʎןqɯǝssɐ ǝuo uı sǝɹoɔ ǝןdıʇןnW :ɹoɹɹƎ",
+  "goggle.mycreateaddon.drill_core.reason.too_many_modules": "˙)%s( pǝpǝǝɔxǝ ʇıɯıן ǝןnpoW :ɹoɹɹƎ",
+  "goggle.mycreateaddon.drill_core.speed_bonus": "snuoᗺ pǝǝdS",
+  "goggle.mycreateaddon.drill_core.stress_impact": "ssǝɹʇS pǝppⱯ",
+  "goggle.mycreateaddon.drill_core.valid": ")sǝןnpoW %s( ןɐuoıʇɐɹǝdO"
 }

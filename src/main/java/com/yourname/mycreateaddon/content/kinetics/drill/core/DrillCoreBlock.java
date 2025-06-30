@@ -1,4 +1,4 @@
-package com.yourname.mycreateaddon.content.kinetics.drill;
+package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
@@ -20,7 +20,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<DrillCoreBlockEntity> {
 
     protected static final VoxelShape SHAPE = Shapes.box(0.0625, 0.0625, 0.0625, 0.9375, 0.9375, 0.9375);
-    // --- 나머지 메서드는 그대로 유지 ---
+
     @Override
     protected VoxelShape getShape(BlockState pState, net.minecraft.world.level.BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
         return SHAPE;
@@ -55,6 +55,8 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         if (!level.isClientSide()) {
             withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
+            // [FIXED] 클라이언트에 즉시 블록 업데이트를 보내 시각적 피드백 지연을 없앱니다.
+            level.sendBlockUpdated(pos, state, state, 3);
         }
     }
 
@@ -64,12 +66,9 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     }
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        // 블록이 완전히 다른 블록으로 교체될 때(파괴될 때)만 로직을 실행합니다.
-        // isMoving 플래그는 Create의 이동 장치(Contraption)에 의해 이동될 때 true가 됩니다.
         if (state.hasBlockEntity() && (!state.is(newState.getBlock()) || !newState.hasBlockEntity())) {
             withBlockEntityDo(level, pos, DrillCoreBlockEntity::onBroken);
         }
-
         super.onRemove(state, level, pos, newState, isMoving);
     }
 }

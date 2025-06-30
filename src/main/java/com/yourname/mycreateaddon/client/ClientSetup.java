@@ -24,6 +24,6 @@ public class ClientSetup {
     public static void onModelRegister(ModelEvent.RegisterAdditional event) {
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_DRILL_LOCATION, "standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_MODULE_LOCATION, "standalone"));
-
+        event.register(new ModelResourceLocation(MyAddonPartialModels.ROTARY_DRILL_HEAD_LOCATION,"standalone"));
     }
 }

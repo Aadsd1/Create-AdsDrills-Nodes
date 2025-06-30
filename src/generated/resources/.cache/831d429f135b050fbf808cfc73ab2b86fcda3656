@@ -1,12 +1,18 @@
-// 1.21.1	2025-06-28T01:53:59.3647674	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-06-29T21:34:25.1288466	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 a5f94c69ff50a90e35a2362389f7a5d776372699 assets/mycreateaddon/blockstates/drill_core.json
 03c9c6026ea888f7eea087c369ed594b3cb12859 assets/mycreateaddon/blockstates/frame_module.json
+384c1440c232a97aa459608cf3ab9b24a9934ef7 assets/mycreateaddon/blockstates/ore_node.json
+52e09da4f33e0772e6c8be7ddc9aea7cc095b82e assets/mycreateaddon/blockstates/rotary_drill_head.json
 292784f9c60bc3c7287ddbed78b38afb5b36a9e3 assets/mycreateaddon/blockstates/speed_module.json
-932a3aae393b79d9990a1826e0e905513b91f49b assets/mycreateaddon/lang/en_ud.json
-e5746ec76eb861ec15ea7ae863f9ba0dbcb8af02 assets/mycreateaddon/lang/en_us.json
+bf4acb09be83e099a24432a68037137b7d227175 assets/mycreateaddon/lang/en_ud.json
+8e164d03bf2931eaa279632224b35598e91a8388 assets/mycreateaddon/lang/en_us.json
 4a6b19fe045fd057ab414bcf11bed4e54f04f4fa assets/mycreateaddon/models/item/drill_core.json
 b60ac514627297a130a411b1d73a5115d7f17140 assets/mycreateaddon/models/item/frame_module.json
+e9b1dd5748afe42adc4568efe8278b0a53d06cf6 assets/mycreateaddon/models/item/ore_node.json
+72ad752972aa03901b3fbaccccd8b520951b70d9 assets/mycreateaddon/models/item/rotary_drill_head.json
 c04da6e59686f2ea2515190dfa4600acff57bcee assets/mycreateaddon/models/item/speed_module.json
 3df0f274e47b1a7b39247a0e18cd56ed56b29255 data/mycreateaddon/loot_table/blocks/drill_core.json
 da3805af61ad7000aa9fa2bcefd5e149e08cbd62 data/mycreateaddon/loot_table/blocks/frame_module.json
+947aaef299551c1cf122618df3973029d99ff3e6 data/mycreateaddon/loot_table/blocks/ore_node.json
+0bec3d5b8135d4adb9239cddedcacea03f7379c3 data/mycreateaddon/loot_table/blocks/rotary_drill_head.json
 c2d45f3da26e8e4674677fac9aa4f7d073a24a0c data/mycreateaddon/loot_table/blocks/speed_module.json

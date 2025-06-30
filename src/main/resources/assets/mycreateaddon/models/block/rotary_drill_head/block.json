@@ -1,0 +1,112 @@
+{
+	"credit": "Model for drill normal head",
+	"textures": {
+		"particle": "block/iron_block",
+		"all": "block/iron_block"
+	},
+	"elements": [
+		{
+			"from": [7, 7, 15],
+			"to": [9, 9, 16],
+			"faces": {
+				"north": {"uv": [0, 0, 2, 2], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 1, 2], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 2, 2], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 1, 2], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 2, 1], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 2, 1], "texture": "#all","cullface": "down"}
+			}
+		},
+		{
+			"from": [6, 6, 14],
+			"to": [10, 10, 15],
+			"faces": {
+				"north": {"uv": [0, 0, 4, 4], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 1, 4], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 4, 4], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 1, 4], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 4, 1], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 4, 1], "texture": "#all","cullface": "down"}
+			}
+		},
+		{
+			"from": [5, 5, 12],
+			"to": [11, 11, 14],
+			"faces": {
+				"north": {"uv": [0, 0, 6, 6], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 2, 6], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 6, 6], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 2, 6], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 6, 2], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 6, 2], "texture": "#all","cullface": "down"}
+			}
+		},
+		{
+			"from": [4, 4, 9],
+			"to": [12, 12, 12],
+			"faces": {
+				"north": {"uv": [0, 0, 8, 8], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 3, 8], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 8, 8], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 3, 8], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 8, 3], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 8, 3], "texture": "#all","cullface": "down"}
+			}
+		},
+		{
+			"from": [3, 3, 4],
+			"to": [13, 13, 9],
+			"faces": {
+				"north": {"uv": [0, 0, 10, 10], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 5, 10], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 10, 10], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 5, 10], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 10, 5], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 10, 5], "texture": "#all","cullface": "down"}
+			}
+		},
+		{
+			"from": [2, 2, 1],
+			"to": [14, 14, 4],
+			"faces": {
+				"north": {"uv": [0, 0, 12, 12], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 3, 12], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 12, 12], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 3, 12], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 12, 3], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 12, 3], "texture": "#all","cullface": "down"}
+			}
+		},
+		{
+			"from": [3, 3, 0],
+			"to": [13, 13, 1],
+			"faces": {
+				"north": {"uv": [0, 0, 10, 10], "texture": "#all", "cullface": "north"},
+				"east": {"uv": [0, 0, 1, 10], "texture": "#all","cullface": "east"},
+				"south": {"uv": [0, 0, 10, 10], "texture": "#all","cullface": "south"},
+				"west": {"uv": [0, 0, 1, 10], "texture": "#all","cullface": "west"},
+				"up": {"uv": [0, 0, 10, 1], "texture": "#all","cullface": "up"},
+				"down": {"uv": [0, 0, 10, 1], "texture": "#all","cullface": "down"}
+			}
+		}
+	],
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [-90, 0, 0]
+		},
+		"firstperson_righthand": {
+			"rotation": [0, -120, 0]
+		},
+		"gui": {
+			"rotation": [0, -90, 0]
+		}
+	},
+	"groups": [
+		{
+			"name": "group",
+			"origin": [8, 8, 8],
+			"color": 0,
+			"children": [0, 1, 2, 3, 4, 5, 6]
+		}
+	]
+}

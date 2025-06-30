@@ -1,5 +1,5 @@
 {
-  "credit": "Model for module shaft (Y-UP, 16x16 texture)",
+  "credit": "Model for module shaft",
   "textures": {
     "side": "mycreateaddon:block/maxis",
     "end": "mycreateaddon:block/maxis_top",
@@ -7,7 +7,7 @@
   },
   "elements": [
     {
-      "name": "Maxis_Y_UP",
+      "name": "Maxis",
       "from": [4, 4, 8],
       "to": [12, 12, 16],
       "faces": {

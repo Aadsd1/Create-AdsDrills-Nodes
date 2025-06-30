@@ -1,4 +1,4 @@
-package com.yourname.mycreateaddon.content.kinetics.drill;
+package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;

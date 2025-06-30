@@ -1,6 +1,6 @@
 package com.yourname.mycreateaddon.content.kinetics.module; // 또는 원하는 경로
 
-import com.yourname.mycreateaddon.content.kinetics.drill.DrillCoreBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;

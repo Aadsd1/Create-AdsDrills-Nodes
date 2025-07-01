@@ -41,5 +41,8 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.speed_bonus", "Speed Bonus");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.stress_impact", "Added Stress");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.head_missing", "Warning: Drill Head missing.");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.header", "Ore Vein");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.yield", "Remaining Yield: %s");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.composition", "Composition:");
     }
 }

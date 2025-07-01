@@ -1,0 +1,15 @@
+{
+  "type": "mycreateaddon:ore_node",
+  "config": {
+    "total_yield": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 1000,
+      "max_inclusive": 3000
+    },
+    "mining_resistance": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 150,
+      "max_inclusive": 250
+    }
+  }
+}

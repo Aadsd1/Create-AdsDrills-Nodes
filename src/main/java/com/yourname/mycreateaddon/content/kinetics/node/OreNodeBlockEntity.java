@@ -1,81 +1,147 @@
 package com.yourname.mycreateaddon.content.kinetics.node;
 
+
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class OreNodeBlockEntity extends SmartBlockEntity {
+// IHaveGoggleInformation 인터페이스를 구현합니다.
+public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
+    private Map<Item, Float> resourceComposition = new HashMap<>();
+    private int totalYield;
     private int miningProgress;
-    private int maxProgress = 200; // 채굴 완료에 필요한 총 틱. (임시 값)
-    private ItemStack resourceToYield = new ItemStack(Items.RAW_IRON); // 채굴 시 나올 자원. (임시 값)
+    private int miningResistance = 200;
 
     public OreNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
 
+    // Goggle을 위한 Behaviour 추가는 이제 필요 없습니다.
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-        // 이 BE는 특별한 행동(Behaviour)이 필요 없습니다.
+        // 다른 Behaviour가 있다면 여기에 추가합니다.
     }
 
-    /**
-     * 드릴 헤드가 호출할 핵심 채굴 로직입니다.
-     * @param amount 진행시킬 틱의 양
-     * @return 채굴이 완료되어 나온 아이템. 완료되지 않았으면 ItemStack.EMPTY.
-     */
+    public void configure(Map<Item, Float> composition, int yield, int resistance) {
+        this.resourceComposition = composition;
+        this.totalYield = yield;
+        this.miningResistance = resistance;
+        setChanged();
+    }
+
     public ItemStack applyMiningTick(int amount) {
-        if (level == null || level.isClientSide) {
+        if (level == null || level.isClientSide || totalYield <= 0 || resourceComposition.isEmpty()) {
             return ItemStack.EMPTY;
         }
 
         this.miningProgress += amount;
-        setChanged(); // 데이터가 변경되었음을 알림
+        if (this.miningProgress >= this.miningResistance) {
+            this.miningProgress = 0;
+            this.totalYield--;
 
-        if (this.miningProgress >= this.maxProgress) {
-            this.miningProgress = 0; // 진행도 초기화
-            ItemStack yielded = this.resourceToYield.copy();
+            double random = level.getRandom().nextDouble();
+            float cumulative = 0f;
+            for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
+                cumulative += entry.getValue();
+                if (random < cumulative) {
+                    ItemStack yieldedStack = new ItemStack(entry.getKey());
+                    ItemEntity itemEntity = new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 1.5, worldPosition.getZ() + 0.5, yieldedStack.copy());
+                    level.addFreshEntity(itemEntity);
 
-            // TODO: 나중에는 이 아이템을 드릴 코어의 내부 버퍼로 직접 보내야 합니다.
-            // 지금은 테스트를 위해 월드에 드롭합니다.
-            ItemEntity itemEntity = new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 1.5, worldPosition.getZ() + 0.5, yielded);
-            level.addFreshEntity(itemEntity);
-
-            sendData(); // 클라이언트에 변경 사항(진행도 초기화 등) 전송
-            return yielded;
+                    setChanged();
+                    sendData();
+                    return yieldedStack;
+                }
+            }
         }
-
         return ItemStack.EMPTY;
     }
 
-    // NBT 데이터 저장
     @Override
     protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(tag, registries, clientPacket);
+        tag.putInt("TotalYield", this.totalYield);
         tag.putInt("MiningProgress", this.miningProgress);
-        tag.putInt("MaxProgress", this.maxProgress);
-        tag.put("ResourceToYield", this.resourceToYield.save(registries));
+        tag.putInt("MiningResistance", this.miningResistance);
+
+        ListTag compositionList = new ListTag();
+        for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putString("Item", BuiltInRegistries.ITEM.getKey(entry.getKey()).toString());
+            entryTag.putFloat("Ratio", entry.getValue());
+            compositionList.add(entryTag);
+        }
+        tag.put("Composition", compositionList);
     }
 
-    // NBT 데이터 로드
     @Override
     protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(tag, registries, clientPacket);
+        this.totalYield = tag.getInt("TotalYield");
         this.miningProgress = tag.getInt("MiningProgress");
-        if (tag.contains("MaxProgress")) {
-            this.maxProgress = tag.getInt("MaxProgress");
+        this.miningResistance = tag.getInt("MiningResistance");
+
+        this.resourceComposition.clear();
+        if (tag.contains("Composition", 9)) {
+            ListTag compositionList = tag.getList("Composition", 10);
+            for (int i = 0; i < compositionList.size(); i++) {
+                CompoundTag entryTag = compositionList.getCompound(i);
+                BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(entryTag.getString("Item")))
+                        .ifPresent(item -> {
+                            float ratio = entryTag.getFloat("Ratio");
+                            this.resourceComposition.put(item, ratio);
+                        });
+            }
         }
-        if (tag.contains("ResourceToYield")) {
-            this.resourceToYield = ItemStack.parse(registries, tag.getCompound("ResourceToYield")).orElse(new ItemStack(Items.RAW_IRON));
+    }
+
+    // IHaveGoggleInformation 인터페이스의 메서드를 오버라이드합니다.
+    @Override
+    public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        Component header = Component.translatable("goggle.mycreateaddon.ore_node.header")
+                .withStyle(ChatFormatting.GOLD);
+        tooltip.add(Component.literal(" ").append(header));
+
+        Component yieldComponent = Component.translatable("goggle.mycreateaddon.ore_node.yield", this.totalYield)
+                .withStyle(ChatFormatting.GRAY);
+        tooltip.add(Component.literal(" ").append(yieldComponent));
+
+        if (!resourceComposition.isEmpty()) {
+            Component compositionHeader = Component.translatable("goggle.mycreateaddon.ore_node.composition")
+                    .withStyle(ChatFormatting.GRAY);
+            tooltip.add(Component.literal(" ").append(compositionHeader));
+
+            List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
+            sortedComposition.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+
+            for (Map.Entry<Item, Float> entry : sortedComposition) {
+                Component compositionLine = Component.literal("  - ")
+                        .append(entry.getKey().getDescription().copy().withStyle(ChatFormatting.AQUA))
+                        .append(Component.literal(String.format(": %.1f%%", entry.getValue() * 100))
+                                .withStyle(ChatFormatting.DARK_AQUA));
+                tooltip.add(compositionLine);
+            }
         }
+
+        return true;
     }
 }

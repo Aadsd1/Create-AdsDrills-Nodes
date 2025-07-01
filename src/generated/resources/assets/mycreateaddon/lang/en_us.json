@@ -12,5 +12,8 @@
   "goggle.mycreateaddon.drill_core.reason.too_many_modules": "Error: Module limit exceeded (%s).",
   "goggle.mycreateaddon.drill_core.speed_bonus": "Speed Bonus",
   "goggle.mycreateaddon.drill_core.stress_impact": "Added Stress",
-  "goggle.mycreateaddon.drill_core.valid": "Operational (%s Modules)"
+  "goggle.mycreateaddon.drill_core.valid": "Operational (%s Modules)",
+  "goggle.mycreateaddon.ore_node.composition": "Composition:",
+  "goggle.mycreateaddon.ore_node.header": "Ore Vein",
+  "goggle.mycreateaddon.ore_node.yield": "Remaining Yield: %s"
 }

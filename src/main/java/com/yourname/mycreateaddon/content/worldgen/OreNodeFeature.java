@@ -10,6 +10,7 @@ import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -22,30 +23,34 @@ import net.minecraft.world.level.biome.BiomeGenerationSettings;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.VerticalAnchor;
+import net.minecraft.world.level.levelgen.WorldGenerationContext;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
+import net.minecraft.world.level.levelgen.placement.HeightRangePlacement;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
+import net.minecraft.world.level.levelgen.placement.PlacementModifier;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
+import net.minecraft.world.level.levelgen.heightproviders.UniformHeight;
+
+import java.lang.reflect.Field;
+import java.util.*;
 
 public class OreNodeFeature extends Feature<OreNodeConfiguration> {
+
+    private static Field heightRange_heightField;
+    private static Field uniformHeight_minInclusiveField;
+    private static Field uniformHeight_maxInclusiveField;
 
     public OreNodeFeature(Codec<OreNodeConfiguration> codec) {
         super(codec);
     }
 
+
     @Override
     public boolean place(FeaturePlaceContext<OreNodeConfiguration> context) {
-
-
         WorldGenLevel level = context.level();
         BlockPos origin = context.origin();
         OreNodeConfiguration config = context.config();
@@ -56,7 +61,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         }
 
         // 월드 생성 정보를 스캔하여 동적으로 광물 조성을 결정합니다.
-        Map<Item, Float> composition = scanAndGenerateComposition(level, origin, randomSource);
+        Map<Item, Float> composition = scanAndGenerateComposition(context, origin, randomSource);
 
         // 만약 스캔 결과 아무것도 찾지 못했다면, 안전장치로 철을 생성합니다.
         if (composition.isEmpty()) {
@@ -76,61 +81,65 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         return false;
     }
 
-    /**
-     * 현재 위치의 바이옴 정보를 스캔하여 원래 생성될 광물을 기반으로 노드 조성을 결정합니다.
-     * @param level 월드 레벨
-     * @param pos 생성 위치
-     * @param randomSource 마인크래프트의 RandomSource
-     * @return <아이템, 비율> 맵
-     */
-    private Map<Item, Float> scanAndGenerateComposition(WorldGenLevel level, BlockPos pos, RandomSource randomSource) {
+    private static final float MAX_BONUS_MULTIPLIER = 3.0f; // 깊이가 완벽하게 일치할 때 가중치에 곱해지는 최대 배수 (기본 가중치 10.0f -> 최대 30.0f)
+    private static final int EFFECTIVE_DISTANCE = 64; // 이 거리(블록)를 벗어나면 깊이 보너스가 거의 적용되지 않습니다.
+
+
+    private Map<Item, Float> scanAndGenerateComposition(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource) {
+        WorldGenLevel level = context.level();
+        int nodeYLevel = pos.getY();
+
         Holder<Biome> biomeHolder = level.getBiome(pos);
         BiomeGenerationSettings generationSettings = biomeHolder.value().getGenerationSettings();
-
-        // 지하 광물 생성 단계에 등록된 모든 PlacedFeature 목록을 가져옵니다.
         HolderSet<PlacedFeature> oreFeatures = generationSettings.features().get(GenerationStep.Decoration.UNDERGROUND_ORES.ordinal());
-
 
         Map<Item, Float> weightedSelection = new HashMap<>();
 
+        // WorldGenerationContext 생성 (1.21.1에서 resolveY 호출에 필요)
+        WorldGenerationContext worldGenContext = new WorldGenerationContext(context.chunkGenerator(), level);
+
         for (Holder<PlacedFeature> placedFeatureHolder : oreFeatures) {
-            // PlacedFeature -> ConfiguredFeature -> Feature -> OreConfiguration 순서로 탐색합니다.
             Optional<PlacedFeature> placedFeatureOpt = placedFeatureHolder.unwrapKey().flatMap(level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE)::getOptional);
             if (placedFeatureOpt.isEmpty()) continue;
 
-            ConfiguredFeature<?, ?> configuredFeature = placedFeatureOpt.get().feature().value();
+            PlacedFeature placedFeature = placedFeatureOpt.get();
+            ConfiguredFeature<?, ?> configuredFeature = placedFeature.feature().value();
 
-            // 바닐라 OreFeature인지 확인합니다.
-            if (configuredFeature.feature() == Feature.ORE) {
-                if (configuredFeature.config() instanceof OreConfiguration oreConfig) {
-                    for (OreConfiguration.TargetBlockState target : oreConfig.targetStates) {
-                        Block oreBlock = target.state.getBlock();
-                        // getOreItem 호출 시 level 객체를 추가로 전달합니다.
-                        Item oreItem = getOreItem(oreBlock, level);
-                        if (oreItem != Items.AIR) {
+            if (configuredFeature.feature() == Feature.ORE && configuredFeature.config() instanceof OreConfiguration oreConfig) {
+                for (OreConfiguration.TargetBlockState target : oreConfig.targetStates) {
+                    Block oreBlock = target.state.getBlock();
+                    Item oreItem = getOreItem(oreBlock, level);
 
-                            weightedSelection.put(oreItem, 10f);
+                    if (oreItem != Items.AIR) {
+                        Holder<Block> blockHolder = oreBlock.builtInRegistryHolder();
+                        TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+                        float baseWeight = blockHolder.is(oresTag) ? 10.0f : 0.5f;
+
+                        // 깊이 보너스 계산
+                        int averageOreY = getAverageOreDepth(placedFeature, worldGenContext);
+                        float depthMultiplier = 1.0f;
+
+                        if (averageOreY != Integer.MIN_VALUE) {
+                            int distance = Math.abs(nodeYLevel - averageOreY);
+                            if (distance < EFFECTIVE_DISTANCE) {
+                                float closeness = 1.0f - ((float) distance / EFFECTIVE_DISTANCE);
+                                depthMultiplier = ((MAX_BONUS_MULTIPLIER - 1.0f) * closeness) + 1.0f;
+                            }
                         }
+
+                        float finalWeight = baseWeight * depthMultiplier;
+                        weightedSelection.put(oreItem, finalWeight);
                     }
                 }
             }
         }
 
-
-        if (weightedSelection.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        // ---- 최종 조합 생성 ----
-        // Collections.shuffle 등 java.util의 클래스와 호환성을 위해 새로운 Random 인스턴스를 생성합니다.
+        // 최종 조합 생성
+        if (weightedSelection.isEmpty()) return Collections.emptyMap();
         Random random = new Random(randomSource.nextLong());
-
-        // 1~3 종류의 광물을 무작위로 선택합니다.
         int oreTypeCount = 1 + random.nextInt(Math.min(3, weightedSelection.size()));
-
         List<Map.Entry<Item, Float>> potentialOres = new ArrayList<>(weightedSelection.entrySet());
-        Collections.shuffle(potentialOres, random); // 매번 다른 조합이 나오도록 리스트를 섞습니다.
-
+        Collections.shuffle(potentialOres, random);
         Map<Item, Float> finalComposition = new HashMap<>();
         float totalWeight = 0;
         for (int i = 0; i < oreTypeCount; i++) {
@@ -138,21 +147,69 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
             finalComposition.put(entry.getKey(), entry.getValue());
             totalWeight += entry.getValue();
         }
-
-        // 최종 선택된 광물들의 비율을 합이 1.0이 되도록 정규화합니다.
         for (Map.Entry<Item, Float> entry : finalComposition.entrySet()) {
             entry.setValue(entry.getValue() / totalWeight);
         }
-
         return finalComposition;
     }
 
+    /**
+     * PlacedFeature의 배치 설정자를 분석하여 평균 생성 높이를 추정합니다.
+     * (정확한 2단계 리플렉션을 사용하는 최종 안정화 버전)
+     *
+     * @param feature 분석할 PlacedFeature
+     * @param context Y 좌표 계산에 필요한 WorldGenerationContext
+     * @return 계산된 평균 Y 좌표. 찾지 못하면 Integer.MIN_VALUE 반환.
+     */
+    private int getAverageOreDepth(PlacedFeature feature, WorldGenerationContext context) {
+        for (PlacementModifier modifier : feature.placement()) {
+            if (modifier instanceof HeightRangePlacement heightRange) {
+                try {
+                    // --- 1단계: HeightRangePlacement에서 'height' 필드 가져오기 ---
+                    if (heightRange_heightField == null) {
+                        heightRange_heightField = HeightRangePlacement.class.getDeclaredField("height");
+                        heightRange_heightField.setAccessible(true);
+                    }
+                    // height 필드에서 HeightProvider 객체를 가져옴
+                    Object heightProvider = heightRange_heightField.get(heightRange);
+
+                    // --- 2단계: 가져온 객체가 UniformHeight일 경우, 내부 필드 접근 ---
+                    if (heightProvider instanceof UniformHeight uniformHeight) {
+                        if (uniformHeight_minInclusiveField == null) {
+                            uniformHeight_minInclusiveField = UniformHeight.class.getDeclaredField("minInclusive");
+                            uniformHeight_minInclusiveField.setAccessible(true);
+                        }
+                        if (uniformHeight_maxInclusiveField == null) {
+                            uniformHeight_maxInclusiveField = UniformHeight.class.getDeclaredField("maxInclusive");
+                            uniformHeight_maxInclusiveField.setAccessible(true);
+                        }
+
+                        // uniformHeight 객체에서 VerticalAnchor 객체들을 가져옴
+                        VerticalAnchor minAnchor = (VerticalAnchor) uniformHeight_minInclusiveField.get(uniformHeight);
+                        VerticalAnchor maxAnchor = (VerticalAnchor) uniformHeight_maxInclusiveField.get(uniformHeight);
+
+                        int minY = minAnchor.resolveY(context);
+                        int maxY = maxAnchor.resolveY(context);
+
+                        return (minY + maxY) / 2;
+                    }
+
+                } catch (NoSuchFieldException | IllegalAccessException e) {
+                    // 이 오류는 이제 발생하지 않아야 하지만, 안전을 위해 남겨둡니다.
+                    e.printStackTrace();
+                    return Integer.MIN_VALUE;
+                }
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
     /**
      * 제련 레시피를 역추적하여 광석 블록에 해당하는 아이템을 자동으로 찾아 반환합니다.
      * @param oreBlock 광석 블록
      * @param level 월드 레벨
      * @return 해당하는 광물 아이템
      */
+
     private Item getOreItem(Block oreBlock, WorldGenLevel level) {
         Item oreBlockItem = oreBlock.asItem();
         if (oreBlockItem == Items.AIR) {
@@ -195,4 +252,5 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         // 제련 레시피를 찾지 못한 경우, 최후의 수단으로 블록 아이템 자신을 반환합니다.
         return oreBlockItem;
     }
+
 }

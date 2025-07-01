@@ -3,22 +3,71 @@ import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.worldgen.OreNodeConfiguration;
 import com.yourname.mycreateaddon.content.worldgen.OreNodeFeature;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.data.worldgen.BootstrapContext;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.world.level.levelgen.VerticalAnchor;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import com.tterrag.registrate.util.entry.RegistryEntry;//
+import net.minecraft.world.level.levelgen.placement.*;
+
+import java.util.List;
+
+
 
 public class MyAddonFeatures {
-    private static final CreateRegistrate REGISTRATE = MyCreateAddon.registrate();
 
 
-
-    public static final RegistryEntry<Feature<?>, OreNodeFeature> ORE_NODE_FEATURE = REGISTRATE
+    private static final RegistryEntry<Feature<?>, OreNodeFeature> ORE_NODE_FEATURE_ENTRY = MyCreateAddon.registrate()
             .generic("ore_node", Registries.FEATURE, () -> new OreNodeFeature(OreNodeConfiguration.CODEC))
             .register();
 
+    public static final ResourceKey<ConfiguredFeature<?, ?>> ORE_NODE_CONFIGURED_FEATURE =
+            ResourceKey.create(Registries.CONFIGURED_FEATURE, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "ore_node"));
 
+    public static final ResourceKey<PlacedFeature> ORE_NODE_PLACED_FEATURE =
+            ResourceKey.create(Registries.PLACED_FEATURE, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "ore_node"));
+
+    public static void bootstrapConfiguredFeatures(BootstrapContext<ConfiguredFeature<?, ?>> context) {
+        // --- [수정] .get()으로 얻은 Feature<?>를 우리가 아는 정확한 타입으로 캐스팅합니다. ---
+        // 이 캐스팅은 OreNodeFeature가 Feature<OreNodeConfiguration>을 상속하므로 100% 안전합니다.
+        Feature<OreNodeConfiguration> feature = (Feature<OreNodeConfiguration>) ORE_NODE_FEATURE_ENTRY.get();
+
+        context.register(ORE_NODE_CONFIGURED_FEATURE,
+                new ConfiguredFeature<>(feature, // 캐스팅된 feature를 사용합니다.
+                        new OreNodeConfiguration(
+                                UniformInt.of(1000, 3000),
+                                UniformInt.of(150, 250)
+                        )
+                )
+        );
+    }
+
+    public static void bootstrapPlacedFeatures(BootstrapContext<PlacedFeature> context) {
+        var configuredFeatureRegistry = context.lookup(Registries.CONFIGURED_FEATURE);
+        Holder<ConfiguredFeature<?, ?>> configuredFeatureHolder = configuredFeatureRegistry.getOrThrow(ORE_NODE_CONFIGURED_FEATURE);
+
+        context.register(ORE_NODE_PLACED_FEATURE,
+                new PlacedFeature(
+                        configuredFeatureHolder,
+                        List.of(
+                                CountPlacement.of(8),
+                                InSquarePlacement.spread(),
+                                HeightRangePlacement.uniform(
+                                        VerticalAnchor.absolute(-64),
+                                        VerticalAnchor.absolute(80)
+                                ),
+                                BiomeFilter.biome()
+                        )
+                )
+        );
+    }
 
     public static void register() {
-        // 클래스가 로드되면서 등록이 실행됩니다.
+        // 클래스 로드용
     }
 }

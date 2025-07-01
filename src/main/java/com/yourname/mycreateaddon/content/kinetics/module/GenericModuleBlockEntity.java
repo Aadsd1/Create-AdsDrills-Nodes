@@ -35,17 +35,35 @@ public class GenericModuleBlockEntity extends KineticBlockEntity {
         return ModuleType.FRAME;
     }
 
-    // 코어가 이 메서드를 호출하여 렌더링 상태를 업데이트합니다.
-    public void updateVisualConnections(Set<Direction> connections, float speed) {
-        if (this.visualConnections.equals(connections) && this.visualSpeed == speed) {
+    public void updateVisualSpeed(float speed) {
+        if (this.visualSpeed == speed) {
             return;
+        }
+        this.visualSpeed = speed;
+        setChanged();
+        sendData();
+    }
+
+    // 코어가 이 메서드를 호출하여 렌더링 상태를 업데이트합니다.
+
+    public void updateVisualConnections(Set<Direction> connections) {
+        if (this.visualConnections.equals(connections)) {
+            return;
+        }
+        this.visualConnections = connections;
+        setChanged();
+        sendData();
+    }
+
+    public void updateVisualState(Set<Direction> connections, float speed) {
+        if (this.visualConnections.equals(connections) && this.visualSpeed == speed) {
+            return; // 변경 사항이 없으면 아무것도 하지 않음
         }
         this.visualConnections = connections;
         this.visualSpeed = speed;
         setChanged();
         sendData();
     }
-
     // Visual이 사용할 getter
     public Set<Direction> getVisualConnections() {
         return visualConnections;

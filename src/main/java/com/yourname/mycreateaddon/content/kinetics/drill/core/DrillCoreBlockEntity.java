@@ -66,7 +66,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
             for (BlockPos modulePos : allToClear) {
                 if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                    moduleBE.updateVisualConnections(new HashSet<>(), 0f);
+                    moduleBE.updateVisualConnections(new HashSet<>());
                 }
             }
         }
@@ -81,110 +81,80 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     private void scanAndValidateStructure() {
         if (level == null || level.isClientSide()) return;
 
-        this.cachedHeadPos = null;
-        this.cachedNodePos = null;
+        Set<BlockPos> oldStructureCache = new HashSet<>(this.structureCache);
 
-        float currentSpeedBonus = 0f;
-        float currentStressImpact = 0f;
+        // --- 1. 상태 초기화 ---
+        this.structureValid = false;
+        this.invalidityReason = InvalidityReason.NONE;
+        this.totalSpeedBonus = 0f;
+        this.totalStressImpact = 0f;
+        this.cachedHeadPos = null; // 매번 초기화
 
-        Set<BlockPos> newStructure = new HashSet<>();
+        Set<BlockPos> newStructureCache = new HashSet<>();
         Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>();
-        boolean wasValid = this.structureValid;
-        float oldSpeed = getSpeed();
+        Direction searchDir = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
 
+        // --- 2. 모듈 구조 탐색 및 검증 ---
         Set<BlockPos> visitedInScan = new HashSet<>();
         List<BlockPos> foundFunctionalModules = new ArrayList<>();
         List<BlockPos> foundOtherCores = new ArrayList<>();
 
-        this.structureValid = false;
+        StructureCheckResult result = searchStructureRecursive(this.worldPosition, searchDir, visitedInScan, foundFunctionalModules, foundOtherCores, moduleConnections, 0);
 
-        Direction outputDir = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
-
-        StructureCheckResult result = searchStructureRecursive(
-                this.worldPosition, outputDir, visitedInScan, foundFunctionalModules, foundOtherCores, moduleConnections, 0);
-
-        if (result.loopDetected) {
+        if (result.loopDetected()) {
             this.invalidityReason = InvalidityReason.LOOP_DETECTED;
-        } else if (result.multipleCoresDetected) {
+        } else if (result.multipleCoresDetected()) {
             this.invalidityReason = InvalidityReason.MULTIPLE_CORES;
-        } else if ((foundFunctionalModules.size() - 1) > MAX_MODULES) { // -1 to exclude core itself
+        } else if (foundFunctionalModules.size() - 1 > MAX_MODULES) {
             this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
         } else {
+            // 모듈 구조에 문제가 없으면, 일단 '구조는 유효'하다고 판단합니다.
             this.structureValid = true;
-            this.invalidityReason = InvalidityReason.NONE;
 
-            newStructure.addAll(foundFunctionalModules);
-            newStructure.remove(this.worldPosition);
+            newStructureCache.addAll(foundFunctionalModules);
+            newStructureCache.remove(this.worldPosition);
 
-            for (BlockPos modulePos : newStructure) {
+            for (BlockPos modulePos : newStructureCache) {
                 if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                     ModuleType type = moduleBE.getModuleType();
-                    currentSpeedBonus += type.getSpeedBonus();
-                    currentStressImpact += type.getStressImpact();
+                    this.totalSpeedBonus += type.getSpeedBonus();
+                    this.totalStressImpact += type.getStressImpact();
                 }
             }
         }
 
-        if (this.structureValid) {
-            BlockPos potentialHeadPos = this.worldPosition.relative(outputDir);
-            BlockState headState = level.getBlockState(potentialHeadPos);
+        // --- 3. 헤드 존재 여부 확인 ---
+        // [핵심 수정] 이 로직을 structureValid와 독립적으로 실행하여 cachedHeadPos를 확실히 설정합니다.
+        BlockPos potentialHeadPos = this.worldPosition.relative(searchDir);
+        BlockState headState = level.getBlockState(potentialHeadPos);
 
-            if (headState.getBlock() instanceof IDrillHead &&
-                    headState.getValue(DirectionalKineticBlock.FACING) == outputDir) {
-                this.cachedHeadPos = potentialHeadPos;
-                this.cachedNodePos = potentialHeadPos.relative(outputDir);
-            } else {
-                this.invalidityReason = InvalidityReason.HEAD_MISSING;
+        if (headState.getBlock() instanceof IDrillHead && headState.getValue(DirectionalKineticBlock.FACING) == searchDir) {
+            this.cachedHeadPos = potentialHeadPos;
+            this.cachedNodePos = potentialHeadPos.relative(searchDir);
+        } else if (this.structureValid) {
+            // 모듈 구조는 괜찮은데 헤드가 없는 경우에만 경고를 설정합니다.
+            this.invalidityReason = InvalidityReason.HEAD_MISSING;
+        }
+
+        // --- 4. 캐시 및 시각 효과 업데이트 ---
+        this.structureCache = newStructureCache;
+        Set<BlockPos> detachedModules = new HashSet<>(oldStructureCache);
+        detachedModules.removeAll(newStructureCache);
+        for (BlockPos detachedPos : detachedModules) {
+            if (level.getBlockEntity(detachedPos) instanceof GenericModuleBlockEntity moduleBE) {
+                moduleBE.updateVisualConnections(new HashSet<>());
+                moduleBE.updateVisualSpeed(0f);
+            }
+        }
+        for (BlockPos modulePos : newStructureCache) {
+            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                Set<Direction> connections = moduleConnections.getOrDefault(modulePos, new HashSet<>());
+                moduleBE.updateVisualConnections(connections);
             }
         }
 
-        this.totalSpeedBonus = this.structureValid ? currentSpeedBonus : 0f;
-        this.totalStressImpact = this.structureValid ? currentStressImpact : 0f;
-
-        if (this.structureValid) {
-            float newSpeed = getSpeed();
-            Direction coreFacing = this.getBlockState().getValue(DirectionalKineticBlock.FACING);
-            Direction coreBack = coreFacing.getOpposite();
-
-            for (BlockPos modulePos : newStructure) {
-                if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                    Set<Direction> connections = new HashSet<>(moduleConnections.getOrDefault(modulePos, new HashSet<>()));
-
-                    if (modulePos.equals(this.worldPosition.relative(coreFacing))) {
-                        connections.remove(coreBack);
-                    }
-                    if (modulePos.equals(this.worldPosition.relative(coreBack))) {
-                        connections.remove(coreFacing);
-                    }
-
-                    moduleBE.updateVisualConnections(connections, newSpeed);
-                }
-            }
-        } else {
-            Set<BlockPos> allModulesToClear = new HashSet<>(this.structureCache);
-            allModulesToClear.addAll(newStructure);
-            allModulesToClear.remove(this.worldPosition);
-
-            for (BlockPos modulePos : allModulesToClear) {
-                if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                    moduleBE.updateVisualConnections(new HashSet<>(), 0f);
-                }
-            }
-        }
-
-        if (!this.structureCache.equals(newStructure) || this.structureValid != wasValid || getSpeed() != oldSpeed) {
-            Set<BlockPos> detachedModules = new HashSet<>(this.structureCache);
-            detachedModules.removeAll(newStructure);
-            for (BlockPos detachedPos : detachedModules) {
-                if (level.getBlockEntity(detachedPos) instanceof GenericModuleBlockEntity moduleBE) {
-                    moduleBE.updateVisualConnections(new HashSet<>(), 0f);
-                }
-            }
-
-            this.structureCache = newStructure;
-            setChanged();
-            sendData();
-        }
+        setChanged();
+        sendData();
     }
 
     private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {}
@@ -245,6 +215,15 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         BlockPos adjacentPos = this.worldPosition.relative(absoluteDirection);
         return this.structureCache.contains(adjacentPos);
     }
+
+    /**
+     * Visual이 출력축 렌더링 여부를 결정하는 데 사용합니다.
+     * @return 헤드가 존재하고 캐시되었으면 true
+     */
+    public boolean hasHead() {
+        return this.cachedHeadPos != null;
+    }
+
     @Override
     public float getSpeed() {
         if (isOverStressed()) return 0;
@@ -314,40 +293,42 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     }
 
 
+
     @Override
     public void tick() {
         super.tick();
-        if (level == null || level.isClientSide) {
-            return;
-        }
+        if (level == null || level.isClientSide) return;
 
         if (needsStructureCheck) {
             scanAndValidateStructure();
             needsStructureCheck = false;
         }
 
-        // 작동 가능 조건: 구조가 유효하고, 헤드가 있으며, 과부하 상태가 아님
-        if (structureValid && invalidityReason != InvalidityReason.HEAD_MISSING && cachedHeadPos != null && !isOverStressed()) {
+        // --- 1. 최종 속도 계산 ---
+        // 모듈 구조가 유효하고 과부하가 아닐 때만 속도가 있습니다.
+        boolean isStructureOk = this.structureValid && !isOverStressed();
+        float finalSpeed = isStructureOk ? getSpeed() : 0;
 
-            BlockEntity be = level.getBlockEntity(cachedHeadPos);
-            // [FIXED] RotaryDrillHeadBlockEntity 타입인지 명확히 확인합니다.
-            if (be instanceof RotaryDrillHeadBlockEntity headBE && headBE.getBlockState().getBlock() instanceof IDrillHead headBlock) {
-
-                // [FIXED] 코어의 속도와 반대 방향으로 회전하도록 속도를 직접 주입(Push)합니다.
-                headBE.updateVisualSpeed(-getSpeed());
-
-                // 헤드의 onDrillTick 호출
-                headBlock.onDrillTick(level, cachedHeadPos, be.getBlockState(), this);
-
-            } else {
-                // 헤드가 파괴되거나 변경된 경우, 즉시 구조 재검사
-                scheduleStructureCheck();
+        // --- 2. 모든 모듈 속도 업데이트 ---
+        for (BlockPos modulePos : this.structureCache) {
+            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                moduleBE.updateVisualSpeed(finalSpeed);
             }
-        } else if (cachedHeadPos != null) {
-            // [NEW] 구조가 유효하지 않더라도, 연결된 헤드가 있다면 속도를 0으로 리셋합니다.
-            BlockEntity be = level.getBlockEntity(cachedHeadPos);
-            if (be instanceof RotaryDrillHeadBlockEntity headBE) {
-                headBE.updateVisualSpeed(0);
+        }
+
+        // --- 3. 헤드 업데이트 (시각 효과와 실제 작동 분리) ---
+        boolean canMine = isStructureOk && hasHead();
+
+        // [핵심 수정] 헤드의 '시각적 회전'은 모듈과 동일한 조건(isStructureOk)을 따릅니다.
+        // 이렇게 하면 헤드가 존재하기만 하면 모듈과 함께 회전합니다.
+        Direction outputDir = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
+        BlockPos potentialHeadPos = this.worldPosition.relative(outputDir);
+        if (level.getBlockEntity(potentialHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+            headBE.updateVisualSpeed(-finalSpeed); // 모듈 구조만 유효하면 회전
+
+            // '채굴'은 더 엄격한 조건(canMine)을 따릅니다.
+            if (canMine && headBE.getBlockState().getBlock() instanceof IDrillHead headBlock) {
+                headBlock.onDrillTick(level, potentialHeadPos, headBE.getBlockState(), this);
             }
         }
     }

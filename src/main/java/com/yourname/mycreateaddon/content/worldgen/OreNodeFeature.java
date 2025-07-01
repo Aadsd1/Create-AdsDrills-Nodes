@@ -82,7 +82,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     }
 
     private static final float MAX_BONUS_MULTIPLIER = 3.0f; // 깊이가 완벽하게 일치할 때 가중치에 곱해지는 최대 배수 (기본 가중치 10.0f -> 최대 30.0f)
-    private static final int EFFECTIVE_DISTANCE = 64; // 이 거리(블록)를 벗어나면 깊이 보너스가 거의 적용되지 않습니다.
+    private static final int EFFECTIVE_DISTANCE = 10; // 이 거리(블록)를 벗어나면 깊이 보너스가 거의 적용되지 않습니다.
 
 
     private Map<Item, Float> scanAndGenerateComposition(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource) {
@@ -95,7 +95,6 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         Map<Item, Float> weightedSelection = new HashMap<>();
 
-        // WorldGenerationContext 생성 (1.21.1에서 resolveY 호출에 필요)
         WorldGenerationContext worldGenContext = new WorldGenerationContext(context.chunkGenerator(), level);
 
         for (Holder<PlacedFeature> placedFeatureHolder : oreFeatures) {

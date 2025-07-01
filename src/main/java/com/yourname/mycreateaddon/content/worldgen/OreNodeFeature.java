@@ -21,7 +21,9 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.VerticalAnchor;
 import net.minecraft.world.level.levelgen.WorldGenerationContext;
@@ -56,14 +58,14 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         OreNodeConfiguration config = context.config();
         RandomSource randomSource = context.random();
 
-        if (!level.getBlockState(origin).isSolidRender(level, origin)) {
+        // [수정] 노드를 배치하기 전의 원래 블록을 배경으로 저장
+        BlockState backgroundState = level.getBlockState(origin);
+        if (!backgroundState.isSolidRender(level, origin)) {
             return false;
         }
+        Block backgroundBlock = backgroundState.getBlock();
 
-        // 월드 생성 정보를 스캔하여 동적으로 광물 조성을 결정합니다.
         Map<Item, Float> composition = scanAndGenerateComposition(context, origin, randomSource);
-
-        // 만약 스캔 결과 아무것도 찾지 못했다면, 안전장치로 철을 생성합니다.
         if (composition.isEmpty()) {
             composition.put(Items.RAW_IRON, 1.0f);
         }
@@ -71,15 +73,49 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         int totalYield = config.totalYield().sample(randomSource);
         int miningResistance = config.miningResistance().sample(randomSource);
 
+        // [수정] 대표 광물 블록 찾기
+        Block representativeOreBlock = findRepresentativeOreBlock(composition, level);
+
         level.setBlock(origin, MyAddonBlocks.ORE_NODE.get().defaultBlockState(), 3);
         BlockEntity be = level.getBlockEntity(origin);
         if (be instanceof OreNodeBlockEntity nodeBE) {
-            nodeBE.configure(composition, totalYield, miningResistance);
+            // [수정] configure 메서드에 블록 정보 전달
+            nodeBE.configure(composition, totalYield, miningResistance, backgroundBlock, representativeOreBlock);
             return true;
         }
 
         return false;
     }
+
+    // --- [추가] 대표 광물 블록을 찾는 헬퍼 메서드 ---
+    private Block findRepresentativeOreBlock(Map<Item, Float> composition, WorldGenLevel level) {
+        // 가장 비율이 높은 광물을 찾습니다.
+        Optional<Map.Entry<Item, Float>> maxEntry = composition.entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue());
+
+        if (maxEntry.isPresent()) {
+            Item representativeItem = maxEntry.get().getKey();
+
+            // 제련 레시피를 역으로 탐색하여 해당 원시 광물에 대한 '광석 블록'을 찾습니다.
+            // 예: raw_iron -> iron_ore block
+            var recipeManager = level.getServer().getRecipeManager();
+            for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
+                SmeltingRecipe recipe = recipeHolder.value();
+                if (recipe.getResultItem(level.registryAccess()).is(representativeItem)) {
+                    ItemStack ingredient = recipe.getIngredients().get(0).getItems()[0];
+                    Block block = Block.byItem(ingredient.getItem());
+                    if (block != Blocks.AIR) {
+                        return block;
+                    }
+                }
+            }
+        }
+
+        // 못찾으면 기본값 반환
+        return Blocks.IRON_ORE;
+    }
+
 
     private static final float MAX_BONUS_MULTIPLIER = 3.0f; // 깊이가 완벽하게 일치할 때 가중치에 곱해지는 최대 배수 (기본 가중치 10.0f -> 최대 30.0f)
     private static final int EFFECTIVE_DISTANCE = 10; // 이 거리(블록)를 벗어나면 깊이 보너스가 거의 적용되지 않습니다.

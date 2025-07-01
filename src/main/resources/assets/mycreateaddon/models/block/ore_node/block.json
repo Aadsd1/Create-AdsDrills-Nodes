@@ -1,23 +1,7 @@
 {
-  "credit": "Model for iron ore node",
+  "loader": "mycreateaddon:ore_node_loader",
   "parent": "minecraft:block/block",
   "textures": {
-    "particle": "minecraft:block/iron_ore",
-    "all": "mycreateaddon:block/iron_node"
-  },
-  "elements": [
-    {
-      "name": "Iron Node",
-      "from": [0, 0, 0],
-      "to": [16, 16, 16],
-      "faces": {
-        "down":  { "uv": [0, 0, 16, 16], "texture": "#all", "cullface": "down" },
-        "up":    { "uv": [0, 0, 16, 16], "texture": "#all", "cullface": "up" },
-        "north": { "uv": [0, 0, 16, 16], "texture": "#all", "cullface": "north" },
-        "south": { "uv": [0, 0, 16, 16], "texture": "#all", "cullface": "south" },
-        "west":  { "uv": [0, 0, 16, 16], "texture": "#all", "cullface": "west" },
-        "east":  { "uv": [0, 0, 16, 16], "texture": "#all", "cullface": "east" }
-      }
-    }
-  ]
+    "particle": "minecraft:block/stone"
+  }
 }

@@ -15,9 +15,14 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelProperty;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +36,12 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private int miningProgress;
     private int miningResistance = 200;
 
+    // --- [추가] 렌더링 정보 필드 ---
+    private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
+    private ResourceLocation oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE); // 대표 광물 블록
+
+    public static final ModelProperty<OreNodeBlockEntity> MODEL_DATA_PROPERTY = new ModelProperty<>();
+
     public OreNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -41,11 +52,33 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         // 다른 Behaviour가 있다면 여기에 추가합니다.
     }
 
-    public void configure(Map<Item, Float> composition, int yield, int resistance) {
+    // --- [추가] IModelData를 제공하는 메서드 오버라이드 ---
+    @Nonnull
+    @Override
+    public ModelData getModelData() {
+        return ModelData.builder().with(MODEL_DATA_PROPERTY, this).build();
+    }
+
+
+    public ResourceLocation getBackgroundBlockId() {
+        return backgroundBlockId;
+    }
+
+
+    public ResourceLocation getOreBlockId() {
+        return oreBlockId;
+    }
+
+
+    // [수정] configure 메서드에 렌더링 정보 추가
+    public void configure(Map<Item, Float> composition, int yield, int resistance, Block backgroundBlock, Block oreBlock) {
         this.resourceComposition = composition;
         this.totalYield = yield;
         this.miningResistance = resistance;
+        this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(backgroundBlock);
+        this.oreBlockId = BuiltInRegistries.BLOCK.getKey(oreBlock);
         setChanged();
+        sendData(); // 클라이언트에 즉시 동기화
     }
 
     public ItemStack applyMiningTick(int amount) {
@@ -83,6 +116,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         tag.putInt("MiningProgress", this.miningProgress);
         tag.putInt("MiningResistance", this.miningResistance);
 
+        tag.putString("BackgroundBlock", backgroundBlockId.toString());
+        tag.putString("OreBlock", oreBlockId.toString());
+
         ListTag compositionList = new ListTag();
         for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
             CompoundTag entryTag = new CompoundTag();
@@ -100,6 +136,13 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         this.miningProgress = tag.getInt("MiningProgress");
         this.miningResistance = tag.getInt("MiningResistance");
 
+
+        this.backgroundBlockId = ResourceLocation.tryParse(tag.getString("BackgroundBlock"));
+        if (this.backgroundBlockId == null) this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
+
+        this.oreBlockId = ResourceLocation.tryParse(tag.getString("OreBlock"));
+        if (this.oreBlockId == null) this.oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
+
         this.resourceComposition.clear();
         if (tag.contains("Composition", 9)) {
             ListTag compositionList = tag.getList("Composition", 10);
@@ -110,6 +153,14 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                             float ratio = entryTag.getFloat("Ratio");
                             this.resourceComposition.put(item, ratio);
                         });
+            }
+        }
+
+
+        if (clientPacket) {
+            requestModelDataUpdate();
+            if (level != null) {
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
             }
         }
     }

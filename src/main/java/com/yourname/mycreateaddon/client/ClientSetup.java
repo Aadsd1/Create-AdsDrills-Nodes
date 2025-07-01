@@ -3,12 +3,14 @@ package com.yourname.mycreateaddon.client;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 
+import com.yourname.mycreateaddon.content.kinetics.node.OreNodeModelLoader; // 새로 만들 파일
 
 @EventBusSubscriber(modid = MyCreateAddon.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientSetup {
@@ -26,4 +28,14 @@ public class ClientSetup {
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_MODULE_LOCATION, "standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.ROTARY_DRILL_HEAD_LOCATION,"standalone"));
     }
+
+
+    @SubscribeEvent
+    public static void onModelRegistry(ModelEvent.RegisterGeometryLoaders event) {
+        event.register(
+                ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "ore_node_loader"),
+                new OreNodeModelLoader()
+        );
+    }
+
 }

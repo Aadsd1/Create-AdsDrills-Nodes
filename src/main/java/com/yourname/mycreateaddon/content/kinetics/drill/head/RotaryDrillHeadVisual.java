@@ -34,8 +34,7 @@ public class RotaryDrillHeadVisual extends KineticBlockEntityVisual<RotaryDrillH
 
     private void updateRotation() {
         rotatingModel.setPosition(getVisualPosition())
-                .setRotationAxis(getRotationAxis())
-                .setRotationalSpeed(getSpeed())
+                .setup(blockEntity,this.blockState.getValue(RotaryDrillHeadBlock.FACING).getAxis(),this.blockEntity.getVisualSpeed())
                 .setChanged();
     }
 
@@ -59,11 +58,4 @@ public class RotaryDrillHeadVisual extends KineticBlockEntityVisual<RotaryDrillH
         consumer.accept(rotatingModel);
     }
 
-    private Direction.Axis getRotationAxis() {
-        return this.blockState.getValue(RotaryDrillHeadBlock.FACING).getAxis();
-    }
-
-    private float getSpeed() {
-        return this.blockEntity.getVisualSpeed();
-    }
 }

@@ -45,7 +45,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     private InvalidityReason invalidityReason = InvalidityReason.NONE;
     private boolean needsStructureCheck = true;
     private static final int MAX_STRUCTURE_RANGE = 16;
-    private static final int MAX_MODULES = 128;
+    private static final int MAX_MODULES = 16;
 
     // --- 모듈 효과 집계 필드 ---
     private float totalSpeedBonus = 0f;
@@ -72,7 +72,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         }
     }
 
-    // ... (scanAndValidateStructure 및 하위 메서드들은 이전과 동일) ...
     public void scheduleStructureCheck() {
         if (level != null && !level.isClientSide) {
             this.needsStructureCheck = true;

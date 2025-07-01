@@ -36,12 +36,6 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
         }
     }
 
-    // [NEW] Create의 편리한 자동 방향 설정 기능을 복원합니다.
-    @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return super.getStateForPlacement(context);
-    }
-
     @Override
     public Direction.Axis getRotationAxis(BlockState state) {
         return state.getValue(FACING).getAxis();

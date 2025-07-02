@@ -83,5 +83,10 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.ore_node.header", "Ore Vein");
         registrate.addRawLang("goggle.mycreateaddon.ore_node.yield", "Remaining Yield: %s");
         registrate.addRawLang("goggle.mycreateaddon.ore_node.composition", "Composition:");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.heat_label", "Heat: ");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.efficiency_label", "Efficiency: ");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.effective_speed_label", "Effective Speed: ");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.overheated", "CRITICAL OVERHEAT!");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.cooling_down", "System shutdown, requires cooling to %s");
     }
 }

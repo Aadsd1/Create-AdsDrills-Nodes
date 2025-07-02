@@ -15,6 +15,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -25,7 +27,6 @@ import java.util.*;
 
 public class DrillCoreBlockEntity extends KineticBlockEntity {
 
-    // ... (Enum과 필드 선언은 이전과 동일) ...
     private enum InvalidityReason {
         NONE,
         LOOP_DETECTED,
@@ -34,10 +35,27 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         HEAD_MISSING // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
     }
 
+    // --- [추가] 과열 시스템 관련 필드 ---
+    private float heat = 0.0f;
+    private boolean isOverheated = false; // 강제 냉각 상태 여부
 
-    private BlockPos cachedHeadPos = null;
+    // --- [추가] 과열 관련 상수 ---
+    public static final float BOOST_START_THRESHOLD = 40.0f; // 부스트 시작 (40%)
+    public static final float OVERLOAD_START_THRESHOLD = 90.0f; // 과부하 시작 (90%)
+    public static final float COOLDOWN_RESET_THRESHOLD = 30.0f; // 재작동 가능 (30%)
+    public static final float MAX_BOOST_MULTIPLIER = 2.0f; // 최대 부스트 배율 (200%)
+    public static final float CORE_BASE_COOLING = 0.1f;   // 코어의 기본 냉각 속도
+
+    // [추가] 고글 정보 업데이트 주기를 위한 필드
+    private static final int GOGGLE_UPDATE_DEBOUNCE = 10; // 10틱 (0.5초) 마다 업데이트
+    private int tickCounter = 0;
+
+    // [추가] 클라이언트와의 시각적 속도 동기화를 위한 필드
+    private float visualSpeed = 0f;
+
 
     // --- 구조 관련 필드 ---
+    private BlockPos cachedHeadPos = null;
     private Set<BlockPos> structureCache = new HashSet<>();
     private boolean structureValid = false;
     private InvalidityReason invalidityReason = InvalidityReason.NONE;
@@ -68,6 +86,38 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
                 }
             }
         }
+    }
+
+    // [추가] 열 효율까지 모두 계산된 최종 속도를 반환하는 getter
+    public float getFinalSpeed() {
+        if (!this.structureValid || isOverStressed()) {
+            return 0;
+        }
+        return getSpeed() * getHeatEfficiency();
+    }
+
+    // [수정] 새로운 효율 계산 메서드
+    public float getHeatEfficiency() {
+        if (isOverheated || heat >= 100.0f) {
+            return 0f;
+        }
+
+        if (heat > OVERLOAD_START_THRESHOLD) {
+            // 90% 열(효율 200%)에서 100% 열(효율 0%)까지 급격히 감소
+            // f(x) = -0.2x + 20
+            return Math.max(0, -20.0f * (this.heat / 100.0f) + 20.0f);
+        } else if (heat > BOOST_START_THRESHOLD) {
+            // 40% 열(효율 100%)에서 90% 열(효율 200%)까지 선형적으로 증가
+            // f(x) = 0.02x + 0.2
+            return 2.0f * (this.heat / 100.0f) + 0.2f;
+        }
+
+        // 0% ~ 40% 구간은 기본 효율
+        return 1.0f;
+    }
+
+    public float getVisualSpeed() {
+        return this.visualSpeed;
     }
 
     public void scheduleStructureCheck() {
@@ -155,7 +205,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         sendData();
     }
 
-    private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {}
+    private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {
+    }
 
     private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction from, Set<BlockPos> visited, List<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
         if (depth > MAX_STRUCTURE_RANGE || !visited.add(currentPos)) {
@@ -210,6 +261,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     private boolean isValidStructureBlock(Block block) {
         return block instanceof DrillCoreBlock || block instanceof GenericModuleBlock;
     }
+
     public boolean isModuleConnectedAt(Direction absoluteDirection) {
         BlockPos adjacentPos = this.worldPosition.relative(absoluteDirection);
         return this.structureCache.contains(adjacentPos);
@@ -217,6 +269,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
     /**
      * Visual이 출력축 렌더링 여부를 결정하는 데 사용합니다.
+     *
      * @return 헤드가 존재하고 캐시되었으면 true
      */
     public boolean hasHead() {
@@ -228,9 +281,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         if (isOverStressed()) return 0;
         return super.getTheoreticalSpeed() * (1.0f + this.totalSpeedBonus);
     }
+
     public float getInputSpeed() {
         return super.getTheoreticalSpeed();
     }
+
     @Override
     public float calculateStressApplied() {
         if (!structureValid || invalidityReason == InvalidityReason.HEAD_MISSING) return 0;
@@ -246,6 +301,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         compound.putFloat("StressImpact", this.totalStressImpact);
         compound.putInt("InvalidityReason", this.invalidityReason.ordinal());
 
+        compound.putFloat("Heat", this.heat);
+        compound.putBoolean("Overheated", this.isOverheated);
         if (clientPacket) {
             ListTag cacheList = new ListTag();
             for (BlockPos pos : structureCache) {
@@ -257,13 +314,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
             }
             compound.put("StructureCache", cacheList);
         }
+        if (clientPacket) {
+            compound.putFloat("VisualSpeed", this.visualSpeed);
+        }
     }
+
     @Override
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
         this.structureValid = compound.getBoolean("StructureValid");
         this.totalSpeedBonus = compound.getFloat("SpeedBonus");
         this.totalStressImpact = compound.getFloat("StressImpact");
+
+        this.heat = compound.getFloat("Heat");
+        this.isOverheated = compound.getBoolean("Overheated");
 
         int reasonOrdinal = compound.getInt("InvalidityReason");
         if (reasonOrdinal >= 0 && reasonOrdinal < InvalidityReason.values().length) {
@@ -273,6 +337,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         }
 
         if (clientPacket) {
+            this.visualSpeed = compound.getFloat("VisualSpeed");
             Set<BlockPos> newCache = new HashSet<>();
             if (compound.contains("StructureCache", 9)) {
                 ListTag cacheList = compound.getList("StructureCache", 10);
@@ -292,42 +357,91 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     }
 
 
-
     @Override
     public void tick() {
         super.tick();
-        if (level == null || level.isClientSide) return;
 
+        assert level != null;
+        if (level.isClientSide()) {
+            return;
+        }
+
+        // --- 이하 서버 전용 로직 ---
         if (needsStructureCheck) {
             scanAndValidateStructure();
             needsStructureCheck = false;
         }
 
-        // --- 1. 최종 속도 계산 ---
-        // 모듈 구조가 유효하고 과부하가 아닐 때만 속도가 있습니다.
-        boolean isStructureOk = this.structureValid && !isOverStressed();
-        float finalSpeed = isStructureOk ? getSpeed() : 0;
+        tickCounter++; // 매 틱 카운터를 증가시킵니다.
+        // [수정] headBlock을 tick 메서드 초기에 한 번만 선언합니다.
+        IDrillHead headBlock = null;
+        if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
+            headBlock = h;
+        }
 
-        // --- 2. 모든 모듈 속도 업데이트 ---
+        // --- 과열 로직 시작 ---
+        // [수정] canMine을 여기서 한 번만 선언하고 사용합니다.
+        boolean canMine = this.structureValid && hasHead() && !isOverheated && !isOverStressed();
+
+        if (canMine && headBlock != null) {
+            this.heat += headBlock.getHeatGeneration();
+        } else {
+            float coolingRate = CORE_BASE_COOLING;
+            if (headBlock != null) {
+                coolingRate += headBlock.getCoolingRate();
+            }
+            this.heat -= coolingRate;
+        }
+
+        this.heat = Mth.clamp(this.heat, 0, 100);
+
+        if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {
+            isOverheated = false;
+        } else if (!isOverheated && this.heat >= 100.0f) {
+            isOverheated = true;
+        }
+        // --- 과열 로직 끝 ---
+
+        // 최종 속도 계산
+
+
+        // [수정] tick 메서드 내부에서도 이 getter를 사용하도록 변경합니다.
+        float finalSpeed = getFinalSpeed();
+
+        // [핵심 수정] 동기화 여부를 결정하는 로직
+        boolean needsSync = false;
+        if (this.visualSpeed != finalSpeed) {
+            this.visualSpeed = finalSpeed;
+            needsSync = true; // 속도가 바뀌면 즉시 동기화
+        }
+
+        // 주기적으로 동기화 신호를 보냅니다.
+        if (tickCounter % GOGGLE_UPDATE_DEBOUNCE == 0) {
+            needsSync = true;
+        }
+
+        if (needsSync) {
+            setChanged();
+            sendData(); // 동기화가 필요할 때만 호출
+        }
+
+        // 모듈 속도 업데이트
         for (BlockPos modulePos : this.structureCache) {
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                 moduleBE.updateVisualSpeed(finalSpeed);
             }
         }
 
-        // --- 3. 헤드 업데이트 (시각 효과와 실제 작동 분리) ---
-        boolean canMine = isStructureOk && hasHead();
+        // 헤드 업데이트 및 채굴 로직 호출
+        if (hasHead()) {
+            // [수정] RotaryDrillHeadBlockEntity로의 캐스팅은 시각적 속도 업데이트에만 필요합니다.
+            if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+                headBE.updateVisualSpeed(-finalSpeed);
+            }
 
-        // [핵심 수정] 헤드의 '시각적 회전'은 모듈과 동일한 조건(isStructureOk)을 따릅니다.
-        // 이렇게 하면 헤드가 존재하기만 하면 모듈과 함께 회전합니다.
-        Direction outputDir = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
-        BlockPos potentialHeadPos = this.worldPosition.relative(outputDir);
-        if (level.getBlockEntity(potentialHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
-            headBE.updateVisualSpeed(-finalSpeed); // 모듈 구조만 유효하면 회전
-
-            // '채굴'은 더 엄격한 조건(canMine)을 따릅니다.
-            if (canMine && headBE.getBlockState().getBlock() instanceof IDrillHead headBlock) {
-                headBlock.onDrillTick(level, potentialHeadPos, headBE.getBlockState(), this);
+            // [수정] 채굴 가능 여부를 다시 확인하고, 미리 선언해 둔 headBlock을 사용합니다.
+            if (canMine && headBlock != null) {
+                headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
             }
         }
     }
@@ -367,7 +481,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
                 tooltip.add(Component.literal(" ")
                         .append(Component.translatable("goggle.mycreateaddon.drill_core.speed_bonus").withStyle(ChatFormatting.GRAY))
                         .append(": ")
-                        .append(Component.literal("+" + (int)(totalSpeedBonus * 100) + "%")
+                        .append(Component.literal("+" + (int) (totalSpeedBonus * 100) + "%")
                                 .withStyle(style -> style.withColor(ChatFormatting.AQUA).withBold(true))));
             }
             if (totalStressImpact > 0) {
@@ -378,6 +492,79 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
                                 .withStyle(style -> style.withColor(ChatFormatting.GOLD).withBold(true))));
             }
         }
+
+        tooltip.add(Component.literal("")); // 구분선
+
+        float currentHeat = this.heat;
+        float currentEfficiency = getHeatEfficiency();
+
+        // 1. 온도 표시 라인
+        MutableComponent heatLine = Component.literal(" ")
+                .append(Component.translatable("goggle.mycreateaddon.drill_core.heat_label")); // "Heat: "
+
+        MutableComponent heatValue = Component.literal(String.format("%.1f%%", currentHeat));
+
+        // 온도에 따라 색상 결정
+        if (currentHeat > OVERLOAD_START_THRESHOLD) {
+            heatValue.withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
+        } else if (currentHeat > BOOST_START_THRESHOLD) {
+            heatValue.withStyle(ChatFormatting.GOLD);
+        } else {
+            heatValue.withStyle(ChatFormatting.GRAY);
+        }
+        tooltip.add(heatLine.append(heatValue));
+
+
+        // 2. 효율 표시 라인
+        MutableComponent efficiencyLine = Component.literal(" ")
+                .append(Component.translatable("goggle.mycreateaddon.drill_core.efficiency_label")); // "Efficiency: "
+
+        MutableComponent efficiencyValue = Component.literal(String.format("%.0f%%", currentEfficiency * 100));
+
+        // 효율에 따라 색상 및 설명 결정
+        if (currentEfficiency > 1.0f) {
+            efficiencyValue.withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
+            efficiencyLine.append(efficiencyValue)
+                    .append(Component.literal(" (Optimal Boost)").withStyle(ChatFormatting.DARK_AQUA));
+        } else if (currentHeat > OVERLOAD_START_THRESHOLD) {
+            efficiencyValue.withStyle(ChatFormatting.DARK_RED);
+            efficiencyLine.append(efficiencyValue)
+                    .append(Component.literal(" (Overloading)").withStyle(ChatFormatting.RED));
+        } else {
+            efficiencyValue.withStyle(ChatFormatting.GRAY);
+            efficiencyLine.append(efficiencyValue);
+        }
+        tooltip.add(efficiencyLine);
+
+        // --- [핵심 추가] 유효 속도(Effective Speed) 표시 라인 ---
+        float finalSpeed = getFinalSpeed(); // 열 효율이 모두 반영된 최종 속도를 가져옵니다.
+
+        MutableComponent speedLine = Component.literal(" ")
+                .append(Component.translatable("goggle.mycreateaddon.drill_core.effective_speed_label")); // "Effective Speed: "
+
+        MutableComponent speedValue = Component.literal(String.format("%.1f RPM", Math.abs(finalSpeed)));
+
+        // 효율(상태)에 따라 속도 값의 색상을 결정합니다.
+        if (currentEfficiency > 1.0f) {
+            speedValue.withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
+        } else if (currentHeat > OVERLOAD_START_THRESHOLD) {
+            speedValue.withStyle(ChatFormatting.DARK_RED);
+        } else {
+            speedValue.withStyle(ChatFormatting.GRAY);
+        }
+        tooltip.add(speedLine.append(speedValue));
+
+        // 3. 임계 과열 상태 특별 표시
+        if (isOverheated) {
+            tooltip.add(Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.overheated")
+                            .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(true).withUnderlined(true))));
+            tooltip.add(Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.cooling_down", String.format("%.0f%%", COOLDOWN_RESET_THRESHOLD))
+                            .withStyle(ChatFormatting.DARK_GRAY)));
+        }
+
         return true;
+
     }
 }

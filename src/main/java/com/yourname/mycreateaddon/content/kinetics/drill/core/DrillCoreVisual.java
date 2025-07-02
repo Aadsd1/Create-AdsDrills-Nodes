@@ -55,19 +55,16 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
         Axis primaryAxis = facing.getAxis();
 
         float inputSpeed = blockEntity.getInputSpeed();
-        // [핵심 변경] 모듈과 헤드의 최종 속도는 BE에서 계산된 값을 그대로 사용합니다.
-        float finalSpeed = blockEntity.isStructureValid() ? blockEntity.getSpeed() : 0f;
+        // [핵심 수정] 클라이언트에서 직접 계산하는 대신, 동기화된 visualSpeed를 사용합니다.
+        float finalSpeed = blockEntity.getVisualSpeed();
 
         // 입력 샤프트 렌더링
         coreShafts.get(CoreShaft.INPUT).setup(blockEntity, primaryAxis, (sourceDirection == facing) ? inputSpeed : 0f).setChanged();
 
-        // [핵심 변경] 출력축의 회전 여부를 명확한 조건으로 제어합니다.
-        // 조건: 모듈 구조가 유효하고(isStructureValid), 헤드가 존재할 때(hasHead)만 회전
-        boolean shouldOutputShaftSpin = blockEntity.isStructureValid() && blockEntity.hasHead();
-        float outputSpeed = shouldOutputShaftSpin ? finalSpeed : 0f;
-        coreShafts.get(CoreShaft.OUTPUT).setup(blockEntity, primaryAxis, -outputSpeed).setChanged();
+        // 출력축 렌더링 (이제 finalSpeed가 0이면 알아서 멈춥니다)
+        coreShafts.get(CoreShaft.OUTPUT).setup(blockEntity, primaryAxis, -finalSpeed).setChanged();
 
-        // 모듈 샤프트 렌더링 (이 부분은 기존과 거의 동일)
+        // 모듈 샤프트 렌더링
         boolean changed = false;
         for (Direction dir : Direction.values()) {
             if (dir.getAxis() == primaryAxis) continue;
@@ -86,7 +83,6 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
             }
 
             if (shouldExist) {
-                // 모듈 샤프트는 모듈 구조만 유효하면 회전합니다.
                 moduleShafts.get(dir).setup(blockEntity, dir.getAxis(), finalSpeed).setChanged();
             }
         }
@@ -95,6 +91,8 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
             this.updateLight(pt);
         }
     }
+
+
     @Override
     public void updateLight(float partialTick) {
         relight(coreShafts.values().toArray(new RotatingInstance[0]));

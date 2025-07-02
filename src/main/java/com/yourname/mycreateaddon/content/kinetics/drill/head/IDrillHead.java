@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
-// 나중에 자원 관리 시스템이 추가되면 IResourceAccessor 같은 파라미터를 추가하게 됩니다.
 public interface IDrillHead {
 
     /**
@@ -18,4 +17,18 @@ public interface IDrillHead {
      */
     void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core);
 
+    // --- [추가] 아래 메서드들을 추가합니다. ---
+
+    /**
+     * 드릴이 작동할 때 틱당 발생하는 열의 양을 반환합니다.
+     * @return 틱당 열 발생량
+     */
+    float getHeatGeneration();
+
+    /**
+     * 헤드 자체의 기본 방열 성능을 반환합니다.
+     * 코어의 기본 냉각률에 더해집니다.
+     * @return 틱당 열 냉각량
+     */
+    float getCoolingRate();
 }

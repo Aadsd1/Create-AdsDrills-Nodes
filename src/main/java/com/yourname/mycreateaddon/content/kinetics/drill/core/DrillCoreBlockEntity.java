@@ -11,15 +11,20 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 
@@ -38,6 +43,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     // --- [추가] 과열 시스템 관련 필드 ---
     private float heat = 0.0f;
     private boolean isOverheated = false; // 강제 냉각 상태 여부
+    // [추가] 이전 틱의 과열 상태를 기억하기 위한 필드
+    private boolean wasOverheated = false;
 
     // --- [추가] 과열 관련 상수 ---
     public static final float BOOST_START_THRESHOLD = 40.0f; // 부스트 시작 (40%)
@@ -67,6 +74,15 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     private float totalSpeedBonus = 0f;
     private float totalStressImpact = 0f;
 
+    // [핵심 추가] heat 필드에 대한 public getter
+    public float getHeat() {
+        return this.heat;
+    }
+
+    // [추가] isOverheated 필드에 대한 public getter (향후 렌더러 등에서 사용 가능)
+    public boolean isOverheated() {
+        return this.isOverheated;
+    }
     public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -356,34 +372,77 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         }
     }
 
-
     @Override
     public void tick() {
         super.tick();
 
-        assert level != null;
-        if(level.isClientSide()){
-            return;
+        // [수정] 클라이언트와 서버 로직을 분리합니다.
+        if (level.isClientSide()) {
+            // --- 클라이언트 전용 시각/청각 효과 ---
+            clientTick();
+        } else {
+            // --- 서버 전용 계산 및 동기화 로직 ---
+            serverTick();
         }
+    }
+    // [수정] 클라이언트 로직을 위한 메서드
+    public void clientTick() {
+        // [추가] level이 null일 경우를 대비한 안전장치
+        if (level == null) return;
 
-        // --- 이하 서버 전용 로직 ---
+        // isOverheated 상태에서는 효과 없음
+        if (isOverheated) return;
+
+        float heatPercent = this.heat / 100f;
+        if (heatPercent <= 0.4f) return;
+
+        // [핵심 수정] level에서 RandomSource 인스턴스를 가져옵니다.
+        RandomSource random = level.random;
+
+        Vec3 center = Vec3.atCenterOf(worldPosition);
+
+        // 과부하 구간 (90% ~ 100%)
+        if (heatPercent > 0.9f) {
+            if (random.nextFloat() < heatPercent * 0.5f) {
+                level.addParticle(ParticleTypes.SMOKE, center.x, center.y, center.z,
+                        (random.nextFloat() - 0.5f) * 0.2f,
+                        (random.nextFloat() - 0.5f) * 0.2f,
+                        (random.nextFloat() - 0.5f) * 0.2f);
+            }
+            if (random.nextInt(20) == 0) {
+                level.playLocalSound(worldPosition, SoundEvents.FURNACE_FIRE_CRACKLE, SoundSource.BLOCKS, 0.5f, 1.0f, false);
+            }
+        }
+        // 최적 부스트 구간 (40% ~ 90%)
+        else {
+            if (random.nextFloat() < heatPercent * 0.2f) {
+                level.addParticle(ParticleTypes.WHITE_SMOKE, center.x, center.y, center.z,
+                        (random.nextFloat() - 0.5f) * 0.1f,
+                        (random.nextFloat() - 0.5f) * 0.1f,
+                        (random.nextFloat() - 0.5f) * 0.1f);
+            }
+            if (random.nextInt(40) == 0) {
+                // [핵심 수정] .get()을 제거하고 사운드 이벤트 필드를 직접 사용합니다.
+                level.playLocalSound(worldPosition, SoundEvents.NOTE_BLOCK_HARP.value(), SoundSource.BLOCKS, 0.3f, 1.5f + heatPercent, false);
+            }
+        }
+    }
+
+    public void serverTick() {
+        // 기존 tick() 메서드에 있던 모든 서버 로직을 여기로 옮깁니다.
         tickCounter++;
-
+        assert level != null;
         if (needsStructureCheck) {
             scanAndValidateStructure();
             needsStructureCheck = false;
         }
-
-        // [핵심 수정] 최종 속도를 tick 로직의 가장 위에서 먼저 계산합니다.
-        // 이 값은 동력, 열, 스트레스 상태를 모두 반영하는 '최종 결과'입니다.
         float finalSpeed = getFinalSpeed();
-
         IDrillHead headBlock = null;
-        if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
-            headBlock = h;
+        if (hasHead()) {
+            if (level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
+                headBlock = h;
+            }// --- 과열 로직 수정 ---
         }
-
-        // --- 과열 로직 수정 ---
         // 이제 finalSpeed가 0보다 클 때만 가열하고, 그렇지 않으면 무조건 냉각합니다.
         if (finalSpeed > 0 && headBlock != null) {
             // 가열: 드릴이 실제로 회전하고 있을 때만 열이 오릅니다.
@@ -399,10 +458,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
         // (열 수치 제한 및 과열 상태 갱신 로직은 이전과 동일)
         this.heat = Mth.clamp(this.heat, 0, 100);
+        wasOverheated = isOverheated; // 현재 상태를 이전 상태로 기록
+
         if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {
             isOverheated = false;
         } else if (!isOverheated && this.heat >= 100.0f) {
             isOverheated = true;
+        }
+
+        // 상태가 '정상 -> 과열'로 방금 바뀌었다면, 효과를 발동시킵니다.
+        if (!wasOverheated && isOverheated) {
+            // 모든 플레이어에게 들리도록 서버에서 사운드 재생
+            level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
+            // 추가로, 클라이언트 측에 큰 연기 효과를 요청할 수도 있습니다 (지금은 사운드만).
         }
 
         // --- 동기화 로직 ---
@@ -427,19 +495,27 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
             }
         }
 
+
         // --- 채굴 로직 호출 ---
-        if (hasHead() && headBlock != null) {
-            if(level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+        if (hasHead()) {
+            if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(-finalSpeed);
+                // [핵심 추가] 주기적으로 헤드의 heat 값도 업데이트해줍니다.
+                if (needsSync) {
+                    headBE.updateClientHeat(this.heat);
+                }
             }
 
             // 채굴은 finalSpeed가 0보다 클 때만 이루어집니다.
             // (onDrillTick 내부에서도 확인하지만, 여기서 한 번 더 확인하는 것이 더 명확합니다.)
             if (finalSpeed > 0) {
+                assert headBlock != null;
                 headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
             }
         }
     }
+
+
 
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {

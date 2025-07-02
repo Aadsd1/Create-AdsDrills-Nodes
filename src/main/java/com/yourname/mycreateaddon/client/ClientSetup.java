@@ -1,6 +1,8 @@
 package com.yourname.mycreateaddon.client;
 
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
@@ -86,6 +88,8 @@ public class ClientSetup {
             // 그 외 모든 경우는 틴팅 안 함
             return -1;
         }, MyAddonBlocks.ORE_NODE.get());
+
+
     }
 
 

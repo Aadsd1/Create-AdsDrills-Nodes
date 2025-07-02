@@ -10,14 +10,31 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import javax.annotation.Nullable;
+
 
 public class RotaryDrillHeadBlockEntity extends KineticBlockEntity {
 
     protected BlockPos cachedCorePos;
     private float visualSpeed = 0f;
 
+    private float clientHeat = 0f;
     public RotaryDrillHeadBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
+    }
+
+    // [신규] 코어가 호출하여 heat 값을 업데이트하는 메서드
+    public void updateClientHeat(float heat) {
+        if (this.clientHeat == heat) return;
+        this.clientHeat = heat;
+        setChanged();
+        sendData(); // 클라이언트로 변경된 heat 값을 동기화합니다.
+    }
+
+
+    // [신규] Visual이 사용할 getter
+    public float getClientHeat() {
+        return this.clientHeat;
     }
 
     public void updateVisualSpeed(float speed) {
@@ -56,7 +73,15 @@ public class RotaryDrillHeadBlockEntity extends KineticBlockEntity {
             setCore(null);
         }
     }
-
+    @Nullable
+    public DrillCoreBlockEntity getCore() {
+        if (level != null && cachedCorePos != null) {
+            if (level.getBlockEntity(cachedCorePos) instanceof DrillCoreBlockEntity core) {
+                return core;
+            }
+        }
+        return null;
+    }
     // ==================================================
     //  동력 네트워크 독립성 확보
     // ==================================================
@@ -81,6 +106,7 @@ public class RotaryDrillHeadBlockEntity extends KineticBlockEntity {
         }
         if (clientPacket) {
             compound.putFloat("VisualSpeed", visualSpeed);
+            compound.putFloat("ClientHeat", clientHeat);
         }
     }
 
@@ -94,6 +120,7 @@ public class RotaryDrillHeadBlockEntity extends KineticBlockEntity {
         }
         if (clientPacket) {
             visualSpeed = compound.getFloat("VisualSpeed");
+            clientHeat = compound.getFloat("ClientHeat");
         }
     }
 }

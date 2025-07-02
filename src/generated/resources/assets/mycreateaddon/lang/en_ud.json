@@ -19,6 +19,19 @@
   "goggle.mycreateaddon.drill_core.stress_impact": "ssǝɹʇS pǝppⱯ",
   "goggle.mycreateaddon.drill_core.valid": ")sǝןnpoW %s( ןɐuoıʇɐɹǝdO",
   "goggle.mycreateaddon.ore_node.composition": ":uoıʇısodɯoƆ",
-  "goggle.mycreateaddon.ore_node.header": "uıǝΛ ǝɹO",
-  "goggle.mycreateaddon.ore_node.yield": "%s :pןǝıʎ buıuıɐɯǝᴚ"
+  "goggle.mycreateaddon.ore_node.hardness": "ssǝupɹɐH",
+  "goggle.mycreateaddon.ore_node.hardness.brittle": "ǝןʇʇıɹᗺ",
+  "goggle.mycreateaddon.ore_node.hardness.normal": "ןɐɯɹoN",
+  "goggle.mycreateaddon.ore_node.hardness.resilient": "ʇuǝıןısǝᴚ",
+  "goggle.mycreateaddon.ore_node.hardness.tough": "ɥbno⟘",
+  "goggle.mycreateaddon.ore_node.header": "ǝpoN ǝɹO",
+  "goggle.mycreateaddon.ore_node.regeneration": "uoıʇɐɹǝuǝbǝᴚ",
+  "goggle.mycreateaddon.ore_node.regeneration.strong": "buoɹʇS",
+  "goggle.mycreateaddon.ore_node.regeneration.weak": "ʞɐǝM",
+  "goggle.mycreateaddon.ore_node.richness": "ssǝuɥɔıᴚ",
+  "goggle.mycreateaddon.ore_node.richness.bountiful": "ןnɟıʇunoᗺ",
+  "goggle.mycreateaddon.ore_node.richness.normal": "ןɐɯɹoN",
+  "goggle.mycreateaddon.ore_node.richness.rich": "ɥɔıᴚ",
+  "goggle.mycreateaddon.ore_node.richness.sparse": "ǝsɹɐdS",
+  "goggle.mycreateaddon.ore_node.yield": "%s :pןǝıʎ"
 }

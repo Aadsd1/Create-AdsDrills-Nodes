@@ -28,20 +28,18 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
     public void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core) {
         if (level.isClientSide) return;
 
-        // [수정] 코어에서 직접 최종 속도를 가져옵니다.
         float finalSpeed = core.getFinalSpeed();
-
-        // 속도가 0 이하면 아무것도 하지 않습니다.
         if (finalSpeed == 0) return;
 
         Direction facing = headState.getValue(FACING);
         BlockPos nodePos = headPos.relative(facing);
 
         if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
-            // [수정] 훨씬 간단하고 명확해진 채굴량 계산
-            int miningAmount = (int) (Math.abs(finalSpeed) / 50f);
+            // 채굴 변환 계수 (밸런스에 맞게 조정)
+            int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
 
             if (miningAmount > 0) {
+                // 이제 노드가 스스로 단단함을 고려하여 채굴 진행도를 조절합니다.
                 nodeBE.applyMiningTick(miningAmount);
             }
         }

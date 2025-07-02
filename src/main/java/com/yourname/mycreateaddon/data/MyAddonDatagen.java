@@ -80,13 +80,28 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.speed_bonus", "Speed Bonus");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.stress_impact", "Added Stress");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.head_missing", "Warning: Drill Head missing.");
-        registrate.addRawLang("goggle.mycreateaddon.ore_node.header", "Ore Vein");
-        registrate.addRawLang("goggle.mycreateaddon.ore_node.yield", "Remaining Yield: %s");
-        registrate.addRawLang("goggle.mycreateaddon.ore_node.composition", "Composition:");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.heat_label", "Heat: ");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.efficiency_label", "Efficiency: ");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.effective_speed_label", "Effective Speed: ");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.overheated", "CRITICAL OVERHEAT!");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.cooling_down", "System shutdown, requires cooling to %s");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.header", "Ore Node");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.composition", "Composition:");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.yield", "Yield: %s");// 단단함 등급
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.hardness", "Hardness");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.richness", "Richness");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.regeneration", "Regeneration");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.hardness.brittle", "Brittle");   // 부서지기 쉬움
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.hardness.normal", "Normal");    // 보통
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.hardness.tough", "Tough");      // 질김
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.hardness.resilient", "Resilient"); // 매우 단단함
+        // 풍부함 등급
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.richness.sparse", "Sparse");     // 희박함
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.richness.normal", "Normal");     // 보통
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.richness.rich", "Rich");         // 풍부함
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.richness.bountiful", "Bountiful"); // 풍요로움
+        // 재생력 등급
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.regeneration.weak", "Weak");       // 약함
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.regeneration.strong", "Strong");   // 강함
     }
 }

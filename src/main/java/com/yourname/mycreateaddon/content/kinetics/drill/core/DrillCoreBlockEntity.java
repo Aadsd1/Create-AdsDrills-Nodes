@@ -362,30 +362,34 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         super.tick();
 
         assert level != null;
-        if (level.isClientSide()) {
+        if(level.isClientSide()){
             return;
         }
 
         // --- 이하 서버 전용 로직 ---
+        tickCounter++;
+
         if (needsStructureCheck) {
             scanAndValidateStructure();
             needsStructureCheck = false;
         }
 
-        tickCounter++; // 매 틱 카운터를 증가시킵니다.
-        // [수정] headBlock을 tick 메서드 초기에 한 번만 선언합니다.
+        // [핵심 수정] 최종 속도를 tick 로직의 가장 위에서 먼저 계산합니다.
+        // 이 값은 동력, 열, 스트레스 상태를 모두 반영하는 '최종 결과'입니다.
+        float finalSpeed = getFinalSpeed();
+
         IDrillHead headBlock = null;
         if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
             headBlock = h;
         }
 
-        // --- 과열 로직 시작 ---
-        // [수정] canMine을 여기서 한 번만 선언하고 사용합니다.
-        boolean canMine = this.structureValid && hasHead() && !isOverheated && !isOverStressed();
-
-        if (canMine && headBlock != null) {
+        // --- 과열 로직 수정 ---
+        // 이제 finalSpeed가 0보다 클 때만 가열하고, 그렇지 않으면 무조건 냉각합니다.
+        if (finalSpeed > 0 && headBlock != null) {
+            // 가열: 드릴이 실제로 회전하고 있을 때만 열이 오릅니다.
             this.heat += headBlock.getHeatGeneration();
         } else {
+            // 냉각: 드릴이 어떤 이유로든(동력 없음, 과열 등) 멈춰있으면 열이 식습니다.
             float coolingRate = CORE_BASE_COOLING;
             if (headBlock != null) {
                 coolingRate += headBlock.getCoolingRate();
@@ -393,54 +397,45 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
             this.heat -= coolingRate;
         }
 
+        // (열 수치 제한 및 과열 상태 갱신 로직은 이전과 동일)
         this.heat = Mth.clamp(this.heat, 0, 100);
-
         if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {
             isOverheated = false;
         } else if (!isOverheated && this.heat >= 100.0f) {
             isOverheated = true;
         }
-        // --- 과열 로직 끝 ---
 
-        // 최종 속도 계산
-
-
-        // [수정] tick 메서드 내부에서도 이 getter를 사용하도록 변경합니다.
-        float finalSpeed = getFinalSpeed();
-
-        // [핵심 수정] 동기화 여부를 결정하는 로직
+        // --- 동기화 로직 ---
+        // [핵심 수정] visualSpeed를 업데이트할 때, 로컬 변수 finalSpeed를 사용합니다.
         boolean needsSync = false;
         if (this.visualSpeed != finalSpeed) {
             this.visualSpeed = finalSpeed;
-            needsSync = true; // 속도가 바뀌면 즉시 동기화
+            needsSync = true;
         }
-
-        // 주기적으로 동기화 신호를 보냅니다.
         if (tickCounter % GOGGLE_UPDATE_DEBOUNCE == 0) {
             needsSync = true;
         }
-
         if (needsSync) {
             setChanged();
-            sendData(); // 동기화가 필요할 때만 호출
+            sendData();
         }
 
-        // 모듈 속도 업데이트
+        // --- 모듈 및 헤드 업데이트 ---
         for (BlockPos modulePos : this.structureCache) {
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                 moduleBE.updateVisualSpeed(finalSpeed);
             }
         }
 
-        // 헤드 업데이트 및 채굴 로직 호출
-        if (hasHead()) {
-            // [수정] RotaryDrillHeadBlockEntity로의 캐스팅은 시각적 속도 업데이트에만 필요합니다.
-            if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+        // --- 채굴 로직 호출 ---
+        if (hasHead() && headBlock != null) {
+            if(level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(-finalSpeed);
             }
 
-            // [수정] 채굴 가능 여부를 다시 확인하고, 미리 선언해 둔 headBlock을 사용합니다.
-            if (canMine && headBlock != null) {
+            // 채굴은 finalSpeed가 0보다 클 때만 이루어집니다.
+            // (onDrillTick 내부에서도 확인하지만, 여기서 한 번 더 확인하는 것이 더 명확합니다.)
+            if (finalSpeed > 0) {
                 headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
             }
         }
@@ -449,6 +444,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
         super.addToGoggleTooltip(tooltip, isPlayerSneaking);
+        tooltip.add(Component.literal(""));
         tooltip.add(Component.translatable("goggle.mycreateaddon.drill_core.header").withStyle(ChatFormatting.GRAY));
         MutableComponent status;
         if (structureValid && invalidityReason != InvalidityReason.HEAD_MISSING) {

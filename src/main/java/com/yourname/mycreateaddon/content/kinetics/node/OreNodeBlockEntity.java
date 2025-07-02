@@ -11,6 +11,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
@@ -32,14 +33,18 @@ import java.util.Map;
 // IHaveGoggleInformation 인터페이스를 구현합니다.
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
+    // --- 데이터 필드 ---
     private Map<Item, Float> resourceComposition = new HashMap<>();
-    private int totalYield;
     private int miningProgress;
-    private int miningResistance = 200;
-
-    // --- [추가] 렌더링 정보 필드 ---
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
-    private ResourceLocation oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE); // 대표 광물 블록
+    private ResourceLocation oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
+
+    // --- 노드 특성 필드 ---
+    private int maxYield;
+    private float currentYield; // float으로 변경하여 재생력의 미세한 증가를 반영
+    private float hardness;
+    private float richness;
+    private float regeneration;
 
     public static final ModelProperty<OreNodeBlockEntity> MODEL_DATA_PROPERTY = new ModelProperty<>();
 
@@ -47,65 +52,59 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         super(type, pos, state);
     }
 
-    // Goggle을 위한 Behaviour 추가는 이제 필요 없습니다.
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-        // 다른 Behaviour가 있다면 여기에 추가합니다.
     }
 
-    // --- [추가] IModelData를 제공하는 메서드 오버라이드 ---
-    @Nonnull
-    @Override
-    public ModelData getModelData() {
-        return ModelData.builder().with(MODEL_DATA_PROPERTY, this).build();
+    // --- 특성 Getter ---
+    public float getHardness() {
+        return Math.max(0.1f, this.hardness); // 0으로 나누는 것을 방지
     }
-
 
     public ResourceLocation getBackgroundBlockId() {
         return backgroundBlockId;
     }
 
+    public ResourceLocation getOreBlockId() {
+        return oreBlockId;
+    }
 
-    // [추가] 대표 광물 아이템 ID를 반환하는 메서드
     public ResourceLocation getRepresentativeOreItemId() {
-        // resourceComposition 맵에서 가장 비율이 높은 아이템을 찾습니다.
         return resourceComposition.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()))
-                .orElse(BuiltInRegistries.ITEM.getKey(Items.RAW_IRON)); // 비어있으면 기본값(철) 반환
+                .orElse(BuiltInRegistries.ITEM.getKey(Items.RAW_IRON));
     }
 
-    // [수정] oreBlockId 필드는 이제 BakedModel에서 직접 사용하지 않으므로,
-    // 이 필드를 대표 광물의 '블록' ID로 유지하거나, getRepresentativeOreItemId로 통일할 수 있습니다.
-    // 여기서는 혼동을 막기 위해 getOreBlockId()의 내부 로직을 수정합니다.
-    public ResourceLocation getOreBlockId() {
-        // 기존 oreBlockId 필드를 그대로 사용해도 되지만,
-        // 색상과 모델을 일치시키기 위해 대표 광물의 블록을 찾는 로직을 사용할 수 있습니다.
-        // 지금은 단순함을 위해 기존 필드를 유지합니다.
-        return this.oreBlockId;
-    }
-
-
-    // [수정] configure 메서드에 렌더링 정보 추가
-    public void configure(Map<Item, Float> composition, int yield, int resistance, Block backgroundBlock, Block oreBlock) {
+    // --- 초기화 메서드 ---
+    public void configure(Map<Item, Float> composition, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock) {
         this.resourceComposition = composition;
-        this.totalYield = yield;
-        this.miningResistance = resistance;
+        this.maxYield = maxYield;
+        this.currentYield = maxYield;
+        this.hardness = hardness;
+        this.richness = richness;
+        this.regeneration = regeneration;
         this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(backgroundBlock);
-        this.oreBlockId = BuiltInRegistries.BLOCK.getKey(oreBlock);
+        this.oreBlockId = BuiltInRegistries.BLOCK.getKey(representativeOreBlock);
         setChanged();
-        sendData(); // 클라이언트에 즉시 동기화
+        sendData();
     }
 
-    public void applyMiningTick(int amount) {
-        if (level == null || level.isClientSide || totalYield <= 0 || resourceComposition.isEmpty()) {
+    // --- 핵심 로직 ---
+    public void applyMiningTick(int miningAmount) {
+        if (level == null || level.isClientSide || currentYield <= 0 || resourceComposition.isEmpty()) {
             return;
         }
 
-        this.miningProgress += amount;
-        if (this.miningProgress >= this.miningResistance) {
-            this.miningProgress = 0;
-            this.totalYield--;
+        // 단단함 특성을 반영하여 실제 채굴 진행도를 계산
+        float effectiveMiningAmount = miningAmount / getHardness();
+        this.miningProgress += effectiveMiningAmount;
+
+        int miningResistance = 1000; // 채굴 한 번에 필요한 총량
+
+        if (this.miningProgress >= miningResistance) {
+            this.miningProgress -= miningResistance;
+            this.currentYield--;
 
             double random = level.getRandom().nextDouble();
             float cumulative = 0f;
@@ -113,6 +112,12 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 cumulative += entry.getValue();
                 if (random < cumulative) {
                     ItemStack yieldedStack = new ItemStack(entry.getKey());
+
+                    // 풍부함 특성을 반영하여 보너스 드랍 결정
+                    if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                        yieldedStack.setCount(2);
+                    }
+
                     ItemEntity itemEntity = new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 1.5, worldPosition.getZ() + 0.5, yieldedStack.copy());
                     level.addFreshEntity(itemEntity);
 
@@ -125,14 +130,29 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
     @Override
+    public void tick() {
+        super.tick();
+        // 재생력 특성 처리 (서버에서만)
+        if (level != null && !level.isClientSide && this.regeneration > 0) {
+            if (this.currentYield < this.maxYield) {
+                this.currentYield = Math.min(this.maxYield, this.currentYield + this.regeneration);
+            }
+        }
+    }
+
+    // --- NBT 및 동기화 ---
+    @Override
     protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(tag, registries, clientPacket);
-        tag.putInt("TotalYield", this.totalYield);
         tag.putInt("MiningProgress", this.miningProgress);
-        tag.putInt("MiningResistance", this.miningResistance);
-
         tag.putString("BackgroundBlock", backgroundBlockId.toString());
         tag.putString("OreBlock", oreBlockId.toString());
+
+        tag.putInt("MaxYield", this.maxYield);
+        tag.putFloat("CurrentYield", this.currentYield);
+        tag.putFloat("Hardness", this.hardness);
+        tag.putFloat("Richness", this.richness);
+        tag.putFloat("Regeneration", this.regeneration);
 
         ListTag compositionList = new ListTag();
         for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
@@ -147,16 +167,17 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Override
     protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(tag, registries, clientPacket);
-        this.totalYield = tag.getInt("TotalYield");
         this.miningProgress = tag.getInt("MiningProgress");
-        this.miningResistance = tag.getInt("MiningResistance");
-
-
         this.backgroundBlockId = ResourceLocation.tryParse(tag.getString("BackgroundBlock"));
         if (this.backgroundBlockId == null) this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
-
         this.oreBlockId = ResourceLocation.tryParse(tag.getString("OreBlock"));
         if (this.oreBlockId == null) this.oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
+
+        this.maxYield = tag.getInt("MaxYield");
+        this.currentYield = tag.getFloat("CurrentYield");
+        this.hardness = tag.getFloat("Hardness");
+        this.richness = tag.getFloat("Richness");
+        this.regeneration = tag.getFloat("Regeneration");
 
         this.resourceComposition.clear();
         if (tag.contains("Composition", 9)) {
@@ -171,7 +192,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             }
         }
 
-
         if (clientPacket) {
             requestModelDataUpdate();
             if (level != null) {
@@ -180,20 +200,14 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
     }
 
-    // IHaveGoggleInformation 인터페이스의 메서드를 오버라이드합니다.
+    // --- Goggle 툴팁 ---
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
-        Component header = Component.translatable("goggle.mycreateaddon.ore_node.header")
-                .withStyle(ChatFormatting.GOLD);
-        tooltip.add(Component.literal(" ").append(header));
-
-        Component yieldComponent = Component.translatable("goggle.mycreateaddon.ore_node.yield", this.totalYield)
-                .withStyle(ChatFormatting.GRAY);
-        tooltip.add(Component.literal(" ").append(yieldComponent));
+        Component header = Component.translatable("goggle.mycreateaddon.ore_node.header").withStyle(ChatFormatting.GOLD);
+        tooltip.add(Component.literal("    ").append(header));
 
         if (!resourceComposition.isEmpty()) {
-            Component compositionHeader = Component.translatable("goggle.mycreateaddon.ore_node.composition")
-                    .withStyle(ChatFormatting.GRAY);
+            Component compositionHeader = Component.translatable("goggle.mycreateaddon.ore_node.composition").withStyle(ChatFormatting.GRAY);
             tooltip.add(Component.literal(" ").append(compositionHeader));
 
             List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
@@ -202,12 +216,80 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             for (Map.Entry<Item, Float> entry : sortedComposition) {
                 Component compositionLine = Component.literal("  - ")
                         .append(entry.getKey().getDescription().copy().withStyle(ChatFormatting.AQUA))
-                        .append(Component.literal(String.format(": %.1f%%", entry.getValue() * 100))
-                                .withStyle(ChatFormatting.DARK_AQUA));
+                        .append(Component.literal(String.format(": %.1f%%", entry.getValue() * 100)).withStyle(ChatFormatting.DARK_AQUA));
                 tooltip.add(compositionLine);
             }
         }
 
+        tooltip.add(Component.literal("")); // 구분선
+
+        // 매장량
+        tooltip.add(Component.literal(" ")
+                .append(Component.translatable("goggle.mycreateaddon.ore_node.yield", String.format("%d / %d", (int)this.currentYield, this.maxYield))
+                        .withStyle(ChatFormatting.GRAY)));
+
+        // 특성
+        tooltip.add(Component.literal("")); // 구분선
+
+        // --- [핵심 수정] 단단함(Hardness) 표시 ---
+        MutableComponent hardnessLine = Component.literal(" ")
+                .append(Component.translatable("goggle.mycreateaddon.ore_node.hardness").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(": "));
+
+        if (this.hardness < 0.75f) {
+            hardnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.hardness.brittle").withStyle(ChatFormatting.GREEN));
+        } else if (this.hardness < 1.25f) {
+            hardnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.hardness.normal").withStyle(ChatFormatting.GRAY));
+        } else if (this.hardness < 1.75f) {
+            hardnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.hardness.tough").withStyle(ChatFormatting.GOLD));
+        } else {
+            hardnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.hardness.resilient").withStyle(ChatFormatting.RED));
+        }
+        tooltip.add(hardnessLine);
+
+        // --- [핵심 수정] 풍부함(Richness) 표시 ---
+        MutableComponent richnessLine = Component.literal(" ")
+                .append(Component.translatable("goggle.mycreateaddon.ore_node.richness").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(": "));
+
+        if (this.richness < 1.0f) {
+            richnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.richness.sparse").withStyle(ChatFormatting.DARK_GRAY));
+        } else if (this.richness < 1.2f) {
+            richnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.richness.normal").withStyle(ChatFormatting.GRAY));
+        } else if (this.richness < 1.4f) {
+            richnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.richness.rich").withStyle(ChatFormatting.AQUA));
+        } else {
+            richnessLine.append(Component.translatable("goggle.mycreateaddon.ore_node.richness.bountiful").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
+        }
+        tooltip.add(richnessLine);
+
+        // 재생력 (기존과 동일, 또는 단어로 변경 가능)
+        if (this.regeneration > 0) {
+            MutableComponent regenLine = Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.ore_node.regeneration").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(": "));
+
+            if (this.regeneration * 20 > 0.015f) {
+                regenLine.append(Component.translatable("goggle.mycreateaddon.ore_node.regeneration.strong").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
+            } else {
+                regenLine.append(Component.translatable("goggle.mycreateaddon.ore_node.regeneration.weak").withStyle(ChatFormatting.DARK_PURPLE));
+            }
+            tooltip.add(regenLine);
+        }
+
+        // 플레이어가 Sneaking(웅크리기) 상태일 때만 상세 수치를 보여줍니다.
+        if (isPlayerSneaking) {
+            tooltip.add(Component.literal("  ")
+                    .append(Component.literal(String.format("(H:%.2f, R:%.2f, G:%.5f/s)", this.hardness, this.richness, this.regeneration * 20))
+                            .withStyle(ChatFormatting.DARK_GRAY)));
+        }
+
         return true;
+    }
+
+    @Nonnull
+    @Override
+    public ModelData getModelData() {
+        return ModelData.builder().with(MODEL_DATA_PROPERTY, this).build();
     }
 }

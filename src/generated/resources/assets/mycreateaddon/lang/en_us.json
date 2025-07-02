@@ -19,6 +19,19 @@
   "goggle.mycreateaddon.drill_core.stress_impact": "Added Stress",
   "goggle.mycreateaddon.drill_core.valid": "Operational (%s Modules)",
   "goggle.mycreateaddon.ore_node.composition": "Composition:",
-  "goggle.mycreateaddon.ore_node.header": "Ore Vein",
-  "goggle.mycreateaddon.ore_node.yield": "Remaining Yield: %s"
+  "goggle.mycreateaddon.ore_node.hardness": "Hardness",
+  "goggle.mycreateaddon.ore_node.hardness.brittle": "Brittle",
+  "goggle.mycreateaddon.ore_node.hardness.normal": "Normal",
+  "goggle.mycreateaddon.ore_node.hardness.resilient": "Resilient",
+  "goggle.mycreateaddon.ore_node.hardness.tough": "Tough",
+  "goggle.mycreateaddon.ore_node.header": "Ore Node",
+  "goggle.mycreateaddon.ore_node.regeneration": "Regeneration",
+  "goggle.mycreateaddon.ore_node.regeneration.strong": "Strong",
+  "goggle.mycreateaddon.ore_node.regeneration.weak": "Weak",
+  "goggle.mycreateaddon.ore_node.richness": "Richness",
+  "goggle.mycreateaddon.ore_node.richness.bountiful": "Bountiful",
+  "goggle.mycreateaddon.ore_node.richness.normal": "Normal",
+  "goggle.mycreateaddon.ore_node.richness.rich": "Rich",
+  "goggle.mycreateaddon.ore_node.richness.sparse": "Sparse",
+  "goggle.mycreateaddon.ore_node.yield": "Yield: %s"
 }

@@ -99,11 +99,11 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
             // 제련 레시피를 역으로 탐색하여 해당 원시 광물에 대한 '광석 블록'을 찾습니다.
             // 예: raw_iron -> iron_ore block
-            var recipeManager = level.getServer().getRecipeManager();
+            var recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
             for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
                 SmeltingRecipe recipe = recipeHolder.value();
                 if (recipe.getResultItem(level.registryAccess()).is(representativeItem)) {
-                    ItemStack ingredient = recipe.getIngredients().get(0).getItems()[0];
+                    ItemStack ingredient = recipe.getIngredients().getFirst().getItems()[0];
                     Block block = Block.byItem(ingredient.getItem());
                     if (block != Blocks.AIR) {
                         return block;
@@ -133,6 +133,8 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         WorldGenerationContext worldGenContext = new WorldGenerationContext(context.chunkGenerator(), level);
 
+        var registryAccess = context.level().registryAccess();
+        var blockRegistry = registryAccess.registryOrThrow(Registries.BLOCK);
         for (Holder<PlacedFeature> placedFeatureHolder : oreFeatures) {
             Optional<PlacedFeature> placedFeatureOpt = placedFeatureHolder.unwrapKey().flatMap(level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE)::getOptional);
             if (placedFeatureOpt.isEmpty()) continue;
@@ -146,10 +148,9 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     Item oreItem = getOreItem(oreBlock, level);
 
                     if (oreItem != Items.AIR) {
-                        Holder<Block> blockHolder = oreBlock.builtInRegistryHolder();
-                        TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
-                        float baseWeight = blockHolder.is(oresTag) ? 10.0f : 0.5f;
 
+                        TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+                        float baseWeight = blockRegistry.wrapAsHolder(oreBlock).is(oresTag) ? 10.0f : 0.5f;
                         // 깊이 보너스 계산
                         int averageOreY = getAverageOreDepth(placedFeature, worldGenContext);
                         float depthMultiplier = 1.0f;
@@ -231,7 +232,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
                 } catch (NoSuchFieldException | IllegalAccessException e) {
                     // 이 오류는 이제 발생하지 않아야 하지만, 안전을 위해 남겨둡니다.
-                    e.printStackTrace();
+//                    e.printStackTrace();
                     return Integer.MIN_VALUE;
                 }
             }
@@ -253,14 +254,14 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         // 서버의 레시피 매니저에 접근합니다.
         // 레시피 데이터는 월드 생성 중에도 안전하게 읽을 수 있습니다.
-        var recipeManager = level.getServer().getRecipeManager();
+        var recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
 
         // 모든 제련 레시피(SmeltingRecipe)를 순회합니다.
         for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
             SmeltingRecipe recipe = recipeHolder.value();
 
             // 레시피의 '재료'가 현재 '광석 블록 아이템'과 일치하는지 확인합니다.
-            if (recipe.getIngredients().get(0).test(new ItemStack(oreBlockItem))) {
+            if (recipe.getIngredients().getFirst().test(new ItemStack(oreBlockItem))) {
                 // 레시피의 '결과물' (예: 철 주괴)을 가져옵니다.
                 ItemStack resultStack = recipe.getResultItem(level.registryAccess());
                 Item resultItem = resultStack.getItem();

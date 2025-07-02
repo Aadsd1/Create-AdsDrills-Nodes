@@ -64,7 +64,7 @@ public class RotaryDrillHeadBlockEntity extends KineticBlockEntity {
     // [FIXED] 클라이언트에서 속도가 0으로 덮어씌워지는 것을 막기 위해,
     // 코어로부터 전달받은 visualSpeed를 자신의 이론상 속도로 사용합니다.
     @Override public float getTheoreticalSpeed() { return visualSpeed; }
-    @Override public float getGeneratedSpeed() { return 0; }
+
     @Override public float calculateStressApplied() { return 0; }
     @Override public float calculateAddedStressCapacity() { return 0; }
     @Override public void attachKinetics() { /* 이 블록은 자체적으로 네트워크에 참여하지 않습니다. */ }

@@ -12,6 +12,7 @@ import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.level.storage.loot.LootParams;
 
 import net.minecraft.world.level.block.state.StateDefinition;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.List;
@@ -39,7 +40,7 @@ public class OreNodeBlock extends Block implements IBE<OreNodeBlockEntity> {
 
     // 이 블록은 어떤 아이템도 드롭하지 않습니다.
     @Override
-    protected List<net.minecraft.world.item.ItemStack> getDrops(BlockState pState, LootParams.Builder pParams) {
+    protected @NotNull List<net.minecraft.world.item.ItemStack> getDrops(@NotNull BlockState pState, LootParams.@NotNull Builder pParams) {
         return Collections.emptyList();
     }
 
@@ -51,7 +52,7 @@ public class OreNodeBlock extends Block implements IBE<OreNodeBlockEntity> {
 
     // 경로 탐색에서 이 블록을 통과할 수 없도록 설정합니다.
     @Override
-    protected boolean isPathfindable(BlockState pState, PathComputationType pPathComputationType) {
+    protected boolean isPathfindable(@NotNull BlockState pState, @NotNull PathComputationType pPathComputationType) {
         return false;
     }
 }

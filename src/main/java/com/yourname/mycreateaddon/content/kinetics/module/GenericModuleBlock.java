@@ -12,6 +12,7 @@ import java.util.Set;
 import com.simibubi.create.foundation.block.IBE; // IBE 임포트
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity; // BE 레지스트리 임포트
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import org.jetbrains.annotations.NotNull;
 
 
 public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockEntity> {
@@ -28,7 +29,7 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
     }
 
     @Override
-    protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+    protected void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         if (level.isClientSide()) {
             return;

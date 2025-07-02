@@ -4,6 +4,7 @@ import com.simibubi.create.foundation.data.AssetLookup;
 import com.simibubi.create.foundation.data.BlockStateGen;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
+import com.tterrag.registrate.providers.loot.RegistrateBlockLootTables;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
@@ -12,7 +13,8 @@ import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockModel;
-import static com.simibubi.create.foundation.data.ModelGen.customItemModel;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+
 
 
 public class MyAddonBlocks {
@@ -22,8 +24,8 @@ public class MyAddonBlocks {
     public static final BlockEntry<DrillCoreBlock> DRILL_CORE = REGISTRATE
             .block("drill_core", DrillCoreBlock::new)
             .initialProperties(SharedProperties::stone)
-            .properties(p -> p.noOcclusion())
-            .loot((tables, block) -> tables.dropSelf(block))
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((c, p) -> p.directionalBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item()
             .model((context, provider) ->
@@ -35,8 +37,8 @@ public class MyAddonBlocks {
     public static final BlockEntry<GenericModuleBlock> FRAME_MODULE = REGISTRATE
             .block("frame_module", p -> new GenericModuleBlock(p, ModuleType.FRAME))
             .initialProperties(SharedProperties::stone)
-            .properties(p -> p.noOcclusion())
-            .loot((tables, block) -> tables.dropSelf(block))
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item()
             .model((context, provider) ->
@@ -48,8 +50,8 @@ public class MyAddonBlocks {
     public static final BlockEntry<GenericModuleBlock> SPEED_MODULE = REGISTRATE
             .block("speed_module", p -> new GenericModuleBlock(p, ModuleType.SPEED))
             .initialProperties(SharedProperties::stone)
-            .properties(p -> p.noOcclusion())
-            .loot((tables, block) -> tables.dropSelf(block))
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item()
             .model((context, provider) ->
@@ -80,7 +82,7 @@ public class MyAddonBlocks {
     public static final BlockEntry<RotaryDrillHeadBlock> ROTARY_DRILL_HEAD = REGISTRATE
             .block("rotary_drill_head", RotaryDrillHeadBlock::new)
             .initialProperties(SharedProperties::stone)
-            .properties(p -> p.noOcclusion())
+            .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))
             .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
             .item()

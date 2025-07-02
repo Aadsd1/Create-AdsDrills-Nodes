@@ -4,15 +4,10 @@ import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -22,6 +17,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeModelLoader; // 새로 만들 파일
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 
+import java.awt.*;
 import java.util.Map;
 
 @EventBusSubscriber(modid = MyCreateAddon.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -64,40 +60,31 @@ public class ClientSetup {
     }
 
 
-    // [추가] 블록 색상 핸들러 등록
+
     @SubscribeEvent
     public static void onRegisterBlockColors(RegisterColorHandlersEvent.Block event) {
-        // [핵심 수정] BlockColors 인스턴스를 람다 밖에서 미리 가져오지 않습니다.
-
         event.register((state, getter, pos, tintIndex) -> {
-            if (getter == null || pos == null) {
-                return -1; // 문제가 있으면 틴팅 안 함
-            }
+            if (getter != null && pos != null && getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be) {
+                // 대표 광물의 기본 색상을 가져옵니다.
+                ResourceLocation oreId = be.getRepresentativeOreItemId();
+                int baseColor = ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);
 
-            if (tintIndex == 1) {
-                // 코어 모델 처리 (이전과 동일)
-                if (getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be) {
-                    ResourceLocation oreId = be.getRepresentativeOreItemId();
-                    return ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);
+                if (tintIndex == 1) {
+                    // tintIndex가 1이면 기본색을 그대로 반환
+                    return baseColor;
                 }
-                return DEFAULT_COLOR;
-            } else {
-                // 배경 블록 처리
-                if (getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be) {
-                    // [핵심 수정] BlockColors 인스턴스를 람다 안에서, 필요할 때 직접 가져옵니다.
-                    BlockColors blockColors = Minecraft.getInstance().getBlockColors();
-
-                    ResourceLocation backgroundId = be.getBackgroundBlockId();
-                    Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
-
-                    if (backgroundBlock != Blocks.AIR) {
-                        BlockState backgroundState = backgroundBlock.defaultBlockState();
-                        // 이제 blockColors는 절대 null이 아니므로 안전하게 호출할 수 있습니다.
-                        return blockColors.getColor(backgroundState, getter, pos, tintIndex);
-                    }
+                if (tintIndex == 2) {
+                    // tintIndex가 2이면 기본색을 더 밝게 만들어 반환
+                    Color c = new Color(baseColor);
+                    // HSB(색상, 채도, 밝기) 모델에서 밝기(Brightness)를 약간 올립니다.
+                    float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
+                    // 밝기를 0.0(검정) ~ 1.0(흰색) 사이에서 조절
+                    hsb[2] = Math.min(1.0f, hsb[2] + 0.2f); // 20% 더 밝게
+                    return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
                 }
-                return -1; // 틴팅 안 함
             }
+            // 그 외 모든 경우는 틴팅 안 함
+            return -1;
         }, MyAddonBlocks.ORE_NODE.get());
     }
 

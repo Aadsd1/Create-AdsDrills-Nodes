@@ -7,7 +7,6 @@ import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityVisual;
 import dev.engine_room.flywheel.lib.model.Models;
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.core.Direction;
 
 import java.util.*;
@@ -45,7 +44,7 @@ public class GenericModuleVisual extends KineticBlockEntityVisual<GenericModuleB
         // 필요하지만 아직 없는 샤프트 생성
         for (Direction dir : requiredShafts) {
             if (!moduleShafts.containsKey(dir)) {
-                RotatingInstance newShaft = createInstanceFor(MyAddonPartialModels.SHAFT_FOR_MODULE);
+                RotatingInstance newShaft = createInstanceFor();
                 newShaft.setPosition(getVisualPosition()).rotateToFace(Direction.SOUTH, dir);
                 moduleShafts.put(dir, newShaft);
                 changed = true;
@@ -62,8 +61,8 @@ public class GenericModuleVisual extends KineticBlockEntityVisual<GenericModuleB
         }
     }
 
-    private RotatingInstance createInstanceFor(PartialModel model) {
-        return instancerProvider().instancer(AllInstanceTypes.ROTATING, Models.partial(model))
+    private RotatingInstance createInstanceFor() {
+        return instancerProvider().instancer(AllInstanceTypes.ROTATING, Models.partial(MyAddonPartialModels.SHAFT_FOR_MODULE))
                 .createInstance();
     }
 

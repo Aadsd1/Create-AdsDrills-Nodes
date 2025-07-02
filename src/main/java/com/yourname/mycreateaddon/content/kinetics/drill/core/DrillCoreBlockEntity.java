@@ -16,7 +16,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -37,7 +36,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
 
     private BlockPos cachedHeadPos = null;
-    private BlockPos cachedNodePos = null;
 
     // --- 구조 관련 필드 ---
     private Set<BlockPos> structureCache = new HashSet<>();
@@ -130,7 +128,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
         if (headState.getBlock() instanceof IDrillHead && headState.getValue(DirectionalKineticBlock.FACING) == searchDir) {
             this.cachedHeadPos = potentialHeadPos;
-            this.cachedNodePos = potentialHeadPos.relative(searchDir);
+            BlockPos cachedNodePos = potentialHeadPos.relative(searchDir);
         } else if (this.structureValid) {
             // 모듈 구조는 괜찮은데 헤드가 없는 경우에만 경고를 설정합니다.
             this.invalidityReason = InvalidityReason.HEAD_MISSING;
@@ -165,6 +163,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         }
 
         boolean isThisCore = currentPos.equals(this.worldPosition);
+        assert level != null;
         BlockState currentState = level.getBlockState(currentPos);
         Block currentBlock = currentState.getBlock();
 

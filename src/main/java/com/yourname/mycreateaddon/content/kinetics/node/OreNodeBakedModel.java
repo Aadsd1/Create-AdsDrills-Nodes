@@ -27,12 +27,15 @@ import java.util.List;
 public class OreNodeBakedModel implements BakedModel {
 
     private final BakedModel defaultBackgroundModel;
-    private final BakedModel coreModel;
+    private final BakedModel coreBaseModel;
+    private final BakedModel coreHighlightModel;
 
-    public OreNodeBakedModel(BakedModel defaultBackgroundModel, BakedModel coreModel) {
+    public OreNodeBakedModel(BakedModel defaultBackgroundModel, BakedModel coreBaseModel, BakedModel coreHighlightModel) {
         this.defaultBackgroundModel = defaultBackgroundModel;
-        this.coreModel = coreModel;
+        this.coreBaseModel = coreBaseModel;
+        this.coreHighlightModel = coreHighlightModel; // 생성자에서 받기
     }
+
 
     private BakedModel getModel(BlockState state) {
         BlockRenderDispatcher dispatcher = Minecraft.getInstance().getBlockRenderer();
@@ -63,8 +66,10 @@ public class OreNodeBakedModel implements BakedModel {
 
         // 3. 코어 모델의 쿼드를 가져옵니다.
         // 코어는 항상 CUTOUT 레이어에서만 그려져야 합니다.
+
         if (renderType == RenderType.cutout()) {
-            quads.addAll(coreModel.getQuads(state, side, rand, extraData, renderType));
+            quads.addAll(coreBaseModel.getQuads(state, side, rand, extraData, renderType));
+            quads.addAll(coreHighlightModel.getQuads(state, side, rand, extraData, renderType));
         }
 
         // 4. 조합된 쿼드 리스트를 반환합니다.
@@ -76,7 +81,8 @@ public class OreNodeBakedModel implements BakedModel {
     public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand) {
         List<BakedQuad> quads = new ArrayList<>();
         quads.addAll(defaultBackgroundModel.getQuads(state, side, rand));
-        quads.addAll(coreModel.getQuads(state, side, rand));
+        quads.addAll(coreBaseModel.getQuads(state, side, rand));
+        quads.addAll(coreHighlightModel.getQuads(state,side,rand));
         return quads;
     }
 

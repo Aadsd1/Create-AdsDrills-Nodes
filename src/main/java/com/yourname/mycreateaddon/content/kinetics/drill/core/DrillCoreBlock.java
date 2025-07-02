@@ -15,6 +15,7 @@ import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.NotNull;
 
 
 public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<DrillCoreBlockEntity> {
@@ -22,7 +23,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     protected static final VoxelShape SHAPE = Shapes.box(0.0625, 0.0625, 0.0625, 0.9375, 0.9375, 0.9375);
 
     @Override
-    protected VoxelShape getShape(BlockState pState, net.minecraft.world.level.BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
+    protected @NotNull VoxelShape getShape(@NotNull BlockState pState, net.minecraft.world.level.@NotNull BlockGetter pLevel, @NotNull BlockPos pPos, @NotNull CollisionContext pContext) {
         return SHAPE;
     }
 
@@ -51,7 +52,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     }
 
     @Override
-    protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+    protected void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         if (!level.isClientSide()) {
             withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
@@ -61,7 +62,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     }
 
     @Override
-    protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
+    protected boolean isPathfindable(@NotNull BlockState state, @NotNull PathComputationType pathComputationType) {
         return false;
     }
     @Override

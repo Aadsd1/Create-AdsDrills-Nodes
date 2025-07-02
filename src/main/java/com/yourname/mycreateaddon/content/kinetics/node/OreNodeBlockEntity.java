@@ -97,9 +97,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         sendData(); // 클라이언트에 즉시 동기화
     }
 
-    public ItemStack applyMiningTick(int amount) {
+    public void applyMiningTick(int amount) {
         if (level == null || level.isClientSide || totalYield <= 0 || resourceComposition.isEmpty()) {
-            return ItemStack.EMPTY;
+            return;
         }
 
         this.miningProgress += amount;
@@ -118,11 +118,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
                     setChanged();
                     sendData();
-                    return yieldedStack;
+                    return;
                 }
             }
         }
-        return ItemStack.EMPTY;
     }
 
     @Override

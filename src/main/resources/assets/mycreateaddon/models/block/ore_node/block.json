@@ -1,7 +1,4 @@
 {
-  "loader": "mycreateaddon:ore_node_loader",
   "parent": "minecraft:block/block",
-  "textures": {
-    "particle": "minecraft:block/stone"
-  }
+  "loader": "mycreateaddon:ore_node_loader"
 }

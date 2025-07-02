@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -65,8 +66,23 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
 
+    // [추가] 대표 광물 아이템 ID를 반환하는 메서드
+    public ResourceLocation getRepresentativeOreItemId() {
+        // resourceComposition 맵에서 가장 비율이 높은 아이템을 찾습니다.
+        return resourceComposition.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()))
+                .orElse(BuiltInRegistries.ITEM.getKey(Items.RAW_IRON)); // 비어있으면 기본값(철) 반환
+    }
+
+    // [수정] oreBlockId 필드는 이제 BakedModel에서 직접 사용하지 않으므로,
+    // 이 필드를 대표 광물의 '블록' ID로 유지하거나, getRepresentativeOreItemId로 통일할 수 있습니다.
+    // 여기서는 혼동을 막기 위해 getOreBlockId()의 내부 로직을 수정합니다.
     public ResourceLocation getOreBlockId() {
-        return oreBlockId;
+        // 기존 oreBlockId 필드를 그대로 사용해도 되지만,
+        // 색상과 모델을 일치시키기 위해 대표 광물의 블록을 찾는 로직을 사용할 수 있습니다.
+        // 지금은 단순함을 위해 기존 필드를 유지합니다.
+        return this.oreBlockId;
     }
 
 

@@ -2,6 +2,7 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 
 
 import com.mojang.datafixers.util.Pair;
+import com.yourname.mycreateaddon.MyCreateAddon;
 import net.minecraft.client.renderer.block.model.BlockModel;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -16,17 +17,23 @@ import java.util.function.Function;
 
 public class OreNodeModelGeometry implements IUnbakedGeometry<OreNodeModelGeometry> {
 
-    // [핵심 수정] bake 메서드 시그니처에서 마지막 파라미터(modelLocation) 제거
     @Override
     public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides) {
-        // 기본 모델(돌)을 미리 구워놓고, 이를 fallback 및 기본값으로 사용합니다.
-        BakedModel defaultModel = baker.bake(
+        // 1. 코어 모델을 굽습니다.
+        BakedModel coreModel = baker.bake(
+                ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/ore_node_core"),
+                modelState,
+                spriteGetter
+        );
+
+        // 2. 기본 배경 모델(돌)을 굽습니다.
+        BakedModel defaultBackgroundModel = baker.bake(
                 ResourceLocation.withDefaultNamespace("block/stone"),
                 modelState,
                 spriteGetter
         );
-        // 생성한 기본 모델을 OreNodeBakedModel 생성자에 넘겨줍니다.
-        return new OreNodeBakedModel(defaultModel);
-    }
 
+        // 두 모델을 함께 사용하는 새로운 BakedModel 인스턴스를 생성하여 반환합니다.
+        return new OreNodeBakedModel(defaultBackgroundModel, coreModel);
+    }
 }

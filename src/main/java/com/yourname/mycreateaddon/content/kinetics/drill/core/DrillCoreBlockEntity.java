@@ -2,6 +2,7 @@ package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
@@ -21,16 +22,21 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import java.util.*;
 
 
 
-public class DrillCoreBlockEntity extends KineticBlockEntity {
+public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourceAccessor {
 
     private enum InvalidityReason {
         NONE,
@@ -39,7 +45,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         TOO_MANY_MODULES,
         HEAD_MISSING // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
     }
+    // --- [신규] 내부 버퍼 관련 필드 ---
+    protected ItemStackHandler internalItemBuffer;
+    protected FluidTank internalFluidBuffer;
 
+
+    // 버퍼의 총 용량 (모듈에 의해 결정됨)
+    private int totalItemCapacity = 0;
+    private int totalFluidCapacity = 0;
     // --- [추가] 과열 시스템 관련 필드 ---
     private float heat = 0.0f;
     private boolean isOverheated = false; // 강제 냉각 상태 여부
@@ -84,13 +97,79 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         return this.isOverheated;
     }
     public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+
         super(type, pos, state);
+
+
+        // 초기에는 용량이 0인 버퍼를 생성
+        internalItemBuffer = new ItemStackHandler(0);
+        internalFluidBuffer = new FluidTank(0);
+
     }
 
     public boolean isStructureValid() {
         return this.structureValid;
     }
 
+
+
+    @Override
+    public IItemHandler getInternalItemBuffer() {
+        return this.internalItemBuffer;
+    }
+
+    @Override
+    public IFluidHandler getInternalFluidBuffer() {
+        return this.internalFluidBuffer;
+    }
+
+    @Override
+    public ItemStack consumeItems(ItemStack stackToConsume, boolean simulate) {
+        // 이 로직은 나중에 더 복잡하게 만들 수 있습니다. 지금은 단순 구현.
+        // TODO: 여러 슬롯을 순회하며 아이템을 찾는 로직 추가
+        return ItemStack.EMPTY;
+    }
+
+    @Override
+    public FluidStack consumeFluid(FluidStack fluidToConsume, boolean simulate) {
+        return this.internalFluidBuffer.drain(fluidToConsume, simulate ? IFluidHandler.FluidAction.SIMULATE : IFluidHandler.FluidAction.EXECUTE);
+    }
+
+  // --- [신규] 구조 검사 시 버퍼 용량을 집계하는 로직 ---
+    private void aggregateResourceCapacity() {
+        int newItemCapacity = 0;
+        int newFluidCapacity = 0;
+
+        for (BlockPos modulePos : structureCache) {
+            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                ModuleType type = moduleBE.getModuleType();
+                // 각 모듈 타입이 제공하는 용량을 더합니다 (ModuleType enum 수정 필요).
+                newItemCapacity += type.getItemCapacity();
+                newFluidCapacity += type.getFluidCapacity();
+            }
+        }
+
+        // 용량이 변경되었는지 확인
+        if (totalItemCapacity != newItemCapacity || totalFluidCapacity != newFluidCapacity) {
+            totalItemCapacity = newItemCapacity;
+            totalFluidCapacity = newFluidCapacity;
+
+            // 기존 데이터를 보존하면서 새로운 용량의 버퍼로 교체
+            ItemStackHandler newItemBuffer = new ItemStackHandler(totalItemCapacity);
+            FluidTank newFluidBuffer = new FluidTank(totalFluidCapacity);
+
+            // 데이터 복사
+            for (int i = 0; i < Math.min(internalItemBuffer.getSlots(), newItemBuffer.getSlots()); i++) {
+                newItemBuffer.setStackInSlot(i, internalItemBuffer.getStackInSlot(i));
+            }
+            newFluidBuffer.setFluid(internalFluidBuffer.getFluid());
+
+            internalItemBuffer = newItemBuffer;
+            internalFluidBuffer = newFluidBuffer;
+
+            setChanged();
+        }
+    }
     public void onBroken() {
         if (level != null && !level.isClientSide()) {
             Set<BlockPos> allToClear = new HashSet<>(structureCache);
@@ -219,6 +298,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
         setChanged();
         sendData();
+
+        if (this.structureValid) {
+            aggregateResourceCapacity();
+        }
     }
 
     private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {
@@ -317,6 +400,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         compound.putFloat("StressImpact", this.totalStressImpact);
         compound.putInt("InvalidityReason", this.invalidityReason.ordinal());
 
+        compound.put("InternalItems", internalItemBuffer.serializeNBT(registries));
+        compound.put("InternalFluid", internalFluidBuffer.writeToNBT(registries, new CompoundTag()));
         compound.putFloat("Heat", this.heat);
         compound.putBoolean("Overheated", this.isOverheated);
         if (clientPacket) {
@@ -342,6 +427,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
         this.totalSpeedBonus = compound.getFloat("SpeedBonus");
         this.totalStressImpact = compound.getFloat("StressImpact");
 
+        internalItemBuffer.deserializeNBT(registries, compound.getCompound("InternalItems"));
+        internalFluidBuffer.readFromNBT(registries, compound.getCompound("InternalFluid"));
         this.heat = compound.getFloat("Heat");
         this.isOverheated = compound.getBoolean("Overheated");
 
@@ -436,15 +523,17 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
             scanAndValidateStructure();
             needsStructureCheck = false;
         }
+
         float finalSpeed = getFinalSpeed();
+
         IDrillHead headBlock = null;
-        if (hasHead()) {
-            if (level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
-                headBlock = h;
-            }// --- 과열 로직 수정 ---
+        if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
+            headBlock = h;
         }
-        // 이제 finalSpeed가 0보다 클 때만 가열하고, 그렇지 않으면 무조건 냉각합니다.
-        if (finalSpeed > 0 && headBlock != null) {
+
+        // --- 과열 로직 수정 ---
+        // [핵심 수정] finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
+        if (finalSpeed != 0 && headBlock != null) {
             // 가열: 드릴이 실제로 회전하고 있을 때만 열이 오릅니다.
             this.heat += headBlock.getHeatGeneration();
         } else {
@@ -497,19 +586,16 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
 
 
         // --- 채굴 로직 호출 ---
-        if (hasHead()) {
-            if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+        if (hasHead() && headBlock != null) {
+            if(level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(-finalSpeed);
-                // [핵심 추가] 주기적으로 헤드의 heat 값도 업데이트해줍니다.
                 if (needsSync) {
                     headBE.updateClientHeat(this.heat);
                 }
             }
 
-            // 채굴은 finalSpeed가 0보다 클 때만 이루어집니다.
-            // (onDrillTick 내부에서도 확인하지만, 여기서 한 번 더 확인하는 것이 더 명확합니다.)
-            if (finalSpeed > 0) {
-                assert headBlock != null;
+            // [핵심 수정] 여기도 0이 아닌지 확인합니다.
+            if (finalSpeed != 0) {
                 headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
             }
         }
@@ -636,7 +722,57 @@ public class DrillCoreBlockEntity extends KineticBlockEntity {
                             .withStyle(ChatFormatting.DARK_GRAY)));
         }
 
-        return true;
+        // --- [핵심 추가] 내부 저장소 정보 ---
+        IItemHandler itemHandler = getInternalItemBuffer();
+        IFluidHandler fluidHandler = getInternalFluidBuffer();
 
+        // 아이템 또는 유체 버퍼 모듈이 하나라도 연결되어 있을 때만 "Internal Storage" 섹션을 표시합니다.
+        if (itemHandler.getSlots() > 0 || fluidHandler.getTanks() > 0) {
+            tooltip.add(Component.literal("")); // 구분선
+            tooltip.add(Component.literal(" ").append(Component.translatable("goggle.mycreateaddon.drill_core.storage_header").withStyle(ChatFormatting.GRAY)));
+
+            // 아이템 버퍼 정보 표시
+            if (itemHandler.getSlots() > 0) {
+                int nonEmptySlots = 0;
+                int totalItems = 0;
+                for (int i = 0; i < itemHandler.getSlots(); i++) {
+                    ItemStack stackInSlot = itemHandler.getStackInSlot(i);
+                    if (!stackInSlot.isEmpty()) {
+                        nonEmptySlots++;
+                        totalItems += stackInSlot.getCount();
+                    }
+                }
+
+                MutableComponent itemLine = Component.literal(" ")
+                        .append(Component.translatable("goggle.mycreateaddon.drill_core.storage.items").withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal(String.format(": %,d / %,d", totalItems, itemHandler.getSlots() * 64)));
+
+                // 상세 정보 (웅크릴 때 표시)
+                if (isPlayerSneaking && nonEmptySlots > 0) {
+                    itemLine.append(Component.literal(String.format(" (%d Slots)", nonEmptySlots)).withStyle(ChatFormatting.DARK_GRAY));
+                }
+                tooltip.add(itemLine);
+            }
+
+            // 유체 버퍼 정보 표시
+            if (fluidHandler.getTanks() > 0) {
+                FluidStack fluidStack = fluidHandler.getFluidInTank(0);
+
+                MutableComponent fluidLine = Component.literal(" ")
+                        .append(Component.translatable("goggle.mycreateaddon.drill_core.storage.fluid").withStyle(ChatFormatting.GRAY))
+                        .append(": ");
+
+                if (fluidStack.isEmpty()) {
+                    fluidLine.append(Component.translatable("goggle.mycreateaddon.drill_core.storage.empty").withStyle(ChatFormatting.DARK_GRAY));
+                } else {
+                    fluidLine.append(Component.literal(String.format("%,d / %,d mb ", fluidStack.getAmount(), fluidHandler.getTankCapacity(0)))
+                            .withStyle(ChatFormatting.GOLD)
+                            .append(fluidStack.getHoverName().copy().withStyle(Style.EMPTY.withColor(ChatFormatting.GRAY).withItalic(true))));
+                }
+                tooltip.add(fluidLine);
+            }
+        }
+
+        return true;
     }
 }

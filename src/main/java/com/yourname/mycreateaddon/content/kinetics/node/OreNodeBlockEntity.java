@@ -91,16 +91,18 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
     // --- 핵심 로직 ---
-    public void applyMiningTick(int miningAmount) {
+
+    // [핵심 수정] 메서드의 반환 타입을 void에서 ItemStack으로 변경합니다.
+    public ItemStack applyMiningTick(int miningAmount) {
         if (level == null || level.isClientSide || currentYield <= 0 || resourceComposition.isEmpty()) {
-            return;
+            // [수정] 아이템 스택이 비어있음을 의미하는 ItemStack.EMPTY를 반환합니다.
+            return ItemStack.EMPTY;
         }
 
-        // 단단함 특성을 반영하여 실제 채굴 진행도를 계산
         float effectiveMiningAmount = miningAmount / getHardness();
         this.miningProgress += effectiveMiningAmount;
 
-        int miningResistance = 1000; // 채굴 한 번에 필요한 총량
+        int miningResistance = 1000;
 
         if (this.miningProgress >= miningResistance) {
             this.miningProgress -= miningResistance;
@@ -113,22 +115,22 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 if (random < cumulative) {
                     ItemStack yieldedStack = new ItemStack(entry.getKey());
 
-                    // 풍부함 특성을 반영하여 보너스 드랍 결정
                     if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
                         yieldedStack.setCount(2);
                     }
 
-                    ItemEntity itemEntity = new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 1.5, worldPosition.getZ() + 0.5, yieldedStack.copy());
-                    level.addFreshEntity(itemEntity);
-
                     setChanged();
                     sendData();
-                    return;
+
+                    // [추가] 생성된 아이템 스택을 반환합니다.
+                    return yieldedStack;
                 }
             }
         }
-    }
 
+        // 채굴에 실패했거나, 아직 진행도가 부족하면 빈 스택을 반환합니다.
+        return ItemStack.EMPTY;
+    }
     @Override
     public void tick() {
         super.tick();

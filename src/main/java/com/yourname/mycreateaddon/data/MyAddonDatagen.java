@@ -103,5 +103,9 @@ public class MyAddonDatagen {
         // 재생력 등급
         registrate.addRawLang("goggle.mycreateaddon.ore_node.regeneration.weak", "Weak");       // 약함
         registrate.addRawLang("goggle.mycreateaddon.ore_node.regeneration.strong", "Strong");   // 강함
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.storage_header", "Internal Storage");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.items", "Items");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.fluid", "Fluid");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.empty", "Empty");
     }
 }

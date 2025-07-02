@@ -29,21 +29,19 @@ public class MyAddonBlockEntity {
     public static final BlockEntityEntry<GenericModuleBlockEntity> GENERIC_MODULE = REGISTRATE
             .blockEntity("generic_module", GenericModuleBlockEntity::new)
             .visual(()->GenericModuleVisual::new)
-            .validBlocks(MyAddonBlocks.FRAME_MODULE, MyAddonBlocks.SPEED_MODULE)
+            .validBlocks(MyAddonBlocks.FRAME_MODULE, MyAddonBlocks.SPEED_MODULE, MyAddonBlocks.ITEM_BUFFER_MODULE, MyAddonBlocks.FLUID_BUFFER_MODULE)
             .renderer(()->GenericModuleRenderer::new)
             .register();
 
     public static final BlockEntityEntry<OreNodeBlockEntity> ORE_NODE = REGISTRATE
             .blockEntity("ore_node", OreNodeBlockEntity::new)
             .validBlocks(MyAddonBlocks.ORE_NODE)
-            // 이 BE는 특별한 렌더러가 필요 없습니다.
             .register();
 
     public static final BlockEntityEntry<RotaryDrillHeadBlockEntity> ROTARY_DRILL_HEAD = REGISTRATE
             .blockEntity("rotary_drill_head", RotaryDrillHeadBlockEntity::new)
             .visual(() -> RotaryDrillHeadVisual::new)
             .validBlocks(MyAddonBlocks.ROTARY_DRILL_HEAD)
-            // 이 블록은 Flywheel Visual 대신 전통적인 BE Renderer를 사용합니다.
             .renderer(() -> RotaryDrillHeadRenderer::new)
             .register();
 

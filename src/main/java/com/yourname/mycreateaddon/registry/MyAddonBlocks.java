@@ -60,11 +60,35 @@ public class MyAddonBlocks {
             .build()
             .register();
 
+    public static final BlockEntry<GenericModuleBlock> ITEM_BUFFER_MODULE = REGISTRATE
+            .block("item_buffer_module", p -> new GenericModuleBlock(p, ModuleType.ITEM_BUFFER))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+
+    public static final BlockEntry<GenericModuleBlock> FLUID_BUFFER_MODULE = REGISTRATE
+            .block("fluid_buffer_module", p -> new GenericModuleBlock(p, ModuleType.FLUID_BUFFER))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+
 
     public static final BlockEntry<OreNodeBlock> ORE_NODE = REGISTRATE
             .block("ore_node", OreNodeBlock::new)
-            // SharedProperties.stone()은 기본 돌 속성을 제공합니다.
-            // 여기에 파괴 불가 및 피스톤 저항 속성을 추가합니다.
             .initialProperties(SharedProperties::stone)
             .properties(p -> p.destroyTime(-1.0f).explosionResistance(3600000.0f)) // 파괴 불가
             .blockstate((c, p) ->

@@ -141,6 +141,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         int newFluidCapacity = 0;
 
         for (BlockPos modulePos : structureCache) {
+            assert level != null;
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                 ModuleType type = moduleBE.getModuleType();
                 // 각 모듈 타입이 제공하는 용량을 더합니다 (ModuleType enum 수정 필요).
@@ -464,6 +465,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         super.tick();
 
         // [수정] 클라이언트와 서버 로직을 분리합니다.
+        assert level != null;
         if (level.isClientSide()) {
             // --- 클라이언트 전용 시각/청각 효과 ---
             clientTick();

@@ -96,11 +96,11 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         if (maxEntry.isPresent()) {
             Item representativeItem = maxEntry.get().getKey();
-            var recipeManager = level.getServer().getRecipeManager();
+            var recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
             for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
                 SmeltingRecipe recipe = recipeHolder.value();
                 if (recipe.getResultItem(level.registryAccess()).is(representativeItem)) {
-                    ItemStack ingredient = recipe.getIngredients().get(0).getItems()[0];
+                    ItemStack ingredient = recipe.getIngredients().getFirst().getItems()[0];
                     Block block = Block.byItem(ingredient.getItem());
                     if (block != Blocks.AIR) {
                         return block;
@@ -207,7 +207,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     }
 
                 } catch (NoSuchFieldException | IllegalAccessException e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                     return Integer.MIN_VALUE;
                 }
             }
@@ -221,12 +221,12 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
             return Items.AIR;
         }
 
-        var recipeManager = level.getServer().getRecipeManager();
+        var recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
 
         for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
             SmeltingRecipe recipe = recipeHolder.value();
 
-            if (recipe.getIngredients().get(0).test(new ItemStack(oreBlockItem))) {
+            if (recipe.getIngredients().getFirst().test(new ItemStack(oreBlockItem))) {
                 ItemStack resultStack = recipe.getResultItem(level.registryAccess());
                 Item resultItem = resultStack.getItem();
 

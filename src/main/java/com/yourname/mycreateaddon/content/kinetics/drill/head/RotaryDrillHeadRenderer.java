@@ -9,9 +9,5 @@ public class RotaryDrillHeadRenderer extends KineticBlockEntityRenderer<RotaryDr
     public RotaryDrillHeadRenderer(BlockEntityRendererProvider.Context context) {
         super(context);
     }
-//@Override
-//protected SuperByteBuffer getRotatedModel(RotaryDrillHeadBlockEntity be, BlockState state) {
-//    return CachedBufferer.partial(MyAddonPartialModels.ROTARY_DRILL_HEAD, state);
-//}
 
 }

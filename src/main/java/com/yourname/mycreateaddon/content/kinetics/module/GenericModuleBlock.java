@@ -3,16 +3,26 @@ package com.yourname.mycreateaddon.content.kinetics.module; // 또는 원하는 
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.loot.LootParams;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+
 import com.simibubi.create.foundation.block.IBE; // IBE 임포트
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity; // BE 레지스트리 임포트
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import org.jetbrains.annotations.NotNull;
+
+import javax.annotation.Nullable;
 
 
 public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockEntity> {
@@ -24,6 +34,41 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         this.moduleType = moduleType;
     }
 
+
+    // --- [수정] 데이터 복원을 위한 설치 로직 (오류 해결) ---
+    @Override
+    public void setPlacedBy(@NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState state, @Nullable LivingEntity placer, @NotNull ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (level.isClientSide)
+            return;
+
+        if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity be) {
+            // 1. 아이템 스택에서 BLOCK_ENTITY_DATA 컴포넌트를 직접 가져옵니다. (반환 타입: CustomData 또는 null)
+            CustomData blockEntityData = stack.get(DataComponents.BLOCK_ENTITY_DATA);
+
+            // 2. null이 아닌지 확인합니다.
+            if (blockEntityData != null) {
+                // 3. CustomData에서 실제 CompoundTag를 추출하여 BE에 로드합니다.
+                be.loadWithComponents(blockEntityData.copyTag(), level.registryAccess());
+            }
+        }
+    }
+
+    // --- [수정] 데이터 보존을 위한 드롭 로직 ---
+    @Override
+    protected @NotNull List<ItemStack> getDrops(@NotNull BlockState state, LootParams.@NotNull Builder params) {
+        // [수정] getOptional 대신 get 사용
+        BlockEntity be = params.getParameter(LootContextParams.BLOCK_ENTITY);
+
+        if (be instanceof GenericModuleBlockEntity) {
+            ItemStack dropStack = new ItemStack(this);
+            // BlockEntity의 내장 메서드를 사용하여 안전하게 NBT 저장
+            be.saveToItem(dropStack, Objects.requireNonNull(be.getLevel()).registryAccess());
+            return Collections.singletonList(dropStack);
+        }
+        // BE가 없으면 기본 드롭 로직을 따름 (이 경우엔 자신을 드롭)
+        return super.getDrops(state, params);
+    }
     public ModuleType getModuleType() {
         return moduleType;
     }

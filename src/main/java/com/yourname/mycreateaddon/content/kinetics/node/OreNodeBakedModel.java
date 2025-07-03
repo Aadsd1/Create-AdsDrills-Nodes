@@ -8,12 +8,15 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -76,6 +79,13 @@ public class OreNodeBakedModel implements BakedModel {
         return quads;
     }
 
+
+    // 이 메서드는 어떤 렌더 타입을 지원할지 선언합니다.
+    @Override
+    public @NotNull ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
+        // 우리 모델이 SOLID와 CUTOUT 두 가지 타입의 쿼드를 모두 생성함을 명시합니다.
+        return ChunkRenderTypeSet.of(RenderType.solid(), RenderType.cutout());
+    }
     @SuppressWarnings("deprecation")
     @Override
     public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand) {
@@ -100,12 +110,6 @@ public class OreNodeBakedModel implements BakedModel {
     @Override
     public @NotNull ItemOverrides getOverrides() { return ItemOverrides.EMPTY; }
 
-    @Override
-    public @NotNull ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
-        // 배경 블록이 어떤 렌더 타입을 사용할지 모르므로, 가능한 모든 타입을 반환해주는 것이 가장 안전합니다.
-        // 하지만 여기서는 배경과 코어가 사용하는 SOLID와 CUTOUT만 명시해도 충분합니다.
-        return ChunkRenderTypeSet.of(RenderType.solid(), RenderType.cutout());
-    }
 
     @Override
     public @NotNull TextureAtlasSprite getParticleIcon(@Nonnull ModelData data) {

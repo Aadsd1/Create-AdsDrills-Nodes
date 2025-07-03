@@ -51,6 +51,8 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         super(type, pos, state);
     }
 
+
+
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
     }
@@ -291,6 +293,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Nonnull
     @Override
     public ModelData getModelData() {
+        // 이 BlockEntity는 자신의 정보만 제공합니다.
         return ModelData.builder().with(MODEL_DATA_PROPERTY, this).build();
     }
 }

@@ -9,7 +9,15 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.common.util.Lazy;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,11 +28,46 @@ public class GenericModuleBlockEntity extends KineticBlockEntity {
     // 렌더링 관련 필드
     private Set<Direction> visualConnections = new HashSet<>();
     private float visualSpeed = 0f;
+    // --- [신규] 독립 저장소 필드 ---
+    protected @Nullable ItemStackHandler itemHandler;
+    protected @Nullable FluidTank fluidHandler;
+
 
     public GenericModuleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
+
+        ModuleType moduleType = getModuleType();
+        if (moduleType.getItemCapacity() > 0) {
+            // [핵심 추가] ItemStackHandler를 익명 클래스로 생성하여 onContentsChanged를 오버라이드합니다.
+            this.itemHandler = new ItemStackHandler(moduleType.getItemCapacity()) {
+                @Override
+                protected void onContentsChanged(int slot) {
+                    setChanged();
+                    sendData(); // 내용물이 바뀌면 클라이언트에 업데이트를 보냅니다.
+                }
+            };
+        }
+        if (moduleType.getFluidCapacity() > 0) {
+            // [핵심 추가] FluidTank를 익명 클래스로 생성하여 onContentsChanged를 오버라이드합니다.
+            this.fluidHandler = new FluidTank(moduleType.getFluidCapacity()) {
+                @Override
+                protected void onContentsChanged() {
+                    setChanged();
+                    sendData(); // 내용물이 바뀌면 클라이언트에 업데이트를 보냅니다.
+                }
+            };
+        }
+    }
+    // --- [신규] Capability 등록 이벤트에서 사용할 Getter ---
+    @Nullable
+    public ItemStackHandler getItemHandler() {
+        return itemHandler;
     }
 
+    @Nullable
+    public FluidTank getFluidHandler() {
+        return fluidHandler;
+    }
     // 자신의 모듈 타입을 반환하는 중요한 메서드
     public ModuleType getModuleType() {
         if (getBlockState().getBlock() instanceof GenericModuleBlock gmb) {
@@ -79,10 +122,21 @@ public class GenericModuleBlockEntity extends KineticBlockEntity {
     @Override public float calculateAddedStressCapacity() { return 0; }
     @Override public void attachKinetics() {}
 
+
+
     // NBT 처리
     @Override
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(compound, registries, clientPacket);
+        // [핵심 수정] if (clientPacket) 조건을 인벤토리/탱크 저장 로직 밖으로 옮겨서,
+        // 클라이언트 패킷에도 내용물이 포함되도록 합니다.
+        if (itemHandler != null) {
+            compound.put("Inventory", itemHandler.serializeNBT(registries));
+        }
+        if (fluidHandler != null && !fluidHandler.getFluid().isEmpty()) {
+            compound.put("Tank", fluidHandler.writeToNBT(registries, new CompoundTag()));
+        }
+
         if (clientPacket) {
             if (!visualConnections.isEmpty()) {
                 int[] dirs = visualConnections.stream().mapToInt(Direction::ordinal).toArray();
@@ -97,6 +151,14 @@ public class GenericModuleBlockEntity extends KineticBlockEntity {
     @Override
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
+        // [핵심 수정] write와 마찬가지로, 클라이언트 패킷에서도 내용물을 읽도록 합니다.
+        if (itemHandler != null && compound.contains("Inventory")) {
+            itemHandler.deserializeNBT(registries, compound.getCompound("Inventory"));
+        }
+        if (fluidHandler != null && compound.contains("Tank")) {
+            fluidHandler.readFromNBT(registries, compound.getCompound("Tank"));
+        }
+
         if (clientPacket) {
             visualConnections.clear();
             if (compound.contains("VisualConnections")) {

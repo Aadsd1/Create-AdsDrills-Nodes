@@ -4,7 +4,6 @@ import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEnti
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;

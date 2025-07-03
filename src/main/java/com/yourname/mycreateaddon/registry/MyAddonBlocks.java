@@ -116,9 +116,63 @@ public class MyAddonBlocks {
             .build()
             .register();
 
+    public static final BlockEntry<GenericModuleBlock> FURNACE_MODULE = REGISTRATE
+            .block("furnace_module", p -> new GenericModuleBlock(p, ModuleType.FURNACE))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p)
+                    -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
 
 
+    // [2단계 추가] 신규 모듈 블록 등록
+    public static final BlockEntry<GenericModuleBlock> BLAST_FURNACE_MODULE = REGISTRATE
+            .block("blast_furnace_module", p -> new GenericModuleBlock(p, ModuleType.BLAST_FURNACE))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p)
+                    -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((c, p)
+                    -> p.withExistingParent(c.getId().getPath(),
+                    p.modLoc("block/" + c.getId().getPath() + "/block")))
+            .build()
+            .register();
 
+
+    public static final BlockEntry<GenericModuleBlock> CRUSHER_MODULE = REGISTRATE
+            .block("crusher_module", p -> new GenericModuleBlock(p, ModuleType.CRUSHER))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p)
+                    -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item().model((c, p)
+                    -> p.withExistingParent(c.getId().getPath(),
+                    p.modLoc("block/" + c.getId().getPath() + "/block")))
+            .build()
+            .register();
+
+
+    public static final BlockEntry<GenericModuleBlock> WASHER_MODULE = REGISTRATE
+            .block("washer_module", p -> new GenericModuleBlock(p, ModuleType.WASHER))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p)
+                    -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item().model((c, p)
+                    -> p.withExistingParent(c.getId().getPath(),
+                    p.modLoc("block/" + c.getId().getPath() + "/block")))
+            .build()
+            .register();
 
     public static void register() {}
 }

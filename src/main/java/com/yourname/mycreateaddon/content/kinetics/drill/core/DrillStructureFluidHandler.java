@@ -62,7 +62,7 @@ public class DrillStructureFluidHandler implements IFluidHandler {
     }
 
     @Override
-    public int fill(FluidStack resource, FluidAction action) {
+    public int fill(FluidStack resource, @NotNull FluidAction action) {
         FluidStack remaining = resource.copy();
         int filledAmount = 0;
 
@@ -79,7 +79,7 @@ public class DrillStructureFluidHandler implements IFluidHandler {
 
     @NotNull
     @Override
-    public FluidStack drain(FluidStack resource, FluidAction action) {
+    public FluidStack drain(FluidStack resource, @NotNull FluidAction action) {
         if (resource.isEmpty() || handlers.isEmpty()) {
             return FluidStack.EMPTY;
         }
@@ -104,7 +104,7 @@ public class DrillStructureFluidHandler implements IFluidHandler {
 
     @NotNull
     @Override
-    public FluidStack drain(int maxDrain, FluidAction action) {
+    public FluidStack drain(int maxDrain, @NotNull FluidAction action) {
         if (maxDrain <= 0 || handlers.isEmpty()) {
             return FluidStack.EMPTY;
         }

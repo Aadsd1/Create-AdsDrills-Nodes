@@ -1,5 +1,4 @@
 package com.yourname.mycreateaddon.registry;
-import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.worldgen.OreNodeConfiguration;
 import com.yourname.mycreateaddon.content.worldgen.OreNodeFeature;

@@ -29,7 +29,16 @@ public class MyAddonBlockEntity {
     public static final BlockEntityEntry<GenericModuleBlockEntity> GENERIC_MODULE = REGISTRATE
             .blockEntity("generic_module", GenericModuleBlockEntity::new)
             .visual(()->GenericModuleVisual::new)
-            .validBlocks(MyAddonBlocks.FRAME_MODULE, MyAddonBlocks.SPEED_MODULE, MyAddonBlocks.ITEM_BUFFER_MODULE, MyAddonBlocks.FLUID_BUFFER_MODULE)
+            .validBlocks(
+                    MyAddonBlocks.FRAME_MODULE,
+                    MyAddonBlocks.SPEED_MODULE,
+                    MyAddonBlocks.ITEM_BUFFER_MODULE,
+                    MyAddonBlocks.FLUID_BUFFER_MODULE,
+                    MyAddonBlocks.FURNACE_MODULE,
+                    MyAddonBlocks.BLAST_FURNACE_MODULE,
+                    MyAddonBlocks.CRUSHER_MODULE,
+                    MyAddonBlocks.WASHER_MODULE
+            )
             .renderer(()->GenericModuleRenderer::new)
             .register();
 

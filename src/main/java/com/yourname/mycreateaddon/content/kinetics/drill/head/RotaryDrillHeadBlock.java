@@ -8,7 +8,6 @@ import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEnti
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -41,25 +40,19 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
             int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
 
             if (miningAmount > 0) {
-                // [핵심 수정] 노드로부터 채굴된 아이템 스택을 받습니다.
                 ItemStack minedItem = nodeBE.applyMiningTick(miningAmount);
 
                 // 받은 아이템이 비어있지 않다면,
                 if (!minedItem.isEmpty()) {
-                    // 코어의 내부 버퍼에 아이템을 삽입합니다.
-                    // ItemHandlerHelper.insertItem은 아이템을 빈 슬롯에 알아서 넣어주는 매우 유용한 유틸리티입니다.
-                    ItemStack remainder = ItemHandlerHelper.insertItem(core.getInternalItemBuffer(), minedItem, false);
-
-                    // 만약 버퍼가 꽉 차서 아이템이 다 들어가지 않고 남았다면,
-                    // 남은 아이템은 월드에 드롭합니다. (선택적이지만 좋은 기능)
-                    if (!remainder.isEmpty()) {
-                        ItemEntity itemEntity = new ItemEntity(level, headPos.getX() + 0.5, headPos.getY() + 0.5, headPos.getZ() + 0.5, remainder);
-                        level.addFreshEntity(itemEntity);
-                    }
+                    // [올바른 로직]
+                    // 채굴된 아이템을 버퍼에 직접 넣는 것이 아니라,
+                    // 코어의 처리 시스템으로 즉시 보냅니다.
+                    core.processMinedItem(minedItem);
                 }
             }
         }
     }
+
     // --- [추가] IDrillHead의 새 메서드 구현 ---
     @Override
     public float getHeatGeneration() {

@@ -2,11 +2,13 @@ package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.module.IProcessingModule;
 import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -22,6 +24,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -30,6 +33,8 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+
 import java.util.*;
 
 
@@ -49,8 +54,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     // --- [추가] 과열 시스템 관련 필드 ---
     private float heat = 0.0f;
     private boolean isOverheated = false; // 강제 냉각 상태 여부
-    // [추가] 이전 틱의 과열 상태를 기억하기 위한 필드
-    private boolean wasOverheated = false;
 
     // --- [추가] 과열 관련 상수 ---
     public static final float BOOST_START_THRESHOLD = 40.0f; // 부스트 시작 (40%)
@@ -66,6 +69,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     // [추가] 클라이언트와의 시각적 속도 동기화를 위한 필드
     private float visualSpeed = 0f;
 
+    private final List<BlockPos> processingModuleChain = new ArrayList<>();
 
     // --- 구조 관련 필드 ---
     private BlockPos cachedHeadPos = null;
@@ -131,7 +135,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // 실제로 소모된 양만 반환 (요청보다 적을 수 있음)
         return new ItemStack(stackToConsume.getItem(), stackToConsume.getCount() - amountToConsume);
     }
-
+    /** heat 값을 안전하게 변경합니다. */
+    public void addHeat(float amount) {
+        this.heat = Mth.clamp(this.heat + amount, 0, 100);
+    }
+    /** 크러셔 모듈이 추가 스트레스를 가할 때 호출됩니다. (2단계 구현) */
+    public void applyCrusherStress() {
+        // TODO: 추가 스트레스 적용 로직 구현
+    }
     @Override
     public FluidStack consumeFluid(FluidStack fluidToConsume, boolean simulate) {
         // [수정] 가상 핸들러의 drain 메서드를 직접 호출하여 유체를 소모
@@ -197,138 +208,146 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         Set<BlockPos> oldStructureCache = new HashSet<>(this.structureCache);
 
         // --- 1. 상태 초기화 ---
-        this.structureValid = false;
-        this.invalidityReason = InvalidityReason.NONE;
-        this.totalSpeedBonus = 0f;
-        this.totalStressImpact = 0f;
-        this.cachedHeadPos = null; // 매번 초기화
-
-        // [신규] 핸들러 리스트도 매번 초기화
+        this.structureCache.clear();
+        this.processingModuleChain.clear();
         this.itemBufferHandlers.clear();
         this.fluidBufferHandlers.clear();
+        this.totalSpeedBonus = 0f;
+        this.totalStressImpact = 0f;
+        this.cachedHeadPos = null;
+        this.invalidityReason = InvalidityReason.NONE;
+        this.structureValid = false;
 
-        Set<BlockPos> newStructureCache = new HashSet<>();
+        // [복원] 모듈 간의 시각적 연결 정보를 저장할 맵
         Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>();
-        Direction searchDir = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
 
-        // --- 2. 모듈 구조 탐색 및 검증 ---
-        Set<BlockPos> visitedInScan = new HashSet<>();
-        List<BlockPos> foundFunctionalModules = new ArrayList<>();
-        List<BlockPos> foundOtherCores = new ArrayList<>();
+        Direction inputFacing = getBlockState().getValue(DirectionalKineticBlock.FACING);
+        Direction headFacing = inputFacing.getOpposite();
 
-        StructureCheckResult result = searchStructureRecursive(this.worldPosition, searchDir, visitedInScan, foundFunctionalModules, foundOtherCores, moduleConnections, 0);
-
-        if (result.loopDetected()) {
-            this.invalidityReason = InvalidityReason.LOOP_DETECTED;
-        } else if (result.multipleCoresDetected()) {
-            this.invalidityReason = InvalidityReason.MULTIPLE_CORES;
-        } else if (foundFunctionalModules.size() - 1 > MAX_MODULES) {
-            this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
-        } else {
-            // 모듈 구조에 문제가 없으면, 일단 '구조는 유효'하다고 판단합니다.
-            this.structureValid = true;
-
-            newStructureCache.addAll(foundFunctionalModules);
-            newStructureCache.remove(this.worldPosition);
-
-            for (BlockPos modulePos : newStructureCache) {
-                if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                    ModuleType type = moduleBE.getModuleType();
-                    this.totalSpeedBonus += type.getSpeedBonus();
-                    this.totalStressImpact += type.getStressImpact();
-                }
-            }
-        }
-
-        // --- 3. 헤드 존재 여부 확인 ---
-        // [핵심 수정] 이 로직을 structureValid와 독립적으로 실행하여 cachedHeadPos를 확실히 설정합니다.
-        BlockPos potentialHeadPos = this.worldPosition.relative(searchDir);
-        BlockState headState = level.getBlockState(potentialHeadPos);
-
-        if (headState.getBlock() instanceof IDrillHead && headState.getValue(DirectionalKineticBlock.FACING) == searchDir) {
+        // --- 2. 헤드 확인 ---
+        BlockPos potentialHeadPos = worldPosition.relative(headFacing);
+        if (level.getBlockState(potentialHeadPos).getBlock() instanceof IDrillHead) {
             this.cachedHeadPos = potentialHeadPos;
-            BlockPos cachedNodePos = potentialHeadPos.relative(searchDir);
-        } else if (this.structureValid) {
-            // 모듈 구조는 괜찮은데 헤드가 없는 경우에만 경고를 설정합니다.
+        } else {
             this.invalidityReason = InvalidityReason.HEAD_MISSING;
         }
 
-        // --- 4. 캐시 및 시각 효과 업데이트 ---
-        this.structureCache = newStructureCache;
+        // --- 3. 재귀적 모듈 구조 탐색 ---
+        Set<BlockPos> allFoundModules = new HashSet<>();
+        List<BlockPos> allOtherCores = new ArrayList<>();
+        Set<BlockPos> allVisited = new HashSet<>();
+        allVisited.add(worldPosition);
+
+        for (Direction startDir : Direction.values()) {
+            if (startDir.getAxis() == inputFacing.getAxis()) continue;
+
+            BlockPos startPos = worldPosition.relative(startDir);
+            if (allVisited.contains(startPos)) continue;
+
+            BlockState startState = level.getBlockState(startPos);
+            if (startState.getBlock() instanceof GenericModuleBlock) {
+                // [복원] 코어와 첫 모듈의 연결 정보를 기록
+                moduleConnections.computeIfAbsent(worldPosition, k -> new HashSet<>()).add(startDir);
+                moduleConnections.computeIfAbsent(startPos, k -> new HashSet<>()).add(startDir.getOpposite());
+
+                StructureCheckResult result = searchStructureRecursive(startPos, startDir.getOpposite(), allVisited, allFoundModules, allOtherCores, moduleConnections, 0);
+                if (result.loopDetected()) { this.invalidityReason = InvalidityReason.LOOP_DETECTED; break; }
+                if (result.multipleCoresDetected()) { this.invalidityReason = InvalidityReason.MULTIPLE_CORES; break; }
+
+
+            }
+        }
+
+        // --- 4. 유효성 검사 및 데이터 집계 ---
+        if (invalidityReason == InvalidityReason.NONE) {
+            if (allFoundModules.size() > MAX_MODULES) {
+                this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
+            } else {
+                this.structureValid = true;
+                this.structureCache = allFoundModules;
+
+                for (BlockPos modulePos : this.structureCache) {
+                    if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                        ModuleType type = moduleBE.getModuleType();
+                        totalSpeedBonus += type.getSpeedBonus();
+                        totalStressImpact += type.getStressImpact();
+                        if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
+                        if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
+
+                        // [로그 지점 1-A] 처리 모듈인지 확인
+                        if (moduleBE instanceof IProcessingModule) {
+                            processingModuleChain.add(modulePos);
+                        }
+                    }
+                }
+                processingModuleChain.sort(Comparator.comparingDouble(p -> p.distSqr(this.worldPosition)));
+
+            }
+        }
+
+        // --- 5. [복원] 시각적 연결 정보 동기화 ---
+        // 이전 구조에 있었지만 새 구조에는 없는 모듈들의 연결을 초기화
         Set<BlockPos> detachedModules = new HashSet<>(oldStructureCache);
-        detachedModules.removeAll(newStructureCache);
+        detachedModules.removeAll(this.structureCache);
         for (BlockPos detachedPos : detachedModules) {
             if (level.getBlockEntity(detachedPos) instanceof GenericModuleBlockEntity moduleBE) {
                 moduleBE.updateVisualConnections(new HashSet<>());
-                moduleBE.updateVisualSpeed(0f);
             }
         }
-        for (BlockPos modulePos : newStructureCache) {
+        // 새 구조에 포함된 모든 모듈들의 연결을 업데이트
+        for (BlockPos modulePos : this.structureCache) {
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                // 모듈 타입에 따라 핸들러를 가져와 리스트에 추가
-                ModuleType type = moduleBE.getModuleType();
-                if (type == ModuleType.ITEM_BUFFER && moduleBE.getItemHandler() != null) {
-                    itemBufferHandlers.add(moduleBE.getItemHandler());
-                }
-                if (type == ModuleType.FLUID_BUFFER && moduleBE.getFluidHandler() != null) {
-                    fluidBufferHandlers.add(moduleBE.getFluidHandler());
-                }
-                Set<Direction> connections = moduleConnections.getOrDefault(modulePos, new HashSet<>());
-                moduleBE.updateVisualConnections(connections);
+                moduleBE.updateVisualConnections(moduleConnections.getOrDefault(modulePos, new HashSet<>()));
             }
         }
 
         setChanged();
         sendData();
-
     }
 
-    private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {
-    }
 
-    private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction from, Set<BlockPos> visited, List<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
-        if (depth > MAX_STRUCTURE_RANGE || !visited.add(currentPos)) {
-            return new StructureCheckResult(from != null, false);
-        }
 
-        boolean isThisCore = currentPos.equals(this.worldPosition);
+    // [복원] searchStructureRecursive가 moduleConnections 맵을 다시 사용하도록 수정
+    private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction cameFrom, Set<BlockPos> visited, Set<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
+        if (depth > MAX_STRUCTURE_RANGE) return new StructureCheckResult(false, false);
+        if (!visited.add(currentPos)) return new StructureCheckResult(true, false);
+
         assert level != null;
         BlockState currentState = level.getBlockState(currentPos);
         Block currentBlock = currentState.getBlock();
 
-        if (isThisCore && from != null && from == currentState.getValue(DirectionalKineticBlock.FACING)) {
-            return new StructureCheckResult(false, false);
-        }
-
-        if (currentBlock instanceof DrillCoreBlock && !isThisCore) {
+        if (currentBlock instanceof DrillCoreBlock) {
             otherCores.add(currentPos);
             return new StructureCheckResult(false, true);
         }
 
-        if (!isValidStructureBlock(currentBlock)) {
+        if (!(currentBlock instanceof GenericModuleBlock)) {
             return new StructureCheckResult(false, false);
         }
 
         functionalModules.add(currentPos);
 
-        for (Direction dir : Direction.values()) {
-            if (from != null && dir == from.getOpposite()) {
-                continue;
-            }
-            if (isThisCore && dir == currentState.getValue(DirectionalKineticBlock.FACING)) {
-                continue;
-            }
+        for (Direction searchDir : Direction.values()) {
+            if (searchDir == cameFrom) continue;
 
-            BlockPos neighborPos = currentPos.relative(dir);
+            BlockPos neighborPos = currentPos.relative(searchDir);
             if (!level.isLoaded(neighborPos)) continue;
 
             BlockState neighborState = level.getBlockState(neighborPos);
-            if (isValidStructureBlock(neighborState.getBlock())) {
-                moduleConnections.computeIfAbsent(currentPos, k -> new HashSet<>()).add(dir);
-                moduleConnections.computeIfAbsent(neighborPos, k -> new HashSet<>()).add(dir.getOpposite());
+            Block neighborBlock = neighborState.getBlock();
 
-                StructureCheckResult result = searchStructureRecursive(neighborPos, dir, visited, functionalModules, otherCores, moduleConnections, depth + 1);
-                if (result.loopDetected || result.multipleCoresDetected) {
+            if (neighborBlock instanceof GenericModuleBlock || neighborBlock instanceof DrillCoreBlock) {
+                if(neighborBlock instanceof DrillCoreBlock) {
+                    Direction coreFacing = neighborState.getValue(DirectionalKineticBlock.FACING);
+                    if(searchDir.getAxis() == coreFacing.getAxis()) continue;
+                }
+
+                // [복원] 연결 정보 기록
+                moduleConnections.computeIfAbsent(currentPos, k -> new HashSet<>()).add(searchDir);
+                moduleConnections.computeIfAbsent(neighborPos, k -> new HashSet<>()).add(searchDir.getOpposite());
+
+                StructureCheckResult result = searchStructureRecursive(neighborPos, searchDir.getOpposite(), visited, functionalModules, otherCores, moduleConnections, depth + 1);
+                if (result.loopDetected() || result.multipleCoresDetected()) {
                     return result;
                 }
             }
@@ -336,11 +355,15 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return new StructureCheckResult(false, false);
     }
 
+    private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {}
+
     private boolean isValidStructureBlock(Block block) {
         return block instanceof DrillCoreBlock || block instanceof GenericModuleBlock;
     }
 
+
     public boolean isModuleConnectedAt(Direction absoluteDirection) {
+        // 코어와 '직접' 연결된 모듈이 있는지 확인하는 로직
         BlockPos adjacentPos = this.worldPosition.relative(absoluteDirection);
         return this.structureCache.contains(adjacentPos);
     }
@@ -523,7 +546,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // (열 수치 제한 및 과열 상태 갱신 로직은 이전과 동일)
         this.heat = Mth.clamp(this.heat, 0, 100);
-        wasOverheated = isOverheated; // 현재 상태를 이전 상태로 기록
+        // [추가] 이전 틱의 과열 상태를 기억하기 위한 필드
+        boolean wasOverheated = isOverheated; // 현재 상태를 이전 상태로 기록
 
         if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {
             isOverheated = false;
@@ -577,6 +601,39 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
     }
 
+    /**
+     * 채굴된 아이템을 받아 처리 체인을 시작하는 메서드.
+     * 이 메서드는 IDrillHead 구현체 내부에서 호출됩니다.
+     */
+    public void processMinedItem(ItemStack minedItem) {
+        if (level == null || level.isClientSide() || minedItem.isEmpty()) return;
+
+
+        List<ItemStack> stacksToProcess = new ArrayList<>();
+        stacksToProcess.add(minedItem);
+
+        // 처리 체인을 따라 아이템을 전달
+        for (BlockPos modulePos : processingModuleChain) {
+            if (level.getBlockEntity(modulePos) instanceof IProcessingModule processor) {
+
+                List<ItemStack> nextStacks = new ArrayList<>();
+                for (ItemStack currentStack : stacksToProcess) {
+                    // processItem은 처리 결과를 List<ItemStack>으로 반환
+                    nextStacks.addAll(processor.processItem(currentStack, this));
+                }
+                stacksToProcess = nextStacks;
+            }
+        }
+
+        // 모든 처리 체인이 끝나면 최종 결과물을 내부 버퍼에 삽입
+        for (ItemStack finalStack : stacksToProcess) {
+            ItemStack remainder = ItemHandlerHelper.insertItem(getInternalItemBuffer(), finalStack, false);
+            if (!remainder.isEmpty()) {
+                ItemEntity itemEntity = new ItemEntity(level, getBlockPos().getX() + 0.5, getBlockPos().getY() + 1.5, getBlockPos().getZ() + 0.5, remainder);
+                level.addFreshEntity(itemEntity);
+            }
+        }
+    }
 
 
     @Override

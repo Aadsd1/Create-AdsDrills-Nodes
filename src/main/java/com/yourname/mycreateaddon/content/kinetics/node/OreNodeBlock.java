@@ -2,11 +2,9 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 
 import com.simibubi.create.foundation.block.IBE;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.level.storage.loot.LootParams;

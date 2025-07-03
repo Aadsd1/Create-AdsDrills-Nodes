@@ -2,28 +2,27 @@ package com.yourname.mycreateaddon.content.kinetics.module;
 
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.common.util.Lazy;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
 
+public class GenericModuleBlockEntity extends KineticBlockEntity implements IProcessingModule {
 
-public class GenericModuleBlockEntity extends KineticBlockEntity {
 
     // 렌더링 관련 필드
     private Set<Direction> visualConnections = new HashSet<>();
@@ -58,6 +57,46 @@ public class GenericModuleBlockEntity extends KineticBlockEntity {
             };
         }
     }
+
+
+
+    // --- [1단계 추가] IProcessingModule 구현 ---
+
+    @Override
+    public RecipeType<?> getRecipeType() {
+        // [수정] Supplier에서 실제 RecipeType 값을 가져옵니다.
+        ModuleType type = getModuleType();
+        if (type != null) {
+            Supplier<RecipeType<?>> supplier = type.getRecipeTypeSupplier();
+            if (supplier != null) {
+                return supplier.get(); // 실제 값이 필요한 이 시점에 .get() 호출!
+            }
+        }
+        return null;
+    }
+    @Override
+    public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
+        // 모듈 타입에 따라 다른 조건을 검사
+        return switch (getModuleType()) {
+            case FURNACE -> core.getHeat() >= 50f; // 히터는 열 50 이상 필요
+            case BLAST_FURNACE -> core.getHeat() >= 90f; // [2단계 추가]
+            case WASHER -> !core.getInternalFluidBuffer().drain(100, IFluidHandler.FluidAction.SIMULATE).isEmpty(); // [2단계 추가]
+            case CRUSHER -> true; // [2단계 추가] 크러셔는 추가 조건 없음
+            default -> false; // 처리 모듈이 아니면 항상 false
+        };
+    }
+
+    @Override
+    public void consumeResources(DrillCoreBlockEntity core) {
+        switch (getModuleType()) {
+            case FURNACE -> core.addHeat(-10f);
+            case BLAST_FURNACE -> core.addHeat(-20f); // [2단계 추가]
+            case WASHER -> core.getInternalFluidBuffer().drain(100, IFluidHandler.FluidAction.EXECUTE); // [2단계 추가]
+            // 크러셔는 ModuleType에 정의된 높은 스트레스를 가하는 것 외에 추가 자원 소모 없음
+            default -> {}
+        }
+    }
+
     // --- [신규] Capability 등록 이벤트에서 사용할 Getter ---
     @Nullable
     public ItemStackHandler getItemHandler() {

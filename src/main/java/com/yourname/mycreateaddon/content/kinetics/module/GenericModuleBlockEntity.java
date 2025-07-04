@@ -8,13 +8,22 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
+import net.neoforged.neoforge.fluids.FluidStack; // 추가
+import net.minecraft.core.particles.ParticleTypes; // 추가
+import net.minecraft.sounds.SoundEvents; // 추가
+import net.minecraft.sounds.SoundSource; // 추가
+import net.minecraft.world.level.Level; // 추가
 import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Set;
@@ -31,7 +40,35 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     protected @Nullable ItemStackHandler itemHandler;
     protected @Nullable FluidTank fluidHandler;
 
+    // [추가] 우선순위 필드. 기본값은 99 (가장 낮음)
+    private int processingPriority = 99;
+    private static final int MAX_PRIORITY = 10;
+    // [추가] 우선순위 값을 얻는 getter
+    public int getProcessingPriority() {
+        return processingPriority;
+    }
 
+    // [추가] 우선순위를 순환시키는 메서드
+    public void cyclePriority(Player player) {
+        processingPriority++;
+        if (processingPriority > MAX_PRIORITY) {
+            processingPriority = 1;
+        }
+
+        // 기본값(99)에서 처음 변경될 때도 1로 설정
+        if (processingPriority == 100) {
+            processingPriority = 1;
+        }
+
+        // 플레이어에게 변경된 우선순위를 알림
+        player.displayClientMessage(Component.translatable("mycreateaddon.priority_changed", processingPriority), true); // true: 액션바에 표시
+
+        setChanged();
+        sendData();
+
+        // 코어에 재검사를 요청하여 정렬 순서를 즉시 업데이트
+        GenericModuleBlock.findAndNotifyCore(getLevel(), getBlockPos());
+    }
     public GenericModuleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
 
@@ -58,7 +95,41 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         }
     }
 
+    @Override
+    public void playEffects(Level level, BlockPos modulePos) {
+        // 이 메서드는 서버에서만 호출되므로, ServerLevel로 캐스팅해도 안전합니다.
+        if (!(level instanceof ServerLevel serverLevel)) return;
 
+        switch (getModuleType()) {
+            case FURNACE,BLAST_FURNACE -> {
+                serverLevel.playSound(null, modulePos, SoundEvents.LAVA_POP, SoundSource.BLOCKS, 0.7F, 1.5F);
+
+                double px = modulePos.getX() + 0.5;
+                double py = modulePos.getY() + 1.0; // 블록 상단 표면 바로 위
+                double pz = modulePos.getZ() + 0.5;
+                serverLevel.sendParticles(ParticleTypes.LAVA, px, py, pz, 2, 0.1, 0.1, 0.1, 0.0); // 용암 파티클 5개
+            }
+            case CRUSHER -> {
+                serverLevel.playSound(null, modulePos, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, 0.7F, 1.5F);
+
+                // [위치 조정] 파티클이 블록 밖으로 잘 보이도록 생성 위치 조정
+                double px = modulePos.getX() + 0.5;
+                double py = modulePos.getY() + 0.5;
+                double pz = modulePos.getZ() + 0.5;
+                serverLevel.sendParticles(ParticleTypes.CRIT, px, py, pz, 7, 0.3, 0.3, 0.3, 0.1);
+            }
+            case WASHER -> {
+                serverLevel.playSound(null, modulePos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 0.5F, 1.2F);
+
+                // [위치 조정] 파티클이 블록 위에서 튀도록 조정
+                double px = modulePos.getX() + 0.5;
+                double py = modulePos.getY() + 1.1;
+                double pz = modulePos.getZ() + 0.5;
+                serverLevel.sendParticles(ParticleTypes.SPLASH, px, py, pz, 12, 0.3, 0.1, 0.3, 0.0);
+            }
+            default -> {}
+        }
+    }
 
     // --- [1단계 추가] IProcessingModule 구현 ---
 
@@ -74,25 +145,41 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         }
         return null;
     }
+
     @Override
     public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
-        // 모듈 타입에 따라 다른 조건을 검사
         return switch (getModuleType()) {
-            case FURNACE -> core.getHeat() >= 50f; // 히터는 열 50 이상 필요
-            case BLAST_FURNACE -> core.getHeat() >= 90f; // [2단계 추가]
-            case WASHER -> !core.getInternalFluidBuffer().drain(100, IFluidHandler.FluidAction.SIMULATE).isEmpty(); // [2단계 추가]
-            case CRUSHER -> true; // [2단계 추가] 크러셔는 추가 조건 없음
-            default -> false; // 처리 모듈이 아니면 항상 false
+            case WASHER -> core.canWasherWork();
+            case FURNACE -> core.canHeaterWork();
+            case BLAST_FURNACE -> core.canBlastHeaterWork();
+            case CRUSHER -> true;
+            default -> false;
         };
     }
 
     @Override
     public void consumeResources(DrillCoreBlockEntity core) {
+        // [핵심] 코어의 현재 열 효율을 가져옵니다.
+        float efficiency = core.getHeatEfficiency();
+
         switch (getModuleType()) {
-            case FURNACE -> core.addHeat(-10f);
-            case BLAST_FURNACE -> core.addHeat(-20f); // [2단계 추가]
-            case WASHER -> core.getInternalFluidBuffer().drain(100, IFluidHandler.FluidAction.EXECUTE); // [2단계 추가]
-            // 크러셔는 ModuleType에 정의된 높은 스트레스를 가하는 것 외에 추가 자원 소모 없음
+            case FURNACE -> {
+                // 효율이 200%(2.0f)일 때, 열 소모량이 절반으로 줄어듭니다.
+                // 효율이 100%(1.0f)일 때는 기본 소모량(10)을 유지합니다.
+                float heatToConsume = 10.1f / (efficiency+0.1f);
+                core.addHeat(-heatToConsume);
+            }
+            case BLAST_FURNACE -> {
+                float heatToConsume = 20.1f / (efficiency+0.1f);
+                core.addHeat(-heatToConsume);
+            }
+            case WASHER -> {
+                // 효율이 200%(2.0f)일 때, 물 소모량이 절반으로 줄어듭니다.
+                int waterToConsume = (int) (101 / efficiency+1);
+
+                FluidStack waterRequest = new FluidStack(Fluids.WATER, waterToConsume);
+                core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.EXECUTE);
+            }
             default -> {}
         }
     }
@@ -176,6 +263,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
             compound.put("Tank", fluidHandler.writeToNBT(registries, new CompoundTag()));
         }
 
+        compound.putInt("ProcessingPriority", processingPriority);
         if (clientPacket) {
             if (!visualConnections.isEmpty()) {
                 int[] dirs = visualConnections.stream().mapToInt(Direction::ordinal).toArray();
@@ -198,6 +286,12 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
             fluidHandler.readFromNBT(registries, compound.getCompound("Tank"));
         }
 
+        // [추가] 우선순위 값 로드
+        if (compound.contains("ProcessingPriority")) {
+            processingPriority = compound.getInt("ProcessingPriority");
+        } else {
+            processingPriority = 99; // 이전 버전 호환
+        }
         if (clientPacket) {
             visualConnections.clear();
             if (compound.contains("VisualConnections")) {

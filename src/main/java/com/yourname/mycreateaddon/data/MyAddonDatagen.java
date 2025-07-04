@@ -77,6 +77,7 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.loop_detected", "Error: Structural loop detected.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.multiple_cores", "Error: Multiple cores in one assembly.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.too_many_modules", "Error: Module limit exceeded (%s).");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.duplicate_processing_module", "Error: Duplicate processing module detected.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.speed_bonus", "Speed Bonus");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.stress_impact", "Added Stress");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.head_missing", "Warning: Drill Head missing.");
@@ -107,5 +108,7 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.items", "Items");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.fluid", "Fluid");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.empty", "Empty");
+        registrate.addRawLang("mycreateaddon.priority_changed", "Processing Priority set to: %s");
+        registrate.addRawLang("goggle.mycreateaddon.sneak_for_details", "(Hold Sneak for details)");
     }
 }

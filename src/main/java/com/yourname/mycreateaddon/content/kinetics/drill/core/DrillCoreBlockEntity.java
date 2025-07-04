@@ -2,7 +2,6 @@ package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
@@ -29,6 +28,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -46,7 +46,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         LOOP_DETECTED,
         MULTIPLE_CORES,
         TOO_MANY_MODULES,
-        HEAD_MISSING // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
+        HEAD_MISSING, // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
+        DUPLICATE_PROCESSING_MODULE
     }
     // --- [신규] 연결된 버퍼 모듈의 핸들러를 저장할 리스트 ---
     private final List<IItemHandler> itemBufferHandlers = new ArrayList<>();
@@ -83,6 +84,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     // --- 모듈 효과 집계 필드 ---
     private float totalSpeedBonus = 0f;
     private float totalStressImpact = 0f;
+
+    private boolean canWasherWork = false;
+    private boolean canHeaterWork = false;
+    private boolean canBlastHeaterWork = false;
+
 
     // [핵심 추가] heat 필드에 대한 public getter
     public float getHeat() {
@@ -217,8 +223,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.cachedHeadPos = null;
         this.invalidityReason = InvalidityReason.NONE;
         this.structureValid = false;
-
-        // [복원] 모듈 간의 시각적 연결 정보를 저장할 맵
         Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>();
 
         Direction inputFacing = getBlockState().getValue(DirectionalKineticBlock.FACING);
@@ -259,10 +263,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
 
         // --- 4. 유효성 검사 및 데이터 집계 ---
+        Set<ModuleType> foundProcessingTypes = new HashSet<>();
+
         if (invalidityReason == InvalidityReason.NONE) {
             if (allFoundModules.size() > MAX_MODULES) {
                 this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
             } else {
+                // 구조는 일단 유효하다고 가정
                 this.structureValid = true;
                 this.structureCache = allFoundModules;
 
@@ -274,17 +281,34 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
                         if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
 
-                        // [로그 지점 1-A] 처리 모듈인지 확인
-                        if (moduleBE instanceof IProcessingModule) {
+                        if (type.getRecipeTypeSupplier() != null) {
+                            // [핵심 추가] Set.add()는 원소가 이미 존재하면 false를 반환합니다.
+                            if (!foundProcessingTypes.add(type)) {
+                                // 중복 발견!
+                                this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
+                                this.structureCache.clear();
+                                this.structureValid = false; // 구조를 비활성화
+                                break; // 더 이상 검사할 필요 없이 루프 종료
+                            }
+
+                            // 중복이 아니면 처리 체인에 추가
                             processingModuleChain.add(modulePos);
                         }
                     }
                 }
-                processingModuleChain.sort(Comparator.comparingDouble(p -> p.distSqr(this.worldPosition)));
 
+                // 중복이 발견되지 않았다면, 체인을 정상적으로 정렬
+                if (this.structureValid) {
+                    // [핵심 수정] 정렬 기준 변경
+                    processingModuleChain.sort(Comparator.comparingInt(pos -> {
+                        if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity gme) {
+                            return gme.getProcessingPriority();
+                        }
+                        return 99; // BE가 없는 예외적인 경우, 가장 낮은 우선순위 부여
+                    }));
+                }
             }
         }
-
         // --- 5. [복원] 시각적 연결 정보 동기화 ---
         // 이전 구조에 있었지만 새 구조에는 없는 모듈들의 연결을 초기화
         Set<BlockPos> detachedModules = new HashSet<>(oldStructureCache);
@@ -402,9 +426,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         compound.putFloat("StressImpact", this.totalStressImpact);
         compound.putInt("InvalidityReason", this.invalidityReason.ordinal());
 
+        // [핵심 수정] NbtUtils 대신 수동으로 X, Y, Z 저장
+        ListTag chainTag = new ListTag();
+        for (BlockPos pos : processingModuleChain) {
+            CompoundTag posTag = new CompoundTag();
+            posTag.putInt("X", pos.getX());
+            posTag.putInt("Y", pos.getY());
+            posTag.putInt("Z", pos.getZ());
+            chainTag.add(posTag);
+        }
+        compound.put("ProcessingChain", chainTag);
         compound.putFloat("Heat", this.heat);
         compound.putBoolean("Overheated", this.isOverheated);
         if (clientPacket) {
+            compound.putFloat("VisualSpeed", this.visualSpeed);
             ListTag cacheList = new ListTag();
             for (BlockPos pos : structureCache) {
                 CompoundTag posTag = new CompoundTag();
@@ -415,9 +450,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
             compound.put("StructureCache", cacheList);
         }
-        if (clientPacket) {
-            compound.putFloat("VisualSpeed", this.visualSpeed);
-        }
+
     }
 
     @Override
@@ -439,6 +472,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         if (clientPacket) {
             this.visualSpeed = compound.getFloat("VisualSpeed");
+
+            this.processingModuleChain.clear();
+            if (compound.contains("ProcessingChain", 9)) {
+                ListTag chainTag = compound.getList("ProcessingChain", 10);
+                for (int i = 0; i < chainTag.size(); i++) {
+                    // [핵심 수정] NbtUtils 대신 수동으로 X, Y, Z를 읽어 BlockPos 생성
+                    CompoundTag posTag = chainTag.getCompound(i);
+                    this.processingModuleChain.add(new BlockPos(
+                            posTag.getInt("X"),
+                            posTag.getInt("Y"),
+                            posTag.getInt("Z")
+                    ));
+                }
+            }
             Set<BlockPos> newCache = new HashSet<>();
             if (compound.contains("StructureCache", 9)) {
                 ListTag cacheList = compound.getList("StructureCache", 10);
@@ -453,6 +500,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
             this.structureCache = newCache;
         } else {
+            // 서버 측에서 월드를 로드할 때
+            this.processingModuleChain.clear();
+            if (compound.contains("ProcessingChain", 9)) {
+                ListTag chainTag = compound.getList("ProcessingChain", 10);
+                for (int i = 0; i < chainTag.size(); i++) {
+                    CompoundTag posTag = chainTag.getCompound(i);
+                    this.processingModuleChain.add(new BlockPos(
+                            posTag.getInt("X"),
+                            posTag.getInt("Y"),
+                            posTag.getInt("Z")
+                    ));
+                }
+            }
             needsStructureCheck = true;
         }
     }
@@ -513,6 +573,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
     }
+    private void updateProcessingConditions() {
+        // 와셔 모듈 조건
+        this.canWasherWork = !getInternalFluidBuffer().drain(100, IFluidHandler.FluidAction.SIMULATE).isEmpty();
+        // 히터 모듈 조건
+        this.canHeaterWork = getHeat() >= 50f;
+        // 블래스트 히터 모듈 조건
+        this.canBlastHeaterWork = getHeat() >= 90f;
+    }
+
+    // 모듈이 사용할 getter들
+    public boolean canWasherWork() { return this.canWasherWork; }
+    public boolean canHeaterWork() { return this.canHeaterWork; }
+    public boolean canBlastHeaterWork() { return this.canBlastHeaterWork; }
 
     public void serverTick() {
         // 기존 tick() 메서드에 있던 모든 서버 로직을 여기로 옮깁니다.
@@ -523,6 +596,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             needsStructureCheck = false;
         }
 
+        // [핵심 추가] 주기적인 상태 업데이트
+        if (tickCounter % 20 == 0) {
+            updateProcessingConditions();
+        }
         float finalSpeed = getFinalSpeed();
 
         IDrillHead headBlock = null;
@@ -533,8 +610,18 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // --- 과열 로직 수정 ---
         // [핵심 수정] finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
         if (finalSpeed != 0 && headBlock != null) {
-            // 가열: 드릴이 실제로 회전하고 있을 때만 열이 오릅니다.
-            this.heat += headBlock.getHeatGeneration();
+            // [기존] 가열: headBlock.getHeatGeneration(); (고정값)
+
+            // [변경] 가열: 기본 발생량 + 속도에 비례하는 추가 발생량
+            float baseHeatGen = headBlock.getHeatGeneration();
+
+            // 속도 계수 계산 (예: 128 RPM에서 두 배, 256 RPM에서 세 배가 되도록)
+            // Math.max(1, ...)을 사용하여 속도가 0에 가까울 때도 기본 발생량이 나오도록 보장
+            float speedFactor = Math.max(1, Math.abs(finalSpeed) / 64f);
+
+            float heatThisTick = baseHeatGen * speedFactor;
+
+            addHeat(heatThisTick);
         } else {
             // 냉각: 드릴이 어떤 이유로든(동력 없음, 과열 등) 멈춰있으면 열이 식습니다.
             float coolingRate = CORE_BASE_COOLING;
@@ -638,9 +725,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        // Create의 기본 운동 정보(Stress 등)를 표시하기 위해 super 호출을 유지합니다.
         super.addToGoggleTooltip(tooltip, isPlayerSneaking);
+
+        // "Drill Assembly" 헤더
         tooltip.add(Component.literal(""));
         tooltip.add(Component.translatable("goggle.mycreateaddon.drill_core.header").withStyle(ChatFormatting.GRAY));
+
+        // 구조 유효성 상태
         MutableComponent status;
         if (structureValid && invalidityReason != InvalidityReason.HEAD_MISSING) {
             status = Component.translatable("goggle.mycreateaddon.drill_core.valid", structureCache.size())
@@ -650,15 +742,17 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     .withStyle(ChatFormatting.RED);
         }
         tooltip.add(Component.literal(" ").append(status));
+
+        // 오류 원인 (오류가 있을 때만 표시)
         if (!structureValid || invalidityReason != InvalidityReason.NONE) {
             String reasonKey = switch (invalidityReason) {
                 case LOOP_DETECTED -> "goggle.mycreateaddon.drill_core.reason.loop_detected";
                 case MULTIPLE_CORES -> "goggle.mycreateaddon.drill_core.reason.multiple_cores";
                 case TOO_MANY_MODULES -> "goggle.mycreateaddon.drill_core.reason.too_many_modules";
                 case HEAD_MISSING -> "goggle.mycreateaddon.drill_core.reason.head_missing";
+                case DUPLICATE_PROCESSING_MODULE -> "goggle.mycreateaddon.drill_core.reason.duplicate_processing_module";
                 default -> null;
             };
-
             if (reasonKey != null) {
                 MutableComponent reason = (invalidityReason == InvalidityReason.TOO_MANY_MODULES)
                         ? Component.translatable(reasonKey, MAX_MODULES)
@@ -666,87 +760,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 tooltip.add(Component.literal(" ").append(reason.withStyle(ChatFormatting.DARK_RED)));
             }
         }
-        if (structureValid && (totalSpeedBonus > 0 || totalStressImpact > 0)) {
-            tooltip.add(Component.literal(""));
-            if (totalSpeedBonus > 0) {
-                tooltip.add(Component.literal(" ")
-                        .append(Component.translatable("goggle.mycreateaddon.drill_core.speed_bonus").withStyle(ChatFormatting.GRAY))
-                        .append(": ")
-                        .append(Component.literal("+" + (int) (totalSpeedBonus * 100) + "%")
-                                .withStyle(style -> style.withColor(ChatFormatting.AQUA).withBold(true))));
-            }
-            if (totalStressImpact > 0) {
-                tooltip.add(Component.literal(" ")
-                        .append(Component.translatable("goggle.mycreateaddon.drill_core.stress_impact").withStyle(ChatFormatting.GRAY))
-                        .append(": ")
-                        .append(Component.literal("+" + totalStressImpact + " SU")
-                                .withStyle(style -> style.withColor(ChatFormatting.GOLD).withBold(true))));
-            }
-        }
-
-        tooltip.add(Component.literal("")); // 구분선
-
-        float currentHeat = this.heat;
-        float currentEfficiency = getHeatEfficiency();
-
-        // 1. 온도 표시 라인
-        MutableComponent heatLine = Component.literal(" ")
-                .append(Component.translatable("goggle.mycreateaddon.drill_core.heat_label")); // "Heat: "
-
-        MutableComponent heatValue = Component.literal(String.format("%.1f%%", currentHeat));
-
-        // 온도에 따라 색상 결정
-        if (currentHeat > OVERLOAD_START_THRESHOLD) {
-            heatValue.withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
-        } else if (currentHeat > BOOST_START_THRESHOLD) {
-            heatValue.withStyle(ChatFormatting.GOLD);
-        } else {
-            heatValue.withStyle(ChatFormatting.GRAY);
-        }
-        tooltip.add(heatLine.append(heatValue));
-
-
-        // 2. 효율 표시 라인
-        MutableComponent efficiencyLine = Component.literal(" ")
-                .append(Component.translatable("goggle.mycreateaddon.drill_core.efficiency_label")); // "Efficiency: "
-
-        MutableComponent efficiencyValue = Component.literal(String.format("%.0f%%", currentEfficiency * 100));
-
-        // 효율에 따라 색상 및 설명 결정
-        if (currentEfficiency > 1.0f) {
-            efficiencyValue.withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
-            efficiencyLine.append(efficiencyValue)
-                    .append(Component.literal(" (Optimal Boost)").withStyle(ChatFormatting.DARK_AQUA));
-        } else if (currentHeat > OVERLOAD_START_THRESHOLD) {
-            efficiencyValue.withStyle(ChatFormatting.DARK_RED);
-            efficiencyLine.append(efficiencyValue)
-                    .append(Component.literal(" (Overloading)").withStyle(ChatFormatting.RED));
-        } else {
-            efficiencyValue.withStyle(ChatFormatting.GRAY);
-            efficiencyLine.append(efficiencyValue);
-        }
-        tooltip.add(efficiencyLine);
-
-        // --- [핵심 추가] 유효 속도(Effective Speed) 표시 라인 ---
-        float finalSpeed = getFinalSpeed(); // 열 효율이 모두 반영된 최종 속도를 가져옵니다.
-
-        MutableComponent speedLine = Component.literal(" ")
-                .append(Component.translatable("goggle.mycreateaddon.drill_core.effective_speed_label")); // "Effective Speed: "
-
-        MutableComponent speedValue = Component.literal(String.format("%.1f RPM", Math.abs(finalSpeed)));
-
-        // 효율(상태)에 따라 속도 값의 색상을 결정합니다.
-        if (currentEfficiency > 1.0f) {
-            speedValue.withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
-        } else if (currentHeat > OVERLOAD_START_THRESHOLD) {
-            speedValue.withStyle(ChatFormatting.DARK_RED);
-        } else {
-            speedValue.withStyle(ChatFormatting.GRAY);
-        }
-        tooltip.add(speedLine.append(speedValue));
-
-        // 3. 임계 과열 상태 특별 표시
+        // 과열 상태 특별 표시는 항상 보이도록 함
         if (isOverheated) {
+            tooltip.add(Component.literal(""));
             tooltip.add(Component.literal(" ")
                     .append(Component.translatable("goggle.mycreateaddon.drill_core.overheated")
                             .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_RED).withBold(true).withUnderlined(true))));
@@ -755,21 +771,162 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                             .withStyle(ChatFormatting.DARK_GRAY)));
         }
 
-        // 클라이언트에서도 structureCache를 순회하며 직접 정보를 집계합니다.
+        // --- 쉬프트 상태에 따라 정보 집합을 완전히 전환 ---
+        if (isPlayerSneaking) {
+            // --- 상세 정보 뷰 (SHIFT) ---
+
+            // [성능 보너스 상세]
+            if (structureValid && (totalSpeedBonus > 0 || totalStressImpact > 0)) {
+                tooltip.add(Component.literal(""));
+                if (totalSpeedBonus > 0) {
+                    tooltip.add(Component.literal(" ")
+                            .append(Component.translatable("goggle.mycreateaddon.drill_core.speed_bonus").withStyle(ChatFormatting.GRAY))
+                            .append(": ")
+                            .append(Component.literal("+" + (int) (totalSpeedBonus * 100) + "%")
+                                    .withStyle(style -> style.withColor(ChatFormatting.AQUA).withBold(true))));
+                }
+                if (totalStressImpact > 0) {
+                    tooltip.add(Component.literal(" ")
+                            .append(Component.translatable("goggle.mycreateaddon.drill_core.stress_impact").withStyle(ChatFormatting.GRAY))
+                            .append(": ")
+                            .append(Component.literal("+" + totalStressImpact + " SU")
+                                    .withStyle(style -> style.withColor(ChatFormatting.GOLD).withBold(true))));
+                }
+            }
+
+            // [과열 시스템 상세]
+            tooltip.add(Component.literal("")); // 구분선
+
+            float currentHeat = this.heat;
+            float currentEfficiency = getHeatEfficiency();
+
+            // 1. 온도 표시 라인
+            MutableComponent heatLine = Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.heat_label")); // "Heat: "
+            MutableComponent heatValue = Component.literal(String.format("%.1f%%", currentHeat));
+            if (currentHeat > OVERLOAD_START_THRESHOLD) {
+                heatValue.withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
+            } else if (currentHeat > BOOST_START_THRESHOLD) {
+                heatValue.withStyle(ChatFormatting.GOLD);
+            } else {
+                heatValue.withStyle(ChatFormatting.GRAY);
+            }
+            tooltip.add(heatLine.append(heatValue));
+
+            // 2. 효율 표시 라인
+            MutableComponent efficiencyLine = Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.efficiency_label")); // "Efficiency: "
+            MutableComponent efficiencyValue = Component.literal(String.format("%.0f%%", currentEfficiency * 100));
+            if (currentEfficiency > 1.0f) {
+                efficiencyValue.withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
+                efficiencyLine.append(efficiencyValue)
+                        .append(Component.literal(" (Optimal Boost)").withStyle(ChatFormatting.DARK_AQUA));
+            } else if (currentHeat > OVERLOAD_START_THRESHOLD) {
+                efficiencyValue.withStyle(ChatFormatting.DARK_RED);
+                efficiencyLine.append(efficiencyValue)
+                        .append(Component.literal(" (Overloading)").withStyle(ChatFormatting.RED));
+            } else {
+                efficiencyValue.withStyle(ChatFormatting.GRAY);
+                efficiencyLine.append(efficiencyValue);
+            }
+            tooltip.add(efficiencyLine);
+
+            // 3. 유효 속도 표시 라인 (상세 뷰에도 포함)
+            float finalSpeed = getFinalSpeed();
+            MutableComponent speedLine = Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.effective_speed_label")); // "Effective Speed: "
+            MutableComponent speedValue = Component.literal(String.format("%.1f RPM", Math.abs(finalSpeed)));
+            if (currentEfficiency > 1.0f) {
+                speedValue.withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
+            } else if (currentHeat > OVERLOAD_START_THRESHOLD) {
+                speedValue.withStyle(ChatFormatting.DARK_RED);
+            } else {
+                speedValue.withStyle(ChatFormatting.GRAY);
+            }
+            tooltip.add(speedLine.append(speedValue));
+
+            // [처리 순서]
+            if (!processingModuleChain.isEmpty()) {
+                tooltip.add(Component.literal(""));
+                tooltip.add(Component.literal("Processing Order:").withStyle(ChatFormatting.GRAY));
+
+                // 우선순위대로 정렬된 체인을 순회
+                for (BlockPos modulePos : processingModuleChain) { // for-each 루프로 변경하여 혼동 방지
+                    assert level != null;
+                    if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity gme) {
+                        Block moduleBlock = gme.getBlockState().getBlock();
+                        Component moduleName = moduleBlock.getName().withStyle(ChatFormatting.AQUA);
+
+                        // [핵심 수정] 루프의 순번(i) 대신, 모듈 BE에 저장된 실제 우선순위 값을 가져옵니다.
+                        int priority = gme.getProcessingPriority();
+
+                        MutableComponent line = Component.literal(" > " + priority + ". ")
+                                .withStyle(ChatFormatting.DARK_GRAY)
+                                .append(moduleName);
+                        tooltip.add(line);
+                    }
+                }
+            }
+
+        } else {
+            // --- 요약 정보 뷰 (NO SHIFT) ---
+            if (structureValid) {
+                tooltip.add(Component.literal(""));
+
+                // [핵심 수정] isOverheated에 대한 직접적인 처리를 제거하고,
+                // 과열 상태가 아닐 때의 온도 정보만 표시합니다.
+                if (!isOverheated) {
+                    MutableComponent heatSummary = Component.literal(" ")
+                            .append(Component.translatable("goggle.mycreateaddon.drill_core.heat_label").withStyle(ChatFormatting.GRAY));
+
+                    float currentHeat = getHeat();
+                    MutableComponent heatValue = Component.literal(String.format("%.1f%%", currentHeat));
+
+                    if (currentHeat > OVERLOAD_START_THRESHOLD) {
+                        heatValue.withStyle(ChatFormatting.RED);
+                        heatSummary.append(heatValue).append(Component.literal(" (Overloading)").withStyle(ChatFormatting.RED));
+                    } else if (currentHeat > BOOST_START_THRESHOLD) {
+                        heatValue.withStyle(ChatFormatting.GOLD);
+                        heatSummary.append(heatValue).append(Component.literal(" (Optimal Boost)").withStyle(ChatFormatting.GOLD));
+                    } else {
+                        heatValue.withStyle(ChatFormatting.DARK_GRAY);
+                        heatSummary.append(heatValue);
+                    }
+                    tooltip.add(heatSummary);
+                }
+            }
+
+            // [처리 모듈 개수 요약]
+            if (!processingModuleChain.isEmpty()) {
+                tooltip.add(Component.literal(" ")
+                        .append(Component.literal(String.valueOf(processingModuleChain.size())).withStyle(ChatFormatting.AQUA))
+                        .append(Component.literal(" Processing Modules active").withStyle(ChatFormatting.DARK_GRAY))
+                );
+            }
+
+            // 쉬프트 안내 문구
+            tooltip.add(Component.literal(" ").append(Component.translatable("goggle.mycreateaddon.sneak_for_details").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC)));
+        }
+
+
+        // --- 저장 공간 정보 (항상 표시) ---
         boolean hasItemBuffers = false;
         boolean hasFluidBuffers = false;
         int totalItemSlots = 0;
         int nonEmptyItemSlots = 0;
         int totalItems = 0;
-        int totalFluidCapacity = 0;
         FluidStack containedFluid = FluidStack.EMPTY;
+
+        // [핵심 수정] 유체 정보를 담을 새로운 변수들
+        int totalFluidCapacity = 0;
+        int totalFluidAmount = 0;
+        Map<Fluid, Integer> fluidComposition = new HashMap<>(); // 각 유체의 종류와 양을 저장할 맵
 
         if (level != null) {
             for (BlockPos modulePos : this.structureCache) {
                 if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                     ModuleType type = moduleBE.getModuleType();
 
-                    // 아이템 버퍼 정보 집계
                     if (type == ModuleType.ITEM_BUFFER && moduleBE.getItemHandler() != null) {
                         hasItemBuffers = true;
                         IItemHandler handler = moduleBE.getItemHandler();
@@ -786,16 +943,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     if (type == ModuleType.FLUID_BUFFER && moduleBE.getFluidHandler() != null) {
                         hasFluidBuffers = true;
                         IFluidHandler handler = moduleBE.getFluidHandler();
-                        totalFluidCapacity += handler.getTankCapacity(0);
-                        FluidStack fluidInTank = handler.getFluidInTank(0);
-                        if (!fluidInTank.isEmpty()) {
-                            if (containedFluid.isEmpty()) {
-                                containedFluid = fluidInTank.copy();
+                        for (int i = 0; i < handler.getTanks(); i++) {
+                            totalFluidCapacity += handler.getTankCapacity(i);
+                            FluidStack fluidInTank = handler.getFluidInTank(i);
+                            if (!fluidInTank.isEmpty()) {
+                                totalFluidAmount += fluidInTank.getAmount();
+                                // 맵에 기존 유체가 있으면 양을 더하고, 없으면 새로 추가
+                                fluidComposition.merge(fluidInTank.getFluid(), fluidInTank.getAmount(), Integer::sum);
                             }
-                            else if (FluidStack.isSameFluidSameComponents(containedFluid, fluidInTank)) {
-                                containedFluid.grow(fluidInTank.getAmount());
-                            }
-                            // 참고: 다른 종류의 유체가 섞여있을 경우, 첫 번째 종류만 표시됩니다.
                         }
                     }
                 }
@@ -804,14 +959,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
 
         if (hasItemBuffers || hasFluidBuffers) {
-            tooltip.add(Component.literal("")); // 구분선
+            tooltip.add(Component.literal(""));
             tooltip.add(Component.literal(" ").append(Component.translatable("goggle.mycreateaddon.drill_core.storage_header").withStyle(ChatFormatting.GRAY)));
 
             if (hasItemBuffers) {
                 MutableComponent itemLine = Component.literal(" ")
                         .append(Component.translatable("goggle.mycreateaddon.drill_core.storage.items").withStyle(ChatFormatting.GRAY))
                         .append(Component.literal(String.format(": %,d / %,d", totalItems, totalItemSlots * 64)));
-
                 if (isPlayerSneaking && nonEmptyItemSlots > 0) {
                     itemLine.append(Component.literal(String.format(" (%d Slots)", nonEmptyItemSlots)).withStyle(ChatFormatting.DARK_GRAY));
                 }
@@ -819,18 +973,46 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
 
             if (hasFluidBuffers) {
-                MutableComponent fluidLine = Component.literal(" ")
-                        .append(Component.translatable("goggle.mycreateaddon.drill_core.storage.fluid").withStyle(ChatFormatting.GRAY))
-                        .append(": ");
+                // [핵심 수정] 쉬프트 상태에 따라 유체 툴팁을 다르게 표시
+                if (isPlayerSneaking) {
+                    // --- 상세 뷰 (SHIFT): 모든 유체 목록 표시 ---
+                    MutableComponent fluidHeader = Component.literal(" ")
+                            .append(Component.translatable("goggle.mycreateaddon.drill_core.storage.fluid").withStyle(ChatFormatting.GRAY))
+                            .append(Component.literal(String.format(": %,d / %,d mb", totalFluidAmount, totalFluidCapacity)));
+                    tooltip.add(fluidHeader);
 
-                if (containedFluid.isEmpty()) {
-                    fluidLine.append(Component.translatable("goggle.mycreateaddon.drill_core.storage.empty").withStyle(ChatFormatting.DARK_GRAY));
+                    if (fluidComposition.isEmpty()) {
+                        tooltip.add(Component.literal("   ").append(Component.translatable("goggle.mycreateaddon.drill_core.storage.empty").withStyle(ChatFormatting.DARK_GRAY)));
+                    } else {
+                        // 유체를 양 순서대로 정렬하여 표시
+                        fluidComposition.entrySet().stream()
+                                .sorted(Map.Entry.<Fluid, Integer>comparingByValue().reversed())
+                                .forEach(entry -> {
+                                    MutableComponent fluidLine = Component.literal("  - ")
+                                            .append(Component.literal(String.format("%,d mb ", entry.getValue())).withStyle(ChatFormatting.GOLD))
+                                            .append(entry.getKey().getFluidType().getDescription().copy().withStyle(ChatFormatting.GRAY));
+                                    tooltip.add(fluidLine);
+                                });
+                    }
+
                 } else {
-                    fluidLine.append(Component.literal(String.format("%,d / %,d mb ", containedFluid.getAmount(), totalFluidCapacity))
-                            .withStyle(ChatFormatting.GOLD)
-                            .append(containedFluid.getHoverName().copy().withStyle(Style.EMPTY.withColor(ChatFormatting.GRAY).withItalic(true))));
+                    // --- 요약 뷰 (NO SHIFT): 전체 용량과 종류 개수만 표시 ---
+                    MutableComponent fluidLine = Component.literal(" ")
+                            .append(Component.translatable("goggle.mycreateaddon.drill_core.storage.fluid").withStyle(ChatFormatting.GRAY))
+                            .append(": ");
+
+                    if (totalFluidAmount == 0) {
+                        fluidLine.append(Component.translatable("goggle.mycreateaddon.drill_core.storage.empty").withStyle(ChatFormatting.DARK_GRAY));
+                    } else {
+                        fluidLine.append(Component.literal(String.format("%,d / %,d mb", totalFluidAmount, totalFluidCapacity))
+                                .withStyle(ChatFormatting.GOLD));
+                        // 유체 종류가 2개 이상일 때만 종류 개수 표시
+                        if (fluidComposition.size() > 1) {
+                            fluidLine.append(Component.literal(String.format(" (%d Types)", fluidComposition.size())).withStyle(ChatFormatting.DARK_GRAY));
+                        }
+                    }
+                    tooltip.add(fluidLine);
                 }
-                tooltip.add(fluidLine);
             }
         }
 

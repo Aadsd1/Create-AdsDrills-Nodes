@@ -85,17 +85,22 @@ public class DrillStructureFluidHandler implements IFluidHandler {
         }
 
         FluidStack drainedStack = FluidStack.EMPTY;
+        FluidStack resourceToDrain = resource.copy(); // 원본 요청을 복사해서 사용
+
         for (IFluidHandler handler : handlers) {
-            FluidStack drained = handler.drain(resource, action);
+            // 각 핸들러에게 "이 종류의 유체(resourceToDrain)를 빼내줘" 라고 요청합니다.
+            FluidStack drained = handler.drain(resourceToDrain, action);
+
             if (!drained.isEmpty()) {
                 if (drainedStack.isEmpty()) {
                     drainedStack = drained;
                 } else {
                     drainedStack.grow(drained.getAmount());
                 }
-                resource.shrink(drained.getAmount());
-                if (resource.isEmpty()) {
-                    break;
+                // 다음 핸들러에게 요청할 양을 줄입니다.
+                resourceToDrain.shrink(drained.getAmount());
+                if (resourceToDrain.isEmpty()) {
+                    break; // 요청한 양을 모두 채웠으면 중단
                 }
             }
         }

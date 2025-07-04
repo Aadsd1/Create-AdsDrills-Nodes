@@ -17,6 +17,7 @@
   "goggle.mycreateaddon.drill_core.heat_label": "Heat: ",
   "goggle.mycreateaddon.drill_core.invalid": "Structure Invalid",
   "goggle.mycreateaddon.drill_core.overheated": "CRITICAL OVERHEAT!",
+  "goggle.mycreateaddon.drill_core.reason.duplicate_processing_module": "Error: Duplicate processing module detected.",
   "goggle.mycreateaddon.drill_core.reason.head_missing": "Warning: Drill Head missing.",
   "goggle.mycreateaddon.drill_core.reason.loop_detected": "Error: Structural loop detected.",
   "goggle.mycreateaddon.drill_core.reason.multiple_cores": "Error: Multiple cores in one assembly.",
@@ -43,5 +44,7 @@
   "goggle.mycreateaddon.ore_node.richness.normal": "Normal",
   "goggle.mycreateaddon.ore_node.richness.rich": "Rich",
   "goggle.mycreateaddon.ore_node.richness.sparse": "Sparse",
-  "goggle.mycreateaddon.ore_node.yield": "Yield: %s"
+  "goggle.mycreateaddon.ore_node.yield": "Yield: %s",
+  "goggle.mycreateaddon.sneak_for_details": "(Hold Sneak for details)",
+  "mycreateaddon.priority_changed": "Processing Priority set to: %s"
 }

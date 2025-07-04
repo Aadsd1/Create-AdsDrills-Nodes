@@ -17,6 +17,7 @@
   "goggle.mycreateaddon.drill_core.heat_label": " :ʇɐǝH",
   "goggle.mycreateaddon.drill_core.invalid": "pıןɐʌuI ǝɹnʇɔnɹʇS",
   "goggle.mycreateaddon.drill_core.overheated": "¡⟘ⱯƎHᴚƎΛO ꞀⱯƆI⟘IᴚƆ",
+  "goggle.mycreateaddon.drill_core.reason.duplicate_processing_module": "˙pǝʇɔǝʇǝp ǝןnpoɯ buıssǝɔoɹd ǝʇɐɔıןdnᗡ :ɹoɹɹƎ",
   "goggle.mycreateaddon.drill_core.reason.head_missing": "˙buıssıɯ pɐǝH ןןıɹᗡ :buıuɹɐM",
   "goggle.mycreateaddon.drill_core.reason.loop_detected": "˙pǝʇɔǝʇǝp dooן ןɐɹnʇɔnɹʇS :ɹoɹɹƎ",
   "goggle.mycreateaddon.drill_core.reason.multiple_cores": "˙ʎןqɯǝssɐ ǝuo uı sǝɹoɔ ǝןdıʇןnW :ɹoɹɹƎ",
@@ -43,5 +44,7 @@
   "goggle.mycreateaddon.ore_node.richness.normal": "ןɐɯɹoN",
   "goggle.mycreateaddon.ore_node.richness.rich": "ɥɔıᴚ",
   "goggle.mycreateaddon.ore_node.richness.sparse": "ǝsɹɐdS",
-  "goggle.mycreateaddon.ore_node.yield": "%s :pןǝıʎ"
+  "goggle.mycreateaddon.ore_node.yield": "%s :pןǝıʎ",
+  "goggle.mycreateaddon.sneak_for_details": ")sןıɐʇǝp ɹoɟ ʞɐǝuS pןoH(",
+  "mycreateaddon.priority_changed": "%s :oʇ ʇǝs ʎʇıɹoıɹԀ buıssǝɔoɹԀ"
 }

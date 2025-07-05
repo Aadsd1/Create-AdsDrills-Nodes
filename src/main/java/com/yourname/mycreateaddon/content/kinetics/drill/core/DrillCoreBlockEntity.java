@@ -9,6 +9,7 @@ import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.IProcessingModule;
 import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
+import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,6 +30,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -330,6 +332,22 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
+    // [추가] 헤드로부터 업그레이드 정보를 받아 노드 채굴을 지시하는 새로운 메서드
+    public ItemStack mineNode(OreNodeBlockEntity nodeBE, int miningAmount) {
+        if (level == null || level.isClientSide() || cachedHeadPos == null) return ItemStack.EMPTY;
+
+        int fortune = 0;
+        boolean silkTouch = false;
+
+        // 헤드 BE에서 업그레이드 정보를 가져옵니다.
+        if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+            fortune = headBE.getFortuneLevel();
+            silkTouch = headBE.hasSilkTouch();
+        }
+
+        // 노드에 업그레이드 정보와 함께 채굴을 요청합니다.
+        return nodeBE.applyMiningTick(miningAmount, fortune, silkTouch);
+    }
 
     // [복원] searchStructureRecursive가 moduleConnections 맵을 다시 사용하도록 수정
     private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction cameFrom, Set<BlockPos> visited, Set<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
@@ -575,7 +593,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
     private void updateProcessingConditions() {
         // 와셔 모듈 조건
-        this.canWasherWork = !getInternalFluidBuffer().drain(100, IFluidHandler.FluidAction.SIMULATE).isEmpty();
+        FluidStack waterToSimulate = new FluidStack(Fluids.WATER, 100);
+        this.canWasherWork = getInternalFluidBuffer().drain(waterToSimulate, IFluidHandler.FluidAction.SIMULATE).getAmount() >= 100;
         // 히터 모듈 조건
         this.canHeaterWork = getHeat() >= 50f;
         // 블래스트 히터 모듈 조건

@@ -1,6 +1,7 @@
 package com.yourname.mycreateaddon.client;
 
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
@@ -52,7 +53,13 @@ public class ClientSetup {
     public static void onModelRegister(ModelEvent.RegisterAdditional event) {
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_DRILL_LOCATION, "standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_MODULE_LOCATION, "standalone"));
-        event.register(new ModelResourceLocation(MyAddonPartialModels.ROTARY_DRILL_HEAD_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.DIAMOND_DRILL_BODY_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.IRON_DRILL_BODY_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.DRILL_TIP_IRON_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.DRILL_TIP_DIAMOND_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.DRILL_TIP_GOLD_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.DRILL_TIP_EMERALD_LOCATION,"standalone"));
+
     }
 
 
@@ -115,6 +122,8 @@ public class ClientSetup {
             return -1;
 
         }, MyAddonBlocks.ORE_NODE.get());
+
+
     }
 
     // [추가] 아이템 색상 핸들러 등록 (인벤토리 아이템용)

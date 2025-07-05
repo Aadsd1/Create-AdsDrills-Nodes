@@ -102,19 +102,32 @@ public class MyAddonBlocks {
             .register();
 
 
-
-    public static final BlockEntry<RotaryDrillHeadBlock> ROTARY_DRILL_HEAD = REGISTRATE
-            .block("rotary_drill_head", RotaryDrillHeadBlock::new)
+    public static final BlockEntry<RotaryDrillHeadBlock> IRON_ROTARY_DRILL_HEAD = REGISTRATE
+            .block("iron_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.25f, 0.05f))
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))
             .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
             .item()
-            .model((c,p)->
-                    p.withExistingParent(c.getId().getPath(),
-                            p.modLoc("block/"+c.getId().getPath()+"/block")))
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
+
+    public static final BlockEntry<RotaryDrillHeadBlock> DIAMOND_ROTARY_DRILL_HEAD = REGISTRATE
+            .block("diamond_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.15f, 0.12f))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .blockstate(BlockStateGen.directionalBlockProvider(true))
+            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+
 
     public static final BlockEntry<GenericModuleBlock> FURNACE_MODULE = REGISTRATE
             .block("furnace_module", p -> new GenericModuleBlock(p, ModuleType.FURNACE))

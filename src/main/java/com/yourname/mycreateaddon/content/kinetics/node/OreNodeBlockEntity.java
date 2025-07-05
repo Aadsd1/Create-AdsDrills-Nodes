@@ -13,13 +13,18 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
 
@@ -93,45 +98,70 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     // --- 핵심 로직 ---
 
-    // [핵심 수정] 메서드의 반환 타입을 void에서 ItemStack으로 변경합니다.
-    public ItemStack applyMiningTick(int miningAmount) {
-        if (level == null || level.isClientSide || currentYield <= 0 || resourceComposition.isEmpty()) {
-            // [수정] 아이템 스택이 비어있음을 의미하는 ItemStack.EMPTY를 반환합니다.
+
+
+    public ItemStack applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch) {
+        if (level == null || level.isClientSide() || currentYield <= 0) {
             return ItemStack.EMPTY;
         }
 
+        // ... 채굴 진행도 계산 ...
         float effectiveMiningAmount = miningAmount / getHardness();
         this.miningProgress += (int) effectiveMiningAmount;
-
         int miningResistance = 1000;
 
         if (this.miningProgress >= miningResistance) {
             this.miningProgress -= miningResistance;
             this.currentYield--;
+            setChanged();
+            sendData();
 
+            // --- 1. 실크터치 처리 ---
+            if (hasSilkTouch) {
+                Block oreBlock = BuiltInRegistries.BLOCK.get(this.oreBlockId);
+                return oreBlock != Blocks.AIR ? new ItemStack(oreBlock) : ItemStack.EMPTY;
+            }
+
+            // --- 2. 기본 아이템 결정 ---
+            ItemStack baseDrop = ItemStack.EMPTY;
             double random = level.getRandom().nextDouble();
             float cumulative = 0f;
             for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
                 cumulative += entry.getValue();
                 if (random < cumulative) {
-                    ItemStack yieldedStack = new ItemStack(entry.getKey());
-
-                    if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                        yieldedStack.setCount(2);
-                    }
-
-                    setChanged();
-                    sendData();
-
-                    // [추가] 생성된 아이템 스택을 반환합니다.
-                    return yieldedStack;
+                    baseDrop = new ItemStack(entry.getKey());
+                    break;
                 }
             }
+            if (baseDrop.isEmpty()) return ItemStack.EMPTY;
+
+            // --- 3. 행운 로직 직접 구현 ---
+            int dropCount = 1;
+            if (fortuneLevel > 0) {
+                RandomSource rand = level.getRandom();
+                // 행운 레벨만큼 추가 기회
+                for (int i = 0; i < fortuneLevel; i++) {
+                    // 바닐라의 '균등 분포 추가 드롭' 공식을 단순화
+                    // 레벨당 대략 1/(레벨+2) 확률로 1개씩 추가
+                    if (rand.nextInt(fortuneLevel + 2) > 1) {
+                        dropCount++;
+                    }
+                }
+            }
+            baseDrop.setCount(dropCount);
+
+            // --- 4. 풍부함(Richness) 특성 적용 ---
+            if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                baseDrop.grow(baseDrop.getCount()); // 2배로 만듦
+            }
+
+            return baseDrop;
         }
 
-        // 채굴에 실패했거나, 아직 진행도가 부족하면 빈 스택을 반환합니다.
         return ItemStack.EMPTY;
     }
+
+
     @Override
     public void tick() {
         super.tick();

@@ -49,11 +49,10 @@ public class MyAddonBlockEntity {
 
     public static final BlockEntityEntry<RotaryDrillHeadBlockEntity> ROTARY_DRILL_HEAD = REGISTRATE
             .blockEntity("rotary_drill_head", RotaryDrillHeadBlockEntity::new)
-            .visual(() -> RotaryDrillHeadVisual::new)
-            .validBlocks(MyAddonBlocks.ROTARY_DRILL_HEAD)
-            .renderer(() -> RotaryDrillHeadRenderer::new)
+            .visual(()->RotaryDrillHeadVisual::new)
+            .validBlocks(MyAddonBlocks.IRON_ROTARY_DRILL_HEAD, MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD)
+            .renderer(()->RotaryDrillHeadRenderer::new)
             .register();
-
 
     public static void register() {}
 }

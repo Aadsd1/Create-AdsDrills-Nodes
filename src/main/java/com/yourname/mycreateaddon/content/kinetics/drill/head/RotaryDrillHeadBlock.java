@@ -8,7 +8,13 @@ import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEnti
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
@@ -16,13 +22,22 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import com.simibubi.create.foundation.block.IBE;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 
 
 public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDrillHead, IBE<RotaryDrillHeadBlockEntity>, IRotate {
 
-    public RotaryDrillHeadBlock(Properties properties) {
+
+    // [수정] 성능 값을 저장할 필드 추가
+    private final float heatGeneration;
+    private final float coolingRate;
+
+    // [수정] 생성자에서 성능 값을 받도록 변경
+    public RotaryDrillHeadBlock(Properties properties, float heatGeneration, float coolingRate) {
         super(properties);
+        this.heatGeneration = heatGeneration;
+        this.coolingRate = coolingRate;
     }
 
     @Override
@@ -39,31 +54,27 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
             int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
 
             if (miningAmount > 0) {
-                ItemStack minedItem = nodeBE.applyMiningTick(miningAmount);
-
-                // 받은 아이템이 비어있지 않다면,
+                // [수정] nodeBE.applyMiningTick을 직접 호출하는 대신, 코어의 새로운 메서드를 호출
+                ItemStack minedItem = core.mineNode(nodeBE, miningAmount);
                 if (!minedItem.isEmpty()) {
-                    // [올바른 로직]
-                    // 채굴된 아이템을 버퍼에 직접 넣는 것이 아니라,
-                    // 코어의 처리 시스템으로 즉시 보냅니다.
                     core.processMinedItem(minedItem);
                 }
             }
         }
     }
 
-    // --- [추가] IDrillHead의 새 메서드 구현 ---
+
+    // [수정] IDrillHead의 메서드들이 필드 값을 반환하도록 변경
     @Override
     public float getHeatGeneration() {
-        // 기본 회전형 헤드는 틱당 0.25의 열을 발생시킵니다.
-        return 0.25f;
+        return this.heatGeneration;
     }
 
     @Override
     public float getCoolingRate() {
-        // 자체적으로 틱당 0.05의 열을 식힙니다.
-        return 0.05f;
+        return this.coolingRate;
     }
+
 
     @Override
     public Direction.Axis getRotationAxis(BlockState state) {
@@ -101,6 +112,36 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
     public Class<RotaryDrillHeadBlockEntity> getBlockEntityClass() {
         return RotaryDrillHeadBlockEntity.class;
     }
+
+    // [핵심 수정] 반환 타입을 ItemInteractionResult로 변경
+    @Override
+    protected @NotNull ItemInteractionResult useItemOn(
+            @NotNull ItemStack stack, @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos,
+            @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit
+    ) {
+        Item itemInHand = stack.getItem();
+
+        // 손에 든 아이템이 금 주괴 또는 에메랄드일 때만 로직 실행
+        if (itemInHand == Items.GOLD_INGOT || itemInHand == Items.EMERALD) {
+            // 쉬프트 클릭이 아닐 때만 작동
+            if (!player.isShiftKeyDown()) {
+                if (!level.isClientSide) {
+                    withBlockEntityDo(level, pos, be -> {
+                        be.applyUpgrade(player, itemInHand);
+                        if (!player.getAbilities().instabuild) {
+                            stack.shrink(1);
+                        }
+                    });
+                }
+                // [핵심 수정] 성공 시 반환 값 변경
+                return ItemInteractionResult.SUCCESS;
+            }
+        }
+
+        // 그 외의 경우는 상위 클래스의 동작에 맡김
+        return super.useItemOn(stack, state, level, pos, player, hand, hit);
+    }
+
 
     @Override
     public BlockEntityType<? extends RotaryDrillHeadBlockEntity> getBlockEntityType() {

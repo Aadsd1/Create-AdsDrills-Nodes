@@ -110,5 +110,10 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.empty", "Empty");
         registrate.addRawLang("mycreateaddon.priority_changed", "Processing Priority set to: %s");
         registrate.addRawLang("goggle.mycreateaddon.sneak_for_details", "(Hold Sneak for details)");
+        registrate.addRawLang("mycreateaddon.upgrade_fail.already_applied", "This upgrade is already applied.");
+        registrate.addRawLang("mycreateaddon.upgrade_fail.conflict", "Cannot apply this upgrade while another is active.");
+        registrate.addRawLang("mycreateaddon.upgrade_fail.max_level", "Fortune is already at maximum level.");
+        registrate.addRawLang("mycreateaddon.upgrade_success.silktouch", "Silk Touch applied to Drill Head.");
+        registrate.addRawLang("mycreateaddon.upgrade_success.fortune", "Fortune on Drill Head upgraded to level %s.");
     }
 }

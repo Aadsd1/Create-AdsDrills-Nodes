@@ -4,6 +4,7 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -50,6 +51,12 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private float richness;
     private float regeneration;
 
+    // [추가] 균열 상태 필드
+    private boolean cracked = false;
+    // [추가] 균열 상태가 지속될 시간을 틱 단위로 저장할 타이머
+    private int crackTimer = 0;
+    private static final int CRACK_DURATION_TICKS = 100; // 30초 (20틱 * 30초)
+
     public static final ModelProperty<OreNodeBlockEntity> MODEL_DATA_PROPERTY = new ModelProperty<>();
 
     public OreNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -61,7 +68,31 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
     }
+    // [추가] 균열 상태 getter
+    public boolean isCracked() {
+        return cracked;
+    }
 
+
+    public void setCracked(boolean cracked) {
+        if (this.cracked == cracked) return;
+        this.cracked = cracked;
+
+        if (cracked) {
+            // 균열 상태가 되면 타이머를 설정
+            this.crackTimer = CRACK_DURATION_TICKS;
+        } else {
+            // 균열 상태가 풀리면 타이머를 리셋
+            this.crackTimer = 0;
+        }
+
+        // [핵심 수정] sendData()와 함께, 블록 업데이트를 요청하여
+        // 클라이언트 렌더링 및 상태를 확실하게 갱신합니다.
+        if (level != null && !level.isClientSide) {
+            setChanged();
+            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+        }
+    }
     // --- 특성 Getter ---
     public float getHardness() {
         return Math.max(0.1f, this.hardness); // 0으로 나누는 것을 방지
@@ -115,63 +146,90 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             this.currentYield--;
             setChanged();
             sendData();
-
-            // --- 1. 실크터치 처리 ---
-            if (hasSilkTouch) {
-                Block oreBlock = BuiltInRegistries.BLOCK.get(this.oreBlockId);
-                return oreBlock != Blocks.AIR ? new ItemStack(oreBlock) : ItemStack.EMPTY;
-            }
-
-            // --- 2. 기본 아이템 결정 ---
-            ItemStack baseDrop = ItemStack.EMPTY;
-            double random = level.getRandom().nextDouble();
-            float cumulative = 0f;
-            for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
-                cumulative += entry.getValue();
-                if (random < cumulative) {
-                    baseDrop = new ItemStack(entry.getKey());
-                    break;
+            if (this.cracked) {
+                // 균열된 노드에서는 '균열된 철 덩어리'를 드롭
+                // 여기서는 예시로 철만 사용했지만, 나중에는 노드의 주 구성 광물에 따라 다른 종류의 '균열된 덩어리'를 주도록 확장할 수 있음
+                return new ItemStack(MyAddonItems.CRACKED_IRON_CHUNK.get());
+            } else {
+                // --- 1. 실크터치 처리 ---
+                if (hasSilkTouch) {
+                    Block oreBlock = BuiltInRegistries.BLOCK.get(this.oreBlockId);
+                    return oreBlock != Blocks.AIR ? new ItemStack(oreBlock) : ItemStack.EMPTY;
                 }
-            }
-            if (baseDrop.isEmpty()) return ItemStack.EMPTY;
 
-            // --- 3. 행운 로직 직접 구현 ---
-            int dropCount = 1;
-            if (fortuneLevel > 0) {
-                RandomSource rand = level.getRandom();
-                // 행운 레벨만큼 추가 기회
-                for (int i = 0; i < fortuneLevel; i++) {
-                    // 바닐라의 '균등 분포 추가 드롭' 공식을 단순화
-                    // 레벨당 대략 1/(레벨+2) 확률로 1개씩 추가
-                    if (rand.nextInt(fortuneLevel + 2) > 1) {
-                        dropCount++;
+                // --- 2. 기본 아이템 결정 ---
+                ItemStack baseDrop = ItemStack.EMPTY;
+                double random = level.getRandom().nextDouble();
+                float cumulative = 0f;
+                for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
+                    cumulative += entry.getValue();
+                    if (random < cumulative) {
+                        baseDrop = new ItemStack(entry.getKey());
+                        break;
                     }
                 }
-            }
-            baseDrop.setCount(dropCount);
+                if (baseDrop.isEmpty()) return ItemStack.EMPTY;
 
-            // --- 4. 풍부함(Richness) 특성 적용 ---
-            if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                baseDrop.grow(baseDrop.getCount()); // 2배로 만듦
-            }
+                // --- 3. 행운 로직 직접 구현 ---
+                int dropCount = 1;
+                if (fortuneLevel > 0) {
+                    RandomSource rand = level.getRandom();
+                    // 행운 레벨만큼 추가 기회
+                    for (int i = 0; i < fortuneLevel; i++) {
+                        // 바닐라의 '균등 분포 추가 드롭' 공식을 단순화
+                        // 레벨당 대략 1/(레벨+2) 확률로 1개씩 추가
+                        if (rand.nextInt(fortuneLevel + 2) > 1) {
+                            dropCount++;
+                        }
+                    }
+                }
+                baseDrop.setCount(dropCount);
 
-            return baseDrop;
+                // --- 4. 풍부함(Richness) 특성 적용 ---
+                if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                    baseDrop.grow(baseDrop.getCount()); // 2배로 만듦
+                }
+
+                return baseDrop;
+
+
+            }
         }
 
         return ItemStack.EMPTY;
     }
 
 
+    // [수정] tick 메서드에 타이머 로직 추가
     @Override
     public void tick() {
         super.tick();
-        // 재생력 특성 처리 (서버에서만)
-        if (level != null && !level.isClientSide && this.regeneration > 0) {
-            if (this.currentYield < this.maxYield) {
+        if (level != null && !level.isClientSide) {
+            // 재생력 처리
+            if (this.regeneration > 0 && this.currentYield < this.maxYield) {
                 this.currentYield = Math.min(this.maxYield, this.currentYield + this.regeneration);
+                setChanged();
+            }
+
+            // 균열 타이머 처리
+            if (this.cracked && this.crackTimer > 0) {
+                this.crackTimer--;
+
+                // [핵심 수정] 타이머가 1초(20틱) 지날 때마다 클라이언트에 동기화 신호를 보냅니다.
+                // 매 틱마다 보내면 부하가 크므로, 1초에 한 번만 갱신해도 충분합니다.
+                if (this.crackTimer % 20 == 0) {
+                    setChanged();
+                    sendData(); // sendData()는 setChanged()와 함께 쓰여 동기화를 확실하게 합니다.
+                }
+
+                if (this.crackTimer == 0) {
+                    // 타이머가 다 되면 균열 상태를 해제 (이때 setCracked 내부에서 sendBlockUpdated가 호출됨)
+                    setCracked(false);
+                }
             }
         }
     }
+
 
     // --- NBT 및 동기화 ---
     @Override
@@ -187,6 +245,12 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         tag.putFloat("Richness", this.richness);
         tag.putFloat("Regeneration", this.regeneration);
 
+
+        if (cracked) {
+            tag.putBoolean("Cracked", true);
+            // [추가] 남은 타이머 시간도 저장
+            tag.putInt("CrackTimer", crackTimer);
+        }
         ListTag compositionList = new ListTag();
         for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
             CompoundTag entryTag = new CompoundTag();
@@ -212,6 +276,11 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         this.richness = tag.getFloat("Richness");
         this.regeneration = tag.getFloat("Regeneration");
 
+        cracked = tag.getBoolean("Cracked");
+        if (cracked) {
+            // [추가] 타이머 시간 로드
+            crackTimer = tag.getInt("CrackTimer");
+        }
         this.resourceComposition.clear();
         if (tag.contains("Composition", 9)) {
             ListTag compositionList = tag.getList("Composition", 10);
@@ -317,6 +386,11 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                             .withStyle(ChatFormatting.DARK_GRAY)));
         }
 
+        if (cracked) {
+            // [수정] 남은 시간을 초 단위로 표시
+            int secondsLeft = crackTimer / 20;
+            tooltip.add(Component.literal(" ").append(Component.literal("[Cracked] (" + secondsLeft + "s left)").withStyle(ChatFormatting.YELLOW)));
+        }
         return true;
     }
 

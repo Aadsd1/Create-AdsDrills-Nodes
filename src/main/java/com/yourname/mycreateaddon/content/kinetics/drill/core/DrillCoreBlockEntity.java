@@ -124,24 +124,50 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return new DrillStructureFluidHandler(this.fluidBufferHandlers);
     }
 
+
     @Override
     public ItemStack consumeItems(ItemStack stackToConsume, boolean simulate) {
-        // 간단한 구현: 모든 버퍼를 순회하며 아이템을 찾아서 소모
+        if (this.itemBufferHandlers.isEmpty() || stackToConsume.isEmpty()) {
+            return stackToConsume; // 버퍼가 없거나 요청이 없으면 소모 불가능
+        }
+
         int amountToConsume = stackToConsume.getCount();
+
+        // 연결된 모든 버퍼를 순회
         for (IItemHandler handler : this.itemBufferHandlers) {
-            for (int i = 0; i < handler.getSlots(); i++) {
-                ItemStack stackInSlot = handler.getStackInSlot(i);
+            // 각 버퍼의 모든 슬롯을 순회
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                ItemStack stackInSlot = handler.getStackInSlot(slot);
+
+                // 슬롯에 있는 아이템이 우리가 찾는 아이템과 같은 종류인지 확인
                 if (ItemStack.isSameItemSameComponents(stackInSlot, stackToConsume)) {
-                    ItemStack extracted = handler.extractItem(i, amountToConsume, simulate);
+                    // 이 슬롯에서 필요한 만큼 아이템을 빼냄
+                    ItemStack extracted = handler.extractItem(slot, amountToConsume, simulate);
+
+                    // 실제로 빼낸 양만큼 남은 양을 줄임
                     amountToConsume -= extracted.getCount();
+
+                    // 필요한 양을 모두 채웠다면, 더 이상 찾을 필요가 없으므로 루프 종료
                     if (amountToConsume <= 0) {
-                        return stackToConsume; // 요청한 만큼 모두 소모 완료
+                        break;
                     }
                 }
             }
+            if (amountToConsume <= 0) {
+                break;
+            }
         }
-        // 실제로 소모된 양만 반환 (요청보다 적을 수 있음)
-        return new ItemStack(stackToConsume.getItem(), stackToConsume.getCount() - amountToConsume);
+
+        // 최종적으로 소모하고 '남은' 아이템의 개수를 반환
+        // 만약 1개를 요청해서 1개를 다 소모했다면, amountToConsume은 0이 됨
+        if (amountToConsume <= 0) {
+            return ItemStack.EMPTY; // 모두 소모 성공
+        } else {
+            // 일부만 소모했거나 전혀 소모하지 못했다면, 소모하지 못한 양을 반환
+            ItemStack remainder = stackToConsume.copy();
+            remainder.setCount(amountToConsume);
+            return remainder;
+        }
     }
     /** heat 값을 안전하게 변경합니다. */
     public void addHeat(float amount) {

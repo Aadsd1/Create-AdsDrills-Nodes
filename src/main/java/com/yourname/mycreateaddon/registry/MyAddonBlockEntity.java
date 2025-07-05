@@ -7,6 +7,7 @@ import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreRenderer;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreVisual;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.ExplosiveDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleVisual;

@@ -24,7 +24,8 @@ public class MyAddonPartialModels {
             DRILL_TIP_DIAMOND_LOCATION = loc("rotary_drill_head/tip/diamond"),
             DRILL_TIP_IRON_LOCATION = loc("rotary_drill_head/tip/iron"),
             DRILL_TIP_GOLD_LOCATION = loc("rotary_drill_head/tip/gold"),
-            DRILL_TIP_EMERALD_LOCATION = loc("rotary_drill_head/tip/emerald");
+            DRILL_TIP_EMERALD_LOCATION = loc("rotary_drill_head/tip/emerald"),
+            EXPLOSIVE_DRILL_HEAD_LOCATION = loc("explosive_drill_head/block");
 
     // --- PartialModel은 위 ResourceLocation을 사용하여 생성합니다 ---
     public static final PartialModel
@@ -32,13 +33,13 @@ public class MyAddonPartialModels {
             SHAFT_FOR_MODULE = PartialModel.of(SHAFT_FOR_MODULE_LOCATION),
             IRON_ROTARY_DRILL_HEAD = PartialModel.of(IRON_ROTARY_DRILL_HEAD_LOCATION),
             DIAMOND_ROTARY_DRILL_HEAD = PartialModel.of(DIAMOND_ROTARY_DRILL_HEAD_LOCATION),
-            IRON_DRILL_BODY=PartialModel.of(IRON_DRILL_BODY_LOCATION),
-            DIAMOND_DRILL_BODY=PartialModel.of(DIAMOND_DRILL_BODY_LOCATION),
-            IRON_DRILL_TIP=PartialModel.of(DRILL_TIP_IRON_LOCATION),
-            DIAMOND_DRILL_TIP=PartialModel.of(DRILL_TIP_DIAMOND_LOCATION),
-            EMERALD_DRILL_TIP=PartialModel.of(DRILL_TIP_EMERALD_LOCATION),
-            GOLD_DRILL_TIP=PartialModel.of(DRILL_TIP_GOLD_LOCATION);
-
+            IRON_DRILL_BODY = PartialModel.of(IRON_DRILL_BODY_LOCATION),
+            DIAMOND_DRILL_BODY = PartialModel.of(DIAMOND_DRILL_BODY_LOCATION),
+            IRON_DRILL_TIP = PartialModel.of(DRILL_TIP_IRON_LOCATION),
+            DIAMOND_DRILL_TIP = PartialModel.of(DRILL_TIP_DIAMOND_LOCATION),
+            EMERALD_DRILL_TIP = PartialModel.of(DRILL_TIP_EMERALD_LOCATION),
+            GOLD_DRILL_TIP = PartialModel.of(DRILL_TIP_GOLD_LOCATION),
+            EXPLOSIVE_DRILL_HEAD = PartialModel.of(EXPLOSIVE_DRILL_HEAD_LOCATION);
 
 
     // 헬퍼 메서드 이름을 짧게 변경 (가독성)

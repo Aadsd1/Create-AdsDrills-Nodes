@@ -32,12 +32,14 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
     // [수정] 성능 값을 저장할 필드 추가
     private final float heatGeneration;
     private final float coolingRate;
+    private final int miningLevel;
 
-    // [수정] 생성자에서 성능 값을 받도록 변경
-    public RotaryDrillHeadBlock(Properties properties, float heatGeneration, float coolingRate) {
+    // [수정] 생성자에 miningLevel 추가
+    public RotaryDrillHeadBlock(Properties properties, float heatGeneration, float coolingRate, int miningLevel) {
         super(properties);
         this.heatGeneration = heatGeneration;
         this.coolingRate = coolingRate;
+        this.miningLevel = miningLevel;
     }
 
     @Override
@@ -51,6 +53,12 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
         BlockPos nodePos = headPos.relative(facing);
 
         if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
+
+            // [핵심 수정] 균열된 노드이고, 채굴 레벨이 2 미만(철 헤드 등)이면 작동 중지
+            if (nodeBE.isCracked() && this.miningLevel < 2) {
+                return;
+            }
+
             int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
 
             if (miningAmount > 0) {

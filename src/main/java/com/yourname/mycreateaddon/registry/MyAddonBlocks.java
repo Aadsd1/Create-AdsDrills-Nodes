@@ -8,6 +8,7 @@ import com.tterrag.registrate.providers.loot.RegistrateBlockLootTables;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.ExplosiveDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
@@ -20,6 +21,10 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 public class MyAddonBlocks {
 
     private static final CreateRegistrate REGISTRATE = MyCreateAddon.registrate();
+
+    private static final int MINING_LEVEL_IRON = 1;
+    private static final int MINING_LEVEL_DIAMOND = 2;
+
 
     public static final BlockEntry<DrillCoreBlock> DRILL_CORE = REGISTRATE
             .block("drill_core", DrillCoreBlock::new)
@@ -103,7 +108,7 @@ public class MyAddonBlocks {
 
 
     public static final BlockEntry<RotaryDrillHeadBlock> IRON_ROTARY_DRILL_HEAD = REGISTRATE
-            .block("iron_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.25f, 0.05f))
+            .block("iron_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.25f, 0.05f,MINING_LEVEL_IRON))
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))
@@ -116,7 +121,7 @@ public class MyAddonBlocks {
             .register();
 
     public static final BlockEntry<RotaryDrillHeadBlock> DIAMOND_ROTARY_DRILL_HEAD = REGISTRATE
-            .block("diamond_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.15f, 0.12f))
+            .block("diamond_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.15f, 0.12f,MINING_LEVEL_DIAMOND))
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))
@@ -128,6 +133,19 @@ public class MyAddonBlocks {
             .build()
             .register();
 
+    // [추가] 폭발형 헤드 등록
+    public static final BlockEntry<ExplosiveDrillHeadBlock> EXPLOSIVE_DRILL_HEAD = REGISTRATE
+            .block("explosive_drill_head", ExplosiveDrillHeadBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .blockstate((c, p)
+                    -> p.directionalBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
 
     public static final BlockEntry<GenericModuleBlock> FURNACE_MODULE = REGISTRATE
             .block("furnace_module", p -> new GenericModuleBlock(p, ModuleType.FURNACE))

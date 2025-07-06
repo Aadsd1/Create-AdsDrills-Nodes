@@ -156,6 +156,8 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
+
+
     // [신규] 펌프 헤드 등록
     public static final BlockEntry<PumpHeadBlock> PUMP_HEAD = REGISTRATE
             .block("pump_head", p -> new PumpHeadBlock(p, 250, 4.0f)) // pumpRate: 250mb/t, stressImpact: 4.0 SU
@@ -168,6 +170,9 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/item")))
             .build()
             .register();
+
+
+
     // [추가] 폭발형 헤드 등록
     public static final BlockEntry<ExplosiveDrillHeadBlock> EXPLOSIVE_DRILL_HEAD = REGISTRATE
             .block("explosive_drill_head", ExplosiveDrillHeadBlock::new)
@@ -240,5 +245,43 @@ public class MyAddonBlocks {
             .build()
             .register();
 
+
+    public static final BlockEntry<GenericModuleBlock> HEATSINK_MODULE = REGISTRATE
+            .block("heatsink_module", p -> new GenericModuleBlock(p, ModuleType.HEATSINK))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+
+    public static final BlockEntry<GenericModuleBlock> COOLANT_MODULE = REGISTRATE
+            .block("coolant_module", p -> new GenericModuleBlock(p, ModuleType.COOLANT))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+    public static final BlockEntry<GenericModuleBlock> COMPACTOR_MODULE = REGISTRATE
+            .block("compactor_module", p -> new GenericModuleBlock(p, ModuleType.COMPACTOR))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
     public static void register() {}
 }

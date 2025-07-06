@@ -1,5 +1,7 @@
 {
   "block.mycreateaddon.blast_furnace_module": "Blast Furnace Module",
+  "block.mycreateaddon.compactor_module": "Compactor Module",
+  "block.mycreateaddon.coolant_module": "Coolant Module",
   "block.mycreateaddon.crusher_module": "Crusher Module",
   "block.mycreateaddon.diamond_rotary_drill_head": "Diamond Rotary Drill Head",
   "block.mycreateaddon.drill_core": "Drill Core",
@@ -8,6 +10,7 @@
   "block.mycreateaddon.fluid_buffer_module": "Fluid Buffer Module",
   "block.mycreateaddon.frame_module": "Frame Module",
   "block.mycreateaddon.furnace_module": "Furnace Module",
+  "block.mycreateaddon.heatsink_module": "Heatsink Module",
   "block.mycreateaddon.iron_rotary_drill_head": "Iron Rotary Drill Head",
   "block.mycreateaddon.item_buffer_module": "Item Buffer Module",
   "block.mycreateaddon.ore_node": "Ore Node",

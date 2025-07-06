@@ -34,6 +34,9 @@ public class MyAddonBlockEntity {
                     MyAddonBlocks.REINFORCEMENT_MODULE, // [신규]
                     MyAddonBlocks.ITEM_BUFFER_MODULE,
                     MyAddonBlocks.FLUID_BUFFER_MODULE,
+                    MyAddonBlocks.HEATSINK_MODULE,
+                    MyAddonBlocks.COOLANT_MODULE,
+                    MyAddonBlocks.COMPACTOR_MODULE,
                     MyAddonBlocks.FURNACE_MODULE,
                     MyAddonBlocks.BLAST_FURNACE_MODULE,
                     MyAddonBlocks.CRUSHER_MODULE,

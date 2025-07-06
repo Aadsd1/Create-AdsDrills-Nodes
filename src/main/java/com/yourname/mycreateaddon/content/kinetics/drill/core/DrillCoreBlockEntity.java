@@ -6,10 +6,7 @@ import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
-import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
-import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
-import com.yourname.mycreateaddon.content.kinetics.module.IProcessingModule;
-import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
+import com.yourname.mycreateaddon.content.kinetics.module.*;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -55,6 +52,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     // --- [신규] 연결된 버퍼 모듈의 핸들러를 저장할 리스트 ---
     private final List<IItemHandler> itemBufferHandlers = new ArrayList<>();
     private final List<IFluidHandler> fluidBufferHandlers = new ArrayList<>();
+    private final List<BlockPos> activeSystemModules = new ArrayList<>();
+    private final List<BlockPos> bulkProcessingModules = new ArrayList<>();
     // --- [추가] 과열 시스템 관련 필드 ---
     private float heat = 0.0f;
     private boolean isOverheated = false; // 강제 냉각 상태 여부
@@ -250,6 +249,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.processingModuleChain.clear();
         this.itemBufferHandlers.clear();
         this.fluidBufferHandlers.clear();
+        this.activeSystemModules.clear(); // [신규] 리스트 초기화
+        this.bulkProcessingModules.clear(); // [신규] 리스트 초기화
         this.totalSpeedBonus = 0f;
         this.totalStressImpact = BASE_STRESS_IMPACT;
         this.totalHeatModifier = 0f; // [신규] 초기화
@@ -317,18 +318,35 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
                         if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
 
-                        if (type.getRecipeTypeSupplier() != null) {
-                            // [핵심 추가] Set.add()는 원소가 이미 존재하면 false를 반환합니다.
+
+                        // 1. 일반 처리 모듈인 경우
+                        if (moduleBE instanceof IProcessingModule && type.getRecipeTypeSupplier() != null) {
+                            // 기존과 동일하게 레시피 타입을 Set에 추가
                             if (!foundProcessingTypes.add(type)) {
-                                // 중복 발견!
                                 this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
                                 this.structureCache.clear();
-                                this.structureValid = false; // 구조를 비활성화
-                                break; // 더 이상 검사할 필요 없이 루프 종료
+                                this.structureValid = false;
+                                break;
                             }
-
-                            // 중복이 아니면 처리 체인에 추가
                             processingModuleChain.add(modulePos);
+                        }
+
+                        // 2. 벌크 처리 모듈(압축기)인 경우
+                        if (moduleBE instanceof IBulkProcessingModule) {
+                            // 압축기 모듈을 나타내는 고유한 객체(여기서는 ModuleType.COMPACTOR)를 Set에 추가
+                            if (!foundProcessingTypes.add(type)) {
+                                // 만약 Set에 이미 COMPACTOR 타입이 있다면, 중복으로 간주
+                                this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
+                                this.structureCache.clear();
+                                this.structureValid = false;
+                                break;
+                            }
+                            bulkProcessingModules.add(modulePos);
+                        }
+
+                        // 3. 액티브 시스템 모듈 처리 (중복 검사 없음)
+                        if (moduleBE instanceof IActiveSystemModule) {
+                            activeSystemModules.add(modulePos);
                         }
                     }
                 }
@@ -658,6 +676,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             needsStructureCheck = false;
         }
 
+        for (BlockPos modulePos : activeSystemModules) {
+            if (level.getBlockEntity(modulePos) instanceof IActiveSystemModule module) {
+                module.onCoreTick(this);
+            }
+        }
         // [핵심 추가] 주기적인 상태 업데이트
         if (tickCounter % 20 == 0) {
             updateProcessingConditions();
@@ -767,31 +790,45 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public void processMinedItem(ItemStack minedItem) {
         if (level == null || level.isClientSide() || minedItem.isEmpty()) return;
 
-
         List<ItemStack> stacksToProcess = new ArrayList<>();
         stacksToProcess.add(minedItem);
 
-        // 처리 체인을 따라 아이템을 전달
+        // 1. 일반 처리 체인을 따라 아이템을 전달
         for (BlockPos modulePos : processingModuleChain) {
             if (level.getBlockEntity(modulePos) instanceof IProcessingModule processor) {
-
                 List<ItemStack> nextStacks = new ArrayList<>();
                 for (ItemStack currentStack : stacksToProcess) {
-                    // processItem은 처리 결과를 List<ItemStack>으로 반환
                     nextStacks.addAll(processor.processItem(currentStack, this));
                 }
                 stacksToProcess = nextStacks;
             }
         }
 
-        // 모든 처리 체인이 끝나면 최종 결과물을 내부 버퍼에 삽입
+        // 2. 모든 일반 처리가 끝난 결과물을 내부 버퍼에 삽입
         for (ItemStack finalStack : stacksToProcess) {
+            // ItemHandlerHelper.insertItem은 남은 아이템을 반환
             ItemStack remainder = ItemHandlerHelper.insertItem(getInternalItemBuffer(), finalStack, false);
             if (!remainder.isEmpty()) {
+                // 버퍼가 꽉 찼다면 남은 아이템을 바닥에 드롭
                 ItemEntity itemEntity = new ItemEntity(level, getBlockPos().getX() + 0.5, getBlockPos().getY() + 1.5, getBlockPos().getZ() + 0.5, remainder);
                 level.addFreshEntity(itemEntity);
             }
         }
+
+        // 3. [신규] 모든 아이템이 버퍼에 들어간 후, 벌크 처리 모듈 작동
+        boolean successfulBulkProcess;
+        do {
+            successfulBulkProcess = false;
+            for (BlockPos modulePos : bulkProcessingModules) {
+                if (level.getBlockEntity(modulePos) instanceof IBulkProcessingModule bulkProcessor) {
+                    // processBulk가 true를 반환하면 내용물에 변화가 있었다는 의미이므로,
+                    // 다른 압축 모듈이 이어서 작업할 수 있도록 루프를 다시 시작
+                    if (bulkProcessor.processBulk(this)) {
+                        successfulBulkProcess = true;
+                    }
+                }
+            }
+        } while (successfulBulkProcess); // 내용물 변화가 없을 때까지 반복
     }
 
 

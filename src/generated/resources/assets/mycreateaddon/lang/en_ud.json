@@ -1,5 +1,7 @@
 {
   "block.mycreateaddon.blast_furnace_module": "ǝןnpoW ǝɔɐuɹnℲ ʇsɐןᗺ",
+  "block.mycreateaddon.compactor_module": "ǝןnpoW ɹoʇɔɐdɯoƆ",
+  "block.mycreateaddon.coolant_module": "ǝןnpoW ʇuɐןooƆ",
   "block.mycreateaddon.crusher_module": "ǝןnpoW ɹǝɥsnɹƆ",
   "block.mycreateaddon.diamond_rotary_drill_head": "pɐǝH ןןıɹᗡ ʎɹɐʇoᴚ puoɯɐıᗡ",
   "block.mycreateaddon.drill_core": "ǝɹoƆ ןןıɹᗡ",
@@ -8,6 +10,7 @@
   "block.mycreateaddon.fluid_buffer_module": "ǝןnpoW ɹǝɟɟnᗺ pınןℲ",
   "block.mycreateaddon.frame_module": "ǝןnpoW ǝɯɐɹℲ",
   "block.mycreateaddon.furnace_module": "ǝןnpoW ǝɔɐuɹnℲ",
+  "block.mycreateaddon.heatsink_module": "ǝןnpoW ʞuısʇɐǝH",
   "block.mycreateaddon.iron_rotary_drill_head": "pɐǝH ןןıɹᗡ ʎɹɐʇoᴚ uoɹI",
   "block.mycreateaddon.item_buffer_module": "ǝןnpoW ɹǝɟɟnᗺ ɯǝʇI",
   "block.mycreateaddon.ore_node": "ǝpoN ǝɹO",

@@ -2,6 +2,7 @@ package com.yourname.mycreateaddon.content.kinetics.module;
 
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -11,12 +12,17 @@ import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import net.neoforged.neoforge.fluids.FluidStack; // 추가
@@ -30,7 +36,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 
-public class GenericModuleBlockEntity extends KineticBlockEntity implements IProcessingModule {
+public class GenericModuleBlockEntity extends KineticBlockEntity implements IProcessingModule,IActiveSystemModule, IBulkProcessingModule {
 
 
     // 렌더링 관련 필드
@@ -40,6 +46,10 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     protected @Nullable ItemStackHandler itemHandler;
     protected @Nullable FluidTank fluidHandler;
 
+    // [신규] 냉각 로직 관련 상수
+    private static final float COOLANT_ACTIVATION_HEAT = 5.0f; // 5도 이상일 때 작동
+    private static final int WATER_CONSUMPTION_PER_TICK = 5; // 틱당 물 5mb 소모 (초당 100mb)
+    private static final float HEAT_REDUCTION_PER_TICK = 0.4f; // 틱당 열 0.4 감소
     // [추가] 우선순위 필드. 기본값은 99 (가장 낮음)
     private int processingPriority = 99;
     private static final int MAX_PRIORITY = 10;
@@ -95,6 +105,73 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         }
     }
 
+    /**
+     * [신규] IBulkProcessingModule 인터페이스의 구현 메서드
+     */
+    @Override
+    public boolean processBulk(IResourceAccessor coreResources) {
+        // 이 BE가 압축 모듈일 경우에만 로직 실행
+        if (getModuleType() != ModuleType.COMPACTOR) {
+            return false;
+        }
+
+        assert level != null;
+        RecipeManager recipeManager = level.getRecipeManager();
+
+        // 3x3 조합법만 확인
+        for (CraftingRecipe recipe : recipeManager.getAllRecipesFor(RecipeType.CRAFTING).stream().map(h -> h.value()).toList()) {
+            if (recipe.getIngredients().size() == 9 && !recipe.getResultItem(level.registryAccess()).isEmpty()) {
+
+                // 모든 재료가 동일한 아이템인지 확인 (예: 철 너겟 9개)
+                Ingredient firstIngredient = recipe.getIngredients().getFirst();
+                if (firstIngredient.isEmpty()) continue;
+
+                boolean allSame = true;
+                for (int i = 1; i < 9; i++) {
+                    if (!firstIngredient.test(recipe.getIngredients().get(i).getItems()[0])) {
+                        allSame = false;
+                        break;
+                    }
+                }
+
+                if (allSame) {
+                    // 재료 아이템 스택 생성
+                    ItemStack ingredientStack = firstIngredient.getItems()[0].copy();
+                    ingredientStack.setCount(9); // 9개 필요
+
+                    // 1. 코어 버퍼에 재료가 충분한지 시뮬레이션
+                    if (coreResources.consumeItems(ingredientStack, true).isEmpty()) {
+                        // 2. 충분하다면, 실제로 재료를 소모
+                        coreResources.consumeItems(ingredientStack, false);
+
+                        // 3. 결과물을 코어 버퍼에 다시 삽입
+                        ItemStack resultStack = recipe.getResultItem(level.registryAccess()).copy();
+                        ItemHandlerHelper.insertItem(coreResources.getInternalItemBuffer(), resultStack, false);
+
+                        // 4. 시각/청각 효과 재생
+                        playCompactingEffects();
+
+                        // 5. 작업 성공!
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false; // 조합 가능한 레시피를 찾지 못함
+    }
+
+    private void playCompactingEffects() {
+        if (level != null && !level.isClientSide) {
+            level.playSound(null, getBlockPos(), SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 0.5F, 1.2f);
+            if (level instanceof ServerLevel serverLevel) {
+                double px = getBlockPos().getX() + 0.5;
+                double py = getBlockPos().getY() + 0.5;
+                double pz = getBlockPos().getZ() + 0.5;
+                serverLevel.sendParticles(ParticleTypes.CRIT, px, py, pz, 15, 0.4, 0.4, 0.4, 0.1);
+            }
+        }
+    }
     @Override
     public void playEffects(Level level, BlockPos modulePos) {
         // 이 메서드는 서버에서만 호출되므로, ServerLevel로 캐스팅해도 안전합니다.
@@ -130,7 +207,38 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
             default -> {}
         }
     }
+    @Override
+    public void onCoreTick(DrillCoreBlockEntity core) {
+        // 이 BE가 냉각 모듈일 경우에만 로직 실행
+        if (getModuleType() != ModuleType.COOLANT) {
+            return;
+        }
 
+        // 코어의 열이 활성화 온도 이상일 때만 작동
+        if (core.getHeat() > COOLANT_ACTIVATION_HEAT) {
+            assert level != null;
+            // 1. 소모할 물을 정의하고, 코어의 버퍼에 충분한 양이 있는지 시뮬레이션
+            FluidStack waterToConsume = new FluidStack(Fluids.WATER, WATER_CONSUMPTION_PER_TICK);
+            if (core.consumeFluid(waterToConsume, true).getAmount() == WATER_CONSUMPTION_PER_TICK) {
+                // 2. 충분하다면, 실제로 물을 소모
+                core.consumeFluid(waterToConsume, false);
+
+                // 3. 코어의 열을 식힘
+                core.addHeat(-HEAT_REDUCTION_PER_TICK);
+
+                // 4. 시각/청각 효과 재생 (서버에서만)
+                if (!level.isClientSide && level.getRandom().nextFloat() < 0.2f) {
+                    level.playSound(null, getBlockPos(), SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.3F, 1.5F + level.getRandom().nextFloat() * 0.5f);
+                    if (level instanceof ServerLevel serverLevel) {
+                        double px = getBlockPos().getX() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8;
+                        double py = getBlockPos().getY() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8;
+                        double pz = getBlockPos().getZ() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8;
+                        serverLevel.sendParticles(ParticleTypes.CLOUD, px, py, pz, 1, 0, 0.1, 0, 0.0);
+                    }
+                }
+            }
+        }
+    }
     // --- [1단계 추가] IProcessingModule 구현 ---
 
     @Override

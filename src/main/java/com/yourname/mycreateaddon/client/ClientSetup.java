@@ -77,53 +77,37 @@ public class ClientSetup {
     public static void onRegisterBlockColors(RegisterColorHandlersEvent.Block event) {
         event.register((state, getter, pos, tintIndex) -> {
             if (getter == null || pos == null || !(getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be)) {
-                // 렌더링에 필요한 정보가 없으면 틴팅하지 않음
                 return -1;
             }
 
-            // [핵심 로직]
-            // 틴트 인덱스가 1 또는 2인 경우, 우리가 직접 처리 (광맥 코어 색상)
             if (tintIndex == 1 || tintIndex == 2) {
-                // 대표 광물의 기본 색상을 가져옵니다.
+                // [수정] getRepresentativeOreItemId()는 이제 정상적으로 대표 블록의 아이템 ID를 반환합니다.
                 ResourceLocation oreId = be.getRepresentativeOreItemId();
                 int baseColor = ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);
 
                 if (tintIndex == 1) {
-                    // tintIndex가 1이면 기본색을 그대로 반환
                     return baseColor;
-                } else { // tintIndex가 2일 수밖에 없음
-                    // tintIndex가 2이면 기본색을 더 밝게 만들어 반환
+                } else {
                     Color c = new Color(baseColor);
-                    // HSB(색상, 채도, 밝기) 모델에서 밝기(Brightness)를 약간 올립니다.
                     float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
-                    // 밝기를 0.0(검정) ~ 1.0(흰색) 사이에서 조절
-                    hsb[2] = Math.min(1.0f, hsb[2] + 0.2f); // 20% 더 밝게
+                    hsb[2] = Math.min(1.0f, hsb[2] + 0.2f);
                     return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
                 }
             }
-            // [핵심 로직]
-            // 그 외의 틴트 인덱스(잔디의 0 등)는 바닐라 시스템에 위임하여 처리 (배경 색상)
             else {
-                // BlockEntity에서 배경 블록 정보를 가져옵니다.
                 ResourceLocation backgroundId = be.getBackgroundBlockId();
                 Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
 
                 if (backgroundBlock != Blocks.AIR) {
-                    // 마인크래프트의 기본 BlockColors 인스턴스를 가져옵니다.
                     BlockColors blockColors = Minecraft.getInstance().getBlockColors();
                     BlockState backgroundState = backgroundBlock.defaultBlockState();
-
-                    // 바닐라의 색상 처리기에 "원래 이 블록이라면 무슨 색이야?" 라고 물어보고, 그 결과를 반환합니다.
                     return blockColors.getColor(backgroundState, getter, pos, tintIndex);
                 }
             }
 
-            // 모든 조건에 해당하지 않으면 틴팅하지 않음
             return -1;
 
         }, MyAddonBlocks.ORE_NODE.get());
-
-
     }
 
     // [추가] 아이템 색상 핸들러 등록 (인벤토리 아이템용)

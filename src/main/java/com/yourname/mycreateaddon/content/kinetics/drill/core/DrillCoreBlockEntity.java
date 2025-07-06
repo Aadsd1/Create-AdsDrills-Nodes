@@ -365,20 +365,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
-    // [추가] 헤드로부터 업그레이드 정보를 받아 노드 채굴을 지시하는 새로운 메서드
-    public ItemStack mineNode(OreNodeBlockEntity nodeBE, int miningAmount) {
-        if (level == null || level.isClientSide() || cachedHeadPos == null) return ItemStack.EMPTY;
+    public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount) {
+        if (level == null || level.isClientSide() || cachedHeadPos == null) {
+            return Collections.emptyList();
+        }
 
         int fortune = 0;
         boolean silkTouch = false;
 
-        // 헤드 BE에서 업그레이드 정보를 가져옵니다.
         if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
             fortune = headBE.getFortuneLevel();
             silkTouch = headBE.hasSilkTouch();
         }
 
-        // 노드에 업그레이드 정보와 함께 채굴을 요청합니다.
         return nodeBE.applyMiningTick(miningAmount, fortune, silkTouch);
     }
 

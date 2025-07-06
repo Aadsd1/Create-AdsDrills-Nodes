@@ -14,32 +14,32 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 // IHaveGoggleInformation 인터페이스를 구현합니다.
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
     // --- 데이터 필드 ---
+    // --- 데이터 필드 ---
+    // [핵심 수정] 저장 타입을 Map<Item, Float>에서 Map<Block, Float>으로 변경
+    // [유지] 아이템 기반의 성분 맵
     private Map<Item, Float> resourceComposition = new HashMap<>();
+    // [추가] 아이템-블록 매핑 맵
+    private Map<Item, Block> itemToBlockMap = new HashMap<>();
+
     private int miningProgress;
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
     private ResourceLocation oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
@@ -106,16 +106,18 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return oreBlockId;
     }
 
+
     public ResourceLocation getRepresentativeOreItemId() {
         return resourceComposition.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()))
                 .orElse(BuiltInRegistries.ITEM.getKey(Items.RAW_IRON));
     }
-
     // --- 초기화 메서드 ---
-    public void configure(Map<Item, Float> composition, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock) {
+    // [수정] 파라미터 타입을 Map<Block, Float>으로 변경
+    public void configure(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock) {
         this.resourceComposition = composition;
+        this.itemToBlockMap = itemToBlockMap; // 새 맵 저장
         this.maxYield = maxYield;
         this.currentYield = maxYield;
         this.hardness = hardness;
@@ -126,17 +128,16 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         setChanged();
         sendData();
     }
-
     // --- 핵심 로직 ---
 
 
 
-    public ItemStack applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch) {
-        if (level == null || level.isClientSide() || currentYield <= 0) {
-            return ItemStack.EMPTY;
+    // [수정] 실크터치 로직을 새 맵을 사용하도록 변경
+    public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch) {
+        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0) {
+            return Collections.emptyList();
         }
 
-        // ... 채굴 진행도 계산 ...
         float effectiveMiningAmount = miningAmount / getHardness();
         this.miningProgress += (int) effectiveMiningAmount;
         int miningResistance = 1000;
@@ -146,57 +147,57 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             this.currentYield--;
             setChanged();
             sendData();
+
             if (this.cracked) {
-                // 균열된 노드에서는 '균열된 철 덩어리'를 드롭
-                // 여기서는 예시로 철만 사용했지만, 나중에는 노드의 주 구성 광물에 따라 다른 종류의 '균열된 덩어리'를 주도록 확장할 수 있음
-                return new ItemStack(MyAddonItems.CRACKED_IRON_CHUNK.get());
-            } else {
-                // --- 1. 실크터치 처리 ---
-                if (hasSilkTouch) {
-                    Block oreBlock = BuiltInRegistries.BLOCK.get(this.oreBlockId);
-                    return oreBlock != Blocks.AIR ? new ItemStack(oreBlock) : ItemStack.EMPTY;
-                }
-
-                // --- 2. 기본 아이템 결정 ---
-                ItemStack baseDrop = ItemStack.EMPTY;
-                double random = level.getRandom().nextDouble();
-                float cumulative = 0f;
-                for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
-                    cumulative += entry.getValue();
-                    if (random < cumulative) {
-                        baseDrop = new ItemStack(entry.getKey());
-                        break;
-                    }
-                }
-                if (baseDrop.isEmpty()) return ItemStack.EMPTY;
-
-                // --- 3. 행운 로직 직접 구현 ---
-                int dropCount = 1;
-                if (fortuneLevel > 0) {
-                    RandomSource rand = level.getRandom();
-                    // 행운 레벨만큼 추가 기회
-                    for (int i = 0; i < fortuneLevel; i++) {
-                        // 바닐라의 '균등 분포 추가 드롭' 공식을 단순화
-                        // 레벨당 대략 1/(레벨+2) 확률로 1개씩 추가
-                        if (rand.nextInt(fortuneLevel + 2) > 1) {
-                            dropCount++;
-                        }
-                    }
-                }
-                baseDrop.setCount(dropCount);
-
-                // --- 4. 풍부함(Richness) 특성 적용 ---
-                if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                    baseDrop.grow(baseDrop.getCount()); // 2배로 만듦
-                }
-
-                return baseDrop;
-
-
+                return Collections.singletonList(new ItemStack(MyAddonItems.CRACKED_IRON_CHUNK.get()));
             }
+
+            // 먼저 드롭할 아이템을 확률적으로 선택
+            Item itemToDrop = null;
+            double random = serverLevel.getRandom().nextDouble();
+            float cumulative = 0f;
+            for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
+                cumulative += entry.getValue();
+                if (random < cumulative) {
+                    itemToDrop = entry.getKey();
+                    break;
+                }
+            }
+            if (itemToDrop == null) return Collections.emptyList();
+
+
+            // --- 1. 실크터치 처리 ---
+            if (hasSilkTouch) {
+                // 선택된 아이템에 해당하는 블록을 맵에서 찾아 드롭
+                Block blockToDrop = this.itemToBlockMap.get(itemToDrop);
+                return Collections.singletonList(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
+                // 만약 맵에 없다면 (오류 상황), 대표 블록이라도 드롭
+            }
+
+            // --- 2. 일반 채굴 (아이템 직접 드롭) ---
+            ItemStack finalDrop = new ItemStack(itemToDrop);
+
+            // 행운 로직
+            int dropCount = 1;
+            if (fortuneLevel > 0) {
+                RandomSource rand = serverLevel.getRandom();
+                for (int i = 0; i < fortuneLevel; i++) {
+                    if (rand.nextInt(fortuneLevel + 2) > 1) {
+                        dropCount++;
+                    }
+                }
+            }
+            finalDrop.setCount(dropCount);
+
+            // 풍부함 로직
+            if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                finalDrop.grow(finalDrop.getCount());
+            }
+
+            return Collections.singletonList(finalDrop);
         }
 
-        return ItemStack.EMPTY;
+        return Collections.emptyList();
     }
 
 
@@ -259,6 +260,16 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             compositionList.add(entryTag);
         }
         tag.put("Composition", compositionList);
+
+        // 새 맵 저장
+        ListTag itemToBlockList = new ListTag();
+        for (Map.Entry<Item, Block> entry : itemToBlockMap.entrySet()) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putString("Item", BuiltInRegistries.ITEM.getKey(entry.getKey()).toString());
+            entryTag.putString("Block", BuiltInRegistries.BLOCK.getKey(entry.getValue()).toString());
+            itemToBlockList.add(entryTag);
+        }
+        tag.put("ItemToBlockMap", itemToBlockList);
     }
 
     @Override
@@ -281,6 +292,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             // [추가] 타이머 시간 로드
             crackTimer = tag.getInt("CrackTimer");
         }
+
         this.resourceComposition.clear();
         if (tag.contains("Composition", 9)) {
             ListTag compositionList = tag.getList("Composition", 10);
@@ -291,6 +303,19 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                             float ratio = entryTag.getFloat("Ratio");
                             this.resourceComposition.put(item, ratio);
                         });
+            }
+        }
+        // 새 맵 로드
+        this.itemToBlockMap.clear();
+        if (tag.contains("ItemToBlockMap", 9)) {
+            ListTag itemToBlockList = tag.getList("ItemToBlockMap", 10);
+            for (int i = 0; i < itemToBlockList.size(); i++) {
+                CompoundTag entryTag = itemToBlockList.getCompound(i);
+                Optional<Item> itemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(entryTag.getString("Item")));
+                Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(entryTag.getString("Block")));
+                if (itemOpt.isPresent() && blockOpt.isPresent()) {
+                    this.itemToBlockMap.put(itemOpt.get(), blockOpt.get());
+                }
             }
         }
 

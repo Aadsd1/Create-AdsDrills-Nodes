@@ -40,6 +40,7 @@ import net.minecraft.world.level.levelgen.heightproviders.UniformHeight;
 import java.lang.reflect.Field;
 import java.util.*;
 
+
 public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
     private static Field heightRange_heightField;
@@ -47,6 +48,9 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     private static Field uniformHeight_maxInclusiveField;
     private static final float MAX_BONUS_MULTIPLIER = 3.0f;
     private static final int EFFECTIVE_DISTANCE = 10;
+
+    // [추가] 스캔 결과를 담을 간단한 record
+    private record OreScanResult(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap) {}
 
     public OreNodeFeature(Codec<OreNodeConfiguration> codec) {
         super(codec);
@@ -69,49 +73,52 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         BlockEntity be = level.getBlockEntity(origin);
 
         if (be instanceof OreNodeBlockEntity nodeBE) {
-            Map<Item, Float> composition = scanAndGenerateComposition(context, origin, random);
+            // [수정] 두 개의 맵을 모두 생성
+            OreScanResult scanResult = scanAndGenerateOreData(context, origin, random);
+            Map<Item, Float> composition = scanResult.composition();
+            Map<Item, Block> itemToBlockMap = scanResult.itemToBlockMap();
+
             if (composition.isEmpty()) {
                 composition.put(Items.RAW_IRON, 1.0f);
+                itemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
             }
-            Block representativeOreBlock = findRepresentativeOreBlock(composition, level);
 
-            // 노드에 적용할 특성들을 무작위로 생성
+            // [수정] 대표 블록을 찾을 때 두 맵을 모두 활용
+            Block representativeOreBlock = findRepresentativeOreBlock(composition, itemToBlockMap);
+
             int maxYield = config.totalYield().sample(random);
             float hardness = 0.5f + random.nextFloat() * 1.5f;
             float richness = 0.8f + random.nextFloat() * 0.7f;
             float regeneration = random.nextFloat() < 0.2f ? (0.00025f + random.nextFloat() * 0.00075f) : 0f;
 
-            // configure 메서드를 호출하여 노드에 특성을 주입
-            nodeBE.configure(composition, maxYield, hardness, richness, regeneration, backgroundBlock, representativeOreBlock);
+            // [수정] configure 메서드에 두 맵을 모두 전달
+            nodeBE.configure(composition, itemToBlockMap, maxYield, hardness, richness, regeneration, backgroundBlock, representativeOreBlock);
             return true;
         }
 
         return false;
     }
-
-    private Block findRepresentativeOreBlock(Map<Item, Float> composition, WorldGenLevel level) {
-        Optional<Map.Entry<Item, Float>> maxEntry = composition.entrySet()
-                .stream()
-                .max(Map.Entry.comparingByValue());
-
-        if (maxEntry.isPresent()) {
-            Item representativeItem = maxEntry.get().getKey();
-            var recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
-            for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
-                SmeltingRecipe recipe = recipeHolder.value();
-                if (recipe.getResultItem(level.registryAccess()).is(representativeItem)) {
-                    ItemStack ingredient = recipe.getIngredients().getFirst().getItems()[0];
-                    Block block = Block.byItem(ingredient.getItem());
-                    if (block != Blocks.AIR) {
-                        return block;
-                    }
-                }
-            }
-        }
-        return Blocks.IRON_ORE;
+    // [수정] 대표 블록을 찾는 로직이 매우 간단해집니다.
+    private Block findRepresentativeOreBlock(Map<Block, Float> composition) {
+        return composition.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(Blocks.IRON_ORE); // 실패 시 기본값
     }
 
-    private Map<Item, Float> scanAndGenerateComposition(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource) {
+    // [수정] 대표 블록을 찾는 로직
+    private Block findRepresentativeOreBlock(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap) {
+        // 가장 비중이 높은 아이템을 찾음
+        Optional<Item> representativeItemOpt = composition.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey);
+
+        // 해당 아이템에 매핑된 블록을 반환
+        return representativeItemOpt.map(itemToBlockMap::get).orElse(Blocks.IRON_ORE);
+    }
+
+    // [수정] 스캔 로직을 두 개의 맵을 반환하도록 변경
+    private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource) {
         WorldGenLevel level = context.level();
         int nodeYLevel = pos.getY();
 
@@ -120,6 +127,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         HolderSet<PlacedFeature> oreFeatures = generationSettings.features().get(GenerationStep.Decoration.UNDERGROUND_ORES.ordinal());
 
         Map<Item, Float> weightedSelection = new HashMap<>();
+        Map<Item, Block> itemToBlockMap = new HashMap<>(); // 아이템-블록 매핑 맵
         WorldGenerationContext worldGenContext = new WorldGenerationContext(context.chunkGenerator(), level);
 
         var registryAccess = context.level().registryAccess();
@@ -141,9 +149,9 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                         TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
                         float baseWeight = blockRegistry.wrapAsHolder(oreBlock).is(oresTag) ? 10.0f : 0.5f;
 
+                        // ... (가중치 계산 로직은 동일) ...
                         int averageOreY = getAverageOreDepth(placedFeature, worldGenContext);
                         float depthMultiplier = 1.0f;
-
                         if (averageOreY != Integer.MIN_VALUE) {
                             int distance = Math.abs(nodeYLevel - averageOreY);
                             if (distance < EFFECTIVE_DISTANCE) {
@@ -151,15 +159,19 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                                 depthMultiplier = ((MAX_BONUS_MULTIPLIER - 1.0f) * closeness) + 1.0f;
                             }
                         }
-
                         float finalWeight = baseWeight * depthMultiplier;
+
                         weightedSelection.put(oreItem, finalWeight);
+                        itemToBlockMap.put(oreItem, oreBlock); // 매핑 정보 추가
                     }
                 }
             }
         }
 
-        if (weightedSelection.isEmpty()) return Collections.emptyMap();
+        if (weightedSelection.isEmpty()) {
+            return new OreScanResult(Collections.emptyMap(), Collections.emptyMap());
+        }
+
         Random random = new Random(randomSource.nextLong());
         int oreTypeCount = 1 + random.nextInt(Math.min(3, weightedSelection.size()));
         List<Map.Entry<Item, Float>> potentialOres = new ArrayList<>(weightedSelection.entrySet());
@@ -174,8 +186,10 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         for (Map.Entry<Item, Float> entry : finalComposition.entrySet()) {
             entry.setValue(entry.getValue() / totalWeight);
         }
-        return finalComposition;
+
+        return new OreScanResult(finalComposition, itemToBlockMap);
     }
+
 
     private int getAverageOreDepth(PlacedFeature feature, WorldGenerationContext context) {
         for (PlacementModifier modifier : feature.placement()) {
@@ -214,7 +228,6 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         }
         return Integer.MIN_VALUE;
     }
-
     private Item getOreItem(Block oreBlock, WorldGenLevel level) {
         Item oreBlockItem = oreBlock.asItem();
         if (oreBlockItem == Items.AIR) {
@@ -245,4 +258,5 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         }
         return oreBlockItem;
     }
+
 }

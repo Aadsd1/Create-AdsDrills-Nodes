@@ -9,7 +9,6 @@ import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -24,6 +23,8 @@ import com.simibubi.create.foundation.block.IBE;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 
 public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDrillHead, IBE<RotaryDrillHeadBlockEntity>, IRotate {
@@ -57,23 +58,23 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
 
         if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
 
-            // [핵심 수정] 균열된 노드이고, 채굴 레벨이 2 미만(철 헤드 등)이면 작동 중지
-            if (nodeBE.isCracked() && this.miningLevel < 2) {
-                return;
-            }
+             if (nodeBE.isCracked() && this.miningLevel < 2) {
+                 return;
+             }
 
             int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
 
             if (miningAmount > 0) {
-                // [수정] nodeBE.applyMiningTick을 직접 호출하는 대신, 코어의 새로운 메서드를 호출
-                ItemStack minedItem = core.mineNode(nodeBE, miningAmount);
-                if (!minedItem.isEmpty()) {
-                    core.processMinedItem(minedItem);
+                List<ItemStack> minedItems = core.mineNode(nodeBE, miningAmount);
+                for (ItemStack minedItem : minedItems) {
+                    if (!minedItem.isEmpty()) {
+                        core.processMinedItem(minedItem);
+                    }
                 }
+
             }
         }
     }
-
 
     // [수정] IDrillHead의 메서드들이 필드 값을 반환하도록 변경
     @Override

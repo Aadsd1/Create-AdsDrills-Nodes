@@ -64,7 +64,30 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
-
+    public static final BlockEntry<GenericModuleBlock> REINFORCEMENT_MODULE = REGISTRATE
+            .block("reinforcement_module", p -> new GenericModuleBlock(p, ModuleType.REINFORCEMENT))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+    public static final BlockEntry<GenericModuleBlock> EFFICIENCY_MODULE = REGISTRATE
+            .block("efficiency_module", p -> new GenericModuleBlock(p, ModuleType.EFFICIENCY))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
     public static final BlockEntry<GenericModuleBlock> ITEM_BUFFER_MODULE = REGISTRATE
             .block("item_buffer_module", p -> new GenericModuleBlock(p, ModuleType.ITEM_BUFFER))
             .initialProperties(SharedProperties::stone)
@@ -108,7 +131,7 @@ public class MyAddonBlocks {
 
 
     public static final BlockEntry<RotaryDrillHeadBlock> IRON_ROTARY_DRILL_HEAD = REGISTRATE
-            .block("iron_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.25f, 0.05f,MINING_LEVEL_IRON))
+            .block("iron_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.25f, 0.05f,MINING_LEVEL_IRON,4.0f))
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))
@@ -121,7 +144,7 @@ public class MyAddonBlocks {
             .register();
 
     public static final BlockEntry<RotaryDrillHeadBlock> DIAMOND_ROTARY_DRILL_HEAD = REGISTRATE
-            .block("diamond_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.15f, 0.12f,MINING_LEVEL_DIAMOND))
+            .block("diamond_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.15f, 0.12f,MINING_LEVEL_DIAMOND,8.0f))
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))

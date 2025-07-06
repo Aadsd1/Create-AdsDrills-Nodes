@@ -79,7 +79,8 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.too_many_modules", "Error: Module limit exceeded (%s).");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.duplicate_processing_module", "Error: Duplicate processing module detected.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.speed_bonus", "Speed Bonus");
-        registrate.addRawLang("goggle.mycreateaddon.drill_core.stress_impact", "Added Stress");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.stress_impact", "Stress Impact"); // "Added Stress"에서 변경
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.heat_reduction", "Heat Reduction"); // [신규]
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.head_missing", "Warning: Drill Head missing.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.heat_label", "Heat: ");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.efficiency_label", "Efficiency: ");

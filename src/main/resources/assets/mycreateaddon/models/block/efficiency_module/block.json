@@ -1,14 +1,14 @@
 {
-  "credit": "Model for Speed module",
+  "credit": "Model for Efficiency module",
   "parent": "minecraft:block/block",
   "textures": {
     "particle": "#all",
-    "all": "mycreateaddon:block/speed_module"
+    "all": "mycreateaddon:block/efficiency_module"
   },
 
   "elements": [
     {
-      "name": "SpeedModule",
+      "name": "EfficientModule",
       "from": [2, 2, 2],
       "to": [14, 14, 14],
       "faces": {

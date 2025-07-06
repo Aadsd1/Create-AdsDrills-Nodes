@@ -38,32 +38,41 @@ public class ExplosiveDrillHeadBlock extends DirectionalKineticBlock implements 
 
     @Override
     public void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core) {
-        if (level.isClientSide) return;
+        // 이 헤드는 일반적인 틱에서는 아무 작업도 하지 않습니다.
+    }
 
-        Direction facing = headState.getValue(FACING);
-        BlockPos nodePos = headPos.relative(facing);
+    // [핵심] 과열 이벤트가 발생했을 때만 작동합니다.
 
-        if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
-            if (nodeBE.isCracked()) return;
-            if (level.getGameTime() % 20 != 0) return;
+    @Override
+    public boolean onOverheat(Level level, BlockPos headPos, DrillCoreBlockEntity core) {
+        if (level.isClientSide) return false;
 
-            ItemStack tntRequest = new ItemStack(Items.TNT, 1);
+        ItemStack tntRequest = new ItemStack(Items.TNT, 1);
+        if (core.consumeItems(tntRequest, false).isEmpty()) {
 
-            // [핵심 수정] consumeItems의 반환 값을 직접 확인
-            // 이 메서드는 '소모하고 남은 아이템'을 반환합니다.
-            // 우리가 1개를 요청했으니, 성공했다면 남은 것은 0개, 즉 반환 스택은 비어있어야 합니다.
-            if (core.consumeItems(tntRequest, false).isEmpty()) {
+            // [핵심 수정] this.getBlockState(headPos) -> level.getBlockState(headPos)
+            BlockState headState = level.getBlockState(headPos);
+            BlockPos nodePos = headPos.relative(headState.getValue(FACING));
+
+            if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE && !nodeBE.isCracked()) {
+                core.consumeItems(tntRequest, true);
                 nodeBE.setCracked(true);
+
                 level.playSound(null, nodePos, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1.0f, 1.2f);
                 if (level instanceof ServerLevel serverLevel) {
                     serverLevel.explode(null, nodePos.getX() + 0.5, nodePos.getY() + 0.5, nodePos.getZ() + 0.5, 2.0f, Level.ExplosionInteraction.NONE);
                 }
+
             }
         }
+
+        return false;
     }
 
     // 이 헤드는 회전하지 않으며, 열도 거의 발생시키지 않는다고 가정
     @Override public float getHeatGeneration() { return 0.05f; }
     @Override public float getCoolingRate() { return 0.05f; }
+    // [신규] getStressImpact() 구현
+    @Override public float getStressImpact() { return 16.0f; } // 폭발형 헤드는 2.0 SU 요구
     @Override public Direction.Axis getRotationAxis(BlockState state) { return null; } // 회전 안 함
 }

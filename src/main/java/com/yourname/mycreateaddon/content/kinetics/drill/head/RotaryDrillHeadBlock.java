@@ -34,14 +34,17 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
     private final float coolingRate;
     private final int miningLevel;
 
+    private final float stressImpact; // [신규] 스트레스 필드 추가
     // [수정] 생성자에 miningLevel 추가
-    public RotaryDrillHeadBlock(Properties properties, float heatGeneration, float coolingRate, int miningLevel) {
+
+    // [수정] 생성자에 stressImpact 추가
+    public RotaryDrillHeadBlock(Properties properties, float heatGeneration, float coolingRate, int miningLevel, float stressImpact) {
         super(properties);
         this.heatGeneration = heatGeneration;
         this.coolingRate = coolingRate;
         this.miningLevel = miningLevel;
+        this.stressImpact = stressImpact; // [신규]
     }
-
     @Override
     public void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core) {
         if (level.isClientSide) return;
@@ -83,6 +86,11 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
         return this.coolingRate;
     }
 
+    // [신규] getStressImpact() 구현
+    @Override
+    public float getStressImpact() {
+        return this.stressImpact;
+    }
 
     @Override
     public Direction.Axis getRotationAxis(BlockState state) {

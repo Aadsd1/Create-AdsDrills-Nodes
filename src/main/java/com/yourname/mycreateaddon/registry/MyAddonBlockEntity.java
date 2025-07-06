@@ -33,6 +33,8 @@ public class MyAddonBlockEntity {
             .validBlocks(
                     MyAddonBlocks.FRAME_MODULE,
                     MyAddonBlocks.SPEED_MODULE,
+                    MyAddonBlocks.EFFICIENCY_MODULE, // [신규]
+                    MyAddonBlocks.REINFORCEMENT_MODULE, // [신규]
                     MyAddonBlocks.ITEM_BUFFER_MODULE,
                     MyAddonBlocks.FLUID_BUFFER_MODULE,
                     MyAddonBlocks.FURNACE_MODULE,

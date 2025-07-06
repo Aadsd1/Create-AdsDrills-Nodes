@@ -31,4 +31,20 @@ public interface IDrillHead {
      * @return 틱당 열 냉각량
      */
     float getCoolingRate();
+    /**
+     * @return 스트레스 부하 (SU)
+     */
+    float getStressImpact();
+
+    /**
+     * 드릴 코어의 열이 100%에 도달하여 과열 상태로 전환되는 순간에 호출됩니다.
+     * 헤드는 이 이벤트에 반응하여 특수 행동(예: 폭발)을 할 수 있습니다.
+     * @param level 월드
+     * @param headPos 헤드 자신의 위치
+     * @param core 이 헤드를 제어하는 코어 인스턴스
+     * @return 이 이벤트로 인해 헤드가 특수 행동을 수행하여, 코어의 기본 과열 효과(예: 사운드)를 막아야 한다면 true를 반환합니다.
+     */
+    default boolean onOverheat(Level level, BlockPos headPos, DrillCoreBlockEntity core) {
+        return false; // 기본적으로 아무것도 하지 않고, 코어의 기본 효과를 막지 않음
+    }
 }

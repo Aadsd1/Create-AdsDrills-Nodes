@@ -83,9 +83,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private static final int MAX_STRUCTURE_RANGE = 16;
     private static final int MAX_MODULES = 16;
 
+    // [신규] 드릴 코어 자체의 기본 스트레스 부하를 정의합니다.
+    public static final float BASE_STRESS_IMPACT = 4.0f;
     // --- 모듈 효과 집계 필드 ---
     private float totalSpeedBonus = 0f;
     private float totalStressImpact = 0f;
+    private float totalHeatModifier = 0f; // [신규]
 
     private boolean canWasherWork = false;
     private boolean canHeaterWork = false;
@@ -247,7 +250,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.itemBufferHandlers.clear();
         this.fluidBufferHandlers.clear();
         this.totalSpeedBonus = 0f;
-        this.totalStressImpact = 0f;
+        this.totalStressImpact = BASE_STRESS_IMPACT;
+        this.totalHeatModifier = 0f; // [신규] 초기화
         this.cachedHeadPos = null;
         this.invalidityReason = InvalidityReason.NONE;
         this.structureValid = false;
@@ -257,9 +261,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         Direction headFacing = inputFacing.getOpposite();
 
         // --- 2. 헤드 확인 ---
-        BlockPos potentialHeadPos = worldPosition.relative(headFacing);
-        if (level.getBlockState(potentialHeadPos).getBlock() instanceof IDrillHead) {
-            this.cachedHeadPos = potentialHeadPos;
+        BlockState headState = level.getBlockState(worldPosition.relative(headFacing));
+        if (headState.getBlock() instanceof IDrillHead head) { // [수정] 인터페이스 인스턴스를 바로 가져옴
+            this.cachedHeadPos = worldPosition.relative(headFacing);
+            // [신규] 헤드가 가진 스트레스 부하를 totalStressImpact에 더합니다.
+            this.totalStressImpact += head.getStressImpact();
         } else {
             this.invalidityReason = InvalidityReason.HEAD_MISSING;
         }
@@ -306,6 +312,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         ModuleType type = moduleBE.getModuleType();
                         totalSpeedBonus += type.getSpeedBonus();
                         totalStressImpact += type.getStressImpact();
+                        totalHeatModifier += type.getHeatModifier(); // [신규] 열 효율 집계
                         if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
                         if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
 
@@ -455,10 +462,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return super.getTheoreticalSpeed();
     }
 
+
+    // [유지] 이 메서드들은 스트레스 관련 문제를 최종적으로 해결하기 위해 여전히 필요합니다.
     @Override
     public float calculateStressApplied() {
         if (!structureValid || invalidityReason == InvalidityReason.HEAD_MISSING) return 0;
-        return this.totalStressImpact;
+
+        // totalStressImpact가 음수일 경우 0을 반환하여 음수 스트레스 전달을 방지합니다.
+        return Math.max(0, this.totalStressImpact);
+    }
+
+    @Override
+    public float calculateAddedStressCapacity() {
+        // 드릴 코어가 스트레스 용량을 제공하는 것으로 취급되지 않도록 명시적으로 0을 반환합니다.
+        return 0;
     }
 
     // ... (write, read, addToGoggleTooltip은 이전과 동일) ...
@@ -655,16 +672,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // --- 과열 로직 수정 ---
         // [핵심 수정] finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
         if (finalSpeed != 0 && headBlock != null) {
-            // [기존] 가열: headBlock.getHeatGeneration(); (고정값)
-
-            // [변경] 가열: 기본 발생량 + 속도에 비례하는 추가 발생량
             float baseHeatGen = headBlock.getHeatGeneration();
-
-            // 속도 계수 계산 (예: 128 RPM에서 두 배, 256 RPM에서 세 배가 되도록)
-            // Math.max(1, ...)을 사용하여 속도가 0에 가까울 때도 기본 발생량이 나오도록 보장
             float speedFactor = Math.max(1, Math.abs(finalSpeed) / 64f);
 
-            float heatThisTick = baseHeatGen * speedFactor;
+            // [핵심 수정] 집계된 열 효율 보너스를 적용합니다.
+            // totalHeatModifier는 음수 값이므로, 1.0f에 더해 최종 배율을 계산합니다.
+            float finalHeatMultiplier = Math.max(0, 1.0f + totalHeatModifier);
+            float heatThisTick = baseHeatGen * speedFactor * finalHeatMultiplier;
 
             addHeat(heatThisTick);
         } else {
@@ -679,19 +693,27 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // (열 수치 제한 및 과열 상태 갱신 로직은 이전과 동일)
         this.heat = Mth.clamp(this.heat, 0, 100);
         // [추가] 이전 틱의 과열 상태를 기억하기 위한 필드
-        boolean wasOverheated = isOverheated; // 현재 상태를 이전 상태로 기록
-
+        // --- isOverheated 상태 업데이트 ---
+        boolean wasOverheated = isOverheated;
         if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {
             isOverheated = false;
         } else if (!isOverheated && this.heat >= 100.0f) {
             isOverheated = true;
         }
 
-        // 상태가 '정상 -> 과열'로 방금 바뀌었다면, 효과를 발동시킵니다.
+        // --- [핵심 리팩토링] 과열 이벤트 처리 ---
         if (!wasOverheated && isOverheated) {
-            // 모든 플레이어에게 들리도록 서버에서 사운드 재생
-            level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
-            // 추가로, 클라이언트 측에 큰 연기 효과를 요청할 수도 있습니다 (지금은 사운드만).
+            boolean eventHandledByHead = false;
+            if (headBlock != null) {
+                // 코어는 헤드의 종류를 묻지 않고, 그저 '과열 이벤트'가 발생했음을 알립니다.
+                eventHandledByHead = headBlock.onOverheat(level, cachedHeadPos, this);
+            }
+
+            // 헤드가 이벤트를 처리하지 않았을 경우에만 (false를 반환했을 경우)
+            // 코어가 기본 과열 효과(사운드)를 재생합니다.
+            if (!eventHandledByHead) {
+                level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
+            }
         }
 
         // --- 동기화 로직 ---
@@ -821,7 +843,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             // --- 상세 정보 뷰 (SHIFT) ---
 
             // [성능 보너스 상세]
-            if (structureValid && (totalSpeedBonus > 0 || totalStressImpact > 0)) {
+            if (structureValid && (totalSpeedBonus > 0 || totalStressImpact != 0 || totalHeatModifier < 0)) { // [수정] 조건 추가
                 tooltip.add(Component.literal(""));
                 if (totalSpeedBonus > 0) {
                     tooltip.add(Component.literal(" ")
@@ -830,12 +852,22 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                             .append(Component.literal("+" + (int) (totalSpeedBonus * 100) + "%")
                                     .withStyle(style -> style.withColor(ChatFormatting.AQUA).withBold(true))));
                 }
-                if (totalStressImpact > 0) {
+                if (totalStressImpact != 0) {
+                    String sign = totalStressImpact > 0 ? "+" : "";
+                    ChatFormatting color = totalStressImpact > 0 ? ChatFormatting.GOLD : ChatFormatting.GREEN;
                     tooltip.add(Component.literal(" ")
                             .append(Component.translatable("goggle.mycreateaddon.drill_core.stress_impact").withStyle(ChatFormatting.GRAY))
                             .append(": ")
-                            .append(Component.literal("+" + totalStressImpact + " SU")
-                                    .withStyle(style -> style.withColor(ChatFormatting.GOLD).withBold(true))));
+                            .append(Component.literal(sign + String.format("%.1f", totalStressImpact) + " SU")
+                                    .withStyle(style -> style.withColor(color).withBold(true))));
+                }
+                // [신규] 열 효율 툴팁
+                if (totalHeatModifier < 0) {
+                    tooltip.add(Component.literal(" ")
+                            .append(Component.translatable("goggle.mycreateaddon.drill_core.heat_reduction").withStyle(ChatFormatting.GRAY))
+                            .append(": ")
+                            .append(Component.literal(String.format("%.0f%%", -totalHeatModifier * 100))
+                                    .withStyle(style -> style.withColor(ChatFormatting.BLUE).withBold(true))));
                 }
             }
 

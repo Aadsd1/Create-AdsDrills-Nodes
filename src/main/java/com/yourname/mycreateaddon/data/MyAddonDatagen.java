@@ -4,7 +4,9 @@ package com.yourname.mycreateaddon.data;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.tterrag.registrate.providers.RegistrateDataProvider;
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.worldgen.ConditionalFeatureAdditionModifier;
 import com.yourname.mycreateaddon.registry.MyAddonFeatures;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.RegistrySetBuilder;
@@ -15,6 +17,7 @@ import net.minecraft.data.worldgen.BootstrapContext;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BiomeTags;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -25,8 +28,10 @@ import net.neoforged.neoforge.common.world.BiomeModifiers;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static com.yourname.mycreateaddon.MyCreateAddon.MOD_ID;
 import static com.yourname.mycreateaddon.MyCreateAddon.REGISTRATE;
@@ -52,22 +57,34 @@ public class MyAddonDatagen {
                 new RegistrySetBuilder()
                         .add(Registries.CONFIGURED_FEATURE, MyAddonFeatures::bootstrapConfiguredFeatures)
                         .add(Registries.PLACED_FEATURE, MyAddonFeatures::bootstrapPlacedFeatures)
+                        //.add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, MyAddonDatagen::bootstrapBiomeModifiers),
                         .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, MyAddonDatagen::bootstrapBiomeModifiers),
                 Set.of(MyCreateAddon.MOD_ID)
         ));
     }
 
-    // --- 아래 내용을 추가해주세요 ---
     public static void bootstrapBiomeModifiers(BootstrapContext<BiomeModifier> context) {
+        var placedFeatures = context.lookup(Registries.PLACED_FEATURE);
+
         context.register(
-                ResourceKey.create(NeoForgeRegistries.Keys.BIOME_MODIFIERS, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "add_ore_node")),
-                new BiomeModifiers.AddFeaturesBiomeModifier(
-                        context.lookup(Registries.BIOME).getOrThrow(BiomeTags.IS_OVERWORLD),
-                        HolderSet.direct(context.lookup(Registries.PLACED_FEATURE).getOrThrow(MyAddonFeatures.ORE_NODE_PLACED_FEATURE)),
-                        GenerationStep.Decoration.UNDERGROUND_ORES
+                ResourceKey.create(NeoForgeRegistries.Keys.BIOME_MODIFIERS, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "add_ore_node_conditionally")),
+                // [핵심 수정] HolderSet 관련 로직을 모두 제거하고, feature만 인자로 전달
+                new ConditionalFeatureAdditionModifier(
+                        placedFeatures.getOrThrow(MyAddonFeatures.ORE_NODE_PLACED_FEATURE)
                 )
         );
     }
+//    // --- 아래 내용을 추가해주세요 ---
+//    public static void bootstrapBiomeModifiers(BootstrapContext<BiomeModifier> context) {
+//        context.register(
+//                ResourceKey.create(NeoForgeRegistries.Keys.BIOME_MODIFIERS, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "add_ore_node")),
+//                new BiomeModifiers.AddFeaturesBiomeModifier(
+//                        context.lookup(Registries.BIOME).getOrThrow(BiomeTags.IS_OVERWORLD),
+//                        HolderSet.direct(context.lookup(Registries.PLACED_FEATURE).getOrThrow(MyAddonFeatures.ORE_NODE_PLACED_FEATURE)),
+//                        GenerationStep.Decoration.UNDERGROUND_ORES
+//                )
+//        );
+//    }
 
 
     public static void addCustomLang(CreateRegistrate registrate) {
@@ -116,5 +133,6 @@ public class MyAddonDatagen {
         registrate.addRawLang("mycreateaddon.upgrade_fail.max_level", "Fortune is already at maximum level.");
         registrate.addRawLang("mycreateaddon.upgrade_success.silktouch", "Silk Touch applied to Drill Head.");
         registrate.addRawLang("mycreateaddon.upgrade_success.fortune", "Fortune on Drill Head upgraded to level %s.");
+        registrate.addRawLang("goggle.mycreateaddon.ore_node.fluid.empty", "None");
     }
 }

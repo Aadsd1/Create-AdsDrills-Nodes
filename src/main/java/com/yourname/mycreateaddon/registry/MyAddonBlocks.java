@@ -9,6 +9,7 @@ import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.ExplosiveDrillHeadBlock;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
@@ -155,7 +156,18 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
-
+    // [신규] 펌프 헤드 등록
+    public static final BlockEntry<PumpHeadBlock> PUMP_HEAD = REGISTRATE
+            .block("pump_head", p -> new PumpHeadBlock(p, 250, 4.0f)) // pumpRate: 250mb/t, stressImpact: 4.0 SU
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .blockstate(BlockStateGen.directionalBlockProvider(true)) // 회전 가능하도록 설정
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/item")))
+            .build()
+            .register();
     // [추가] 폭발형 헤드 등록
     public static final BlockEntry<ExplosiveDrillHeadBlock> EXPLOSIVE_DRILL_HEAD = REGISTRATE
             .block("explosive_drill_head", ExplosiveDrillHeadBlock::new)

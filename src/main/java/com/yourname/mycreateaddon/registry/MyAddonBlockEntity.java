@@ -7,14 +7,11 @@ import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreRenderer;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreVisual;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.ExplosiveDrillHeadBlock;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleVisual;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleRenderer;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadRenderer;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadVisual ;
 
 public class MyAddonBlockEntity {
 
@@ -49,7 +46,13 @@ public class MyAddonBlockEntity {
             .blockEntity("ore_node", OreNodeBlockEntity::new)
             .validBlocks(MyAddonBlocks.ORE_NODE)
             .register();
-
+    // [신규] 펌프 헤드 BE 등록
+    public static final BlockEntityEntry<PumpHeadBlockEntity> PUMP_HEAD = REGISTRATE
+            .blockEntity("pump_head", PumpHeadBlockEntity::new)
+            .visual(()->PumpHeadVisual::new) // 나중에 만들 파일
+            .validBlocks(MyAddonBlocks.PUMP_HEAD)
+            .renderer(()->PumpHeadRenderer::new) // 나중에 만들 파일
+            .register();
     public static final BlockEntityEntry<RotaryDrillHeadBlockEntity> ROTARY_DRILL_HEAD = REGISTRATE
             .blockEntity("rotary_drill_head", RotaryDrillHeadBlockEntity::new)
             .visual(()->RotaryDrillHeadVisual::new)

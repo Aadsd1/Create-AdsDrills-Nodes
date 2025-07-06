@@ -4,6 +4,7 @@ import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
@@ -740,14 +741,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // --- 채굴 로직 호출 ---
         if (hasHead() && headBlock != null) {
-            if(level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
-                headBE.updateVisualSpeed(-finalSpeed);
+            // [핵심 수정] 헤드 BE의 종류에 따라 올바른 처리를 하도록 변경
+            if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+                headBE.updateVisualSpeed(-finalSpeed); // Rotary는 반대로 회전
                 if (needsSync) {
                     headBE.updateClientHeat(this.heat);
                 }
             }
+            // [신규] 펌프 헤드에 대한 속도 전달 로직 추가
+            else if (level.getBlockEntity(cachedHeadPos) instanceof PumpHeadBlockEntity headBE) {
+                headBE.updateVisualSpeed(finalSpeed); // 펌프는 정방향 회전
+                // 펌프는 열 시각화가 없으므로 updateClientHeat는 호출하지 않음
+            }
 
-            // [핵심 수정] 여기도 0이 아닌지 확인합니다.
             if (finalSpeed != 0) {
                 headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
             }

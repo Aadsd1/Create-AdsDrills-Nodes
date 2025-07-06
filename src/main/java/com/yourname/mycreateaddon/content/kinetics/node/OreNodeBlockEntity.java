@@ -25,6 +25,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import javax.annotation.Nonnull;
 import java.util.*;
@@ -39,6 +40,11 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private Map<Item, Float> resourceComposition = new HashMap<>();
     // [추가] 아이템-블록 매핑 맵
     private Map<Item, Block> itemToBlockMap = new HashMap<>();
+
+    private FluidStack fluidContent = FluidStack.EMPTY;
+    private int maxFluidCapacity;
+    private float currentFluidAmount; // 정밀한 양 조절을 위해 float 유지
+
 
     private int miningProgress;
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
@@ -106,6 +112,37 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return oreBlockId;
     }
 
+    // --- [신규] 유체 관련 Getter/Setter ---
+    public FluidStack getFluid() {
+        if (fluidContent.isEmpty() || currentFluidAmount <= 0) {
+            return FluidStack.EMPTY;
+        }
+        // 실제 유체 양을 반영하여 반환
+        return new FluidStack(fluidContent.getFluid(), (int) currentFluidAmount);
+    }
+
+    public int getMaxFluidCapacity() {
+        return maxFluidCapacity;
+    }
+    /**
+     * 외부(펌프 헤드)에서 유체를 추출하는 메서드
+     * @param amountToDrain 추출할 양
+     * @return 실제로 추출된 유체 스택
+     */
+    public FluidStack drainFluid(int amountToDrain) {
+        if (fluidContent.isEmpty() || currentFluidAmount <= 0) {
+            return FluidStack.EMPTY;
+        }
+
+        int actualDrainAmount = Math.min(amountToDrain, (int) currentFluidAmount);
+        this.currentFluidAmount -= actualDrainAmount;
+
+        setChanged();
+        sendData();
+
+        return new FluidStack(fluidContent.getFluid(), actualDrainAmount);
+    }
+
 
     public ResourceLocation getRepresentativeOreItemId() {
         return resourceComposition.entrySet().stream()
@@ -115,8 +152,8 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
     // --- 초기화 메서드 ---
     // [수정] 파라미터 타입을 Map<Block, Float>으로 변경
-    public void configure(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock) {
-        this.resourceComposition = composition;
+
+    public void configure(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock, FluidStack fluid, int fluidCapacity) {        this.resourceComposition = composition;
         this.itemToBlockMap = itemToBlockMap; // 새 맵 저장
         this.maxYield = maxYield;
         this.currentYield = maxYield;
@@ -125,6 +162,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         this.regeneration = regeneration;
         this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(backgroundBlock);
         this.oreBlockId = BuiltInRegistries.BLOCK.getKey(representativeOreBlock);
+        this.fluidContent = fluid.copy();
+        this.maxFluidCapacity = fluidCapacity;
+        this.currentFluidAmount = fluidCapacity; // 처음엔 가득 차 있도록 설정
         setChanged();
         sendData();
     }
@@ -201,16 +241,42 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
 
-    // [수정] tick 메서드에 타이머 로직 추가
     @Override
     public void tick() {
         super.tick();
         if (level != null && !level.isClientSide) {
-            // 재생력 처리
-            if (this.regeneration > 0 && this.currentYield < this.maxYield) {
-                this.currentYield = Math.min(this.maxYield, this.currentYield + this.regeneration);
+            // [핵심 수정] 재생력 로직 개선
+
+            if (this.regeneration > 0) {
+                float baseRegenPerSecond = this.regeneration * 20;
+                float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
+                float finalRegenPerTick = (baseRegenPerSecond * finalRegenMultiplier) / 20f;
+
+                if (this.currentYield < this.maxYield) {
+                    this.currentYield = Math.min(this.maxYield, this.currentYield + finalRegenPerTick);
+                }
+            }
+
+            // --- [핵심 수정] 유체 재생 로직 분리 ---
+            if (this.maxFluidCapacity > 0 && this.currentFluidAmount < this.maxFluidCapacity) {
+                // 1. 기본 초당 재생량 (5mb/tick = 100mb/sec)
+                float baseFluidRegenPerTick = 5.0f;
+
+                // 2. 풍부함(richness)과 재생력(regeneration)에 따른 보너스 계산
+                // richness는 최대 +50% 보너스, regeneration은 최대 +50% 보너스를 줌
+                float bonusMultiplier = (this.richness - 0.8f) + (this.regeneration / 0.005f * 0.5f);
+
+                // 3. 최종 재생량 계산 (기본값에 보너스를 더함)
+                float finalFluidRegenPerTick = baseFluidRegenPerTick * (1.0f + bonusMultiplier);
+
+                this.currentFluidAmount = Math.min(this.maxFluidCapacity, this.currentFluidAmount + finalFluidRegenPerTick);
+            }
+
+            // 1초에 한 번만 동기화
+            if(level.getGameTime() % 20 == 0) {
                 setChanged();
             }
+
 
             // 균열 타이머 처리
             if (this.cracked && this.crackTimer > 0) {
@@ -270,6 +336,13 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             itemToBlockList.add(entryTag);
         }
         tag.put("ItemToBlockMap", itemToBlockList);
+
+
+        if (!fluidContent.isEmpty()) {
+            tag.put("FluidContent", fluidContent.save(registries));
+            tag.putInt("MaxFluidCapacity", maxFluidCapacity);
+            tag.putFloat("CurrentFluidAmount", currentFluidAmount);
+        }
     }
 
     @Override
@@ -319,6 +392,14 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             }
         }
 
+        if (tag.contains("FluidContent")) {
+            this.fluidContent = FluidStack.parse(registries, tag.getCompound("FluidContent")).orElse(FluidStack.EMPTY);
+            this.maxFluidCapacity = tag.getInt("MaxFluidCapacity");
+            this.currentFluidAmount = tag.getFloat("CurrentFluidAmount");
+        } else {
+            this.fluidContent = FluidStack.EMPTY;
+        }
+
         if (clientPacket) {
             requestModelDataUpdate();
             if (level != null) {
@@ -332,6 +413,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
         Component header = Component.translatable("goggle.mycreateaddon.ore_node.header").withStyle(ChatFormatting.GOLD);
         tooltip.add(Component.literal("    ").append(header));
+
 
         if (!resourceComposition.isEmpty()) {
             Component compositionHeader = Component.translatable("goggle.mycreateaddon.ore_node.composition").withStyle(ChatFormatting.GRAY);
@@ -409,6 +491,19 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             tooltip.add(Component.literal("  ")
                     .append(Component.literal(String.format("(H:%.2f, R:%.2f, G:%.5f/s)", this.hardness, this.richness, this.regeneration * 20))
                             .withStyle(ChatFormatting.DARK_GRAY)));
+        }
+        // [신규] 유체 정보 툴팁 추가
+        tooltip.add(Component.literal("")); // 구분선
+        MutableComponent fluidHeader = Component.translatable("goggle.mycreateaddon.drill_core.storage.fluid").withStyle(ChatFormatting.AQUA);
+        tooltip.add(Component.literal(" ").append(fluidHeader));
+
+        if (fluidContent.isEmpty()) {
+            tooltip.add(Component.literal("  - ").append(Component.translatable("goggle.mycreateaddon.ore_node.fluid.empty").withStyle(ChatFormatting.DARK_GRAY)));
+        } else {
+            MutableComponent fluidLine = Component.literal("  - ")
+                    .append(fluidContent.getHoverName().copy().withStyle(ChatFormatting.GOLD))
+                    .append(Component.literal(String.format(": %,d / %,d mb", (int)currentFluidAmount, maxFluidCapacity)).withStyle(ChatFormatting.GRAY));
+            tooltip.add(fluidLine);
         }
 
         if (cracked) {

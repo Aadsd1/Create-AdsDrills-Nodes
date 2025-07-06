@@ -36,9 +36,8 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
     private final int miningLevel;
 
     private final float stressImpact; // [신규] 스트레스 필드 추가
-    // [수정] 생성자에 miningLevel 추가
 
-    // [수정] 생성자에 stressImpact 추가
+
     public RotaryDrillHeadBlock(Properties properties, float heatGeneration, float coolingRate, int miningLevel, float stressImpact) {
         super(properties);
         this.heatGeneration = heatGeneration;

@@ -192,19 +192,35 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 return Collections.singletonList(new ItemStack(MyAddonItems.CRACKED_IRON_CHUNK.get()));
             }
 
-            // 먼저 드롭할 아이템을 확률적으로 선택
+            // --- [핵심 수정] 확률 계산 로직 ---
+
+            // 1. 맵의 엔트리를 리스트로 변환
+            List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
+
+            // 2. 아이템 ID를 기준으로 리스트를 정렬하여 항상 동일한 순서를 보장
+            sortedComposition.sort(Comparator.comparing(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey())));
+
             Item itemToDrop = null;
             double random = serverLevel.getRandom().nextDouble();
             float cumulative = 0f;
-            for (Map.Entry<Item, Float> entry : resourceComposition.entrySet()) {
+
+            // 3. 정렬된 리스트를 순회하며 확률 계산
+            for (Map.Entry<Item, Float> entry : sortedComposition) {
                 cumulative += entry.getValue();
                 if (random < cumulative) {
                     itemToDrop = entry.getKey();
                     break;
                 }
             }
-            if (itemToDrop == null) return Collections.emptyList();
 
+            if (itemToDrop == null) {
+                // 만약의 경우(부동소수점 오류 등)를 대비해, 리스트의 첫 번째 아이템이라도 선택
+                if (!sortedComposition.isEmpty()) {
+                    itemToDrop = sortedComposition.getFirst().getKey();
+                } else {
+                    return Collections.emptyList(); // 노드 구성이 비어있으면 아무것도 드롭하지 않음
+                }
+            }
 
             // --- 1. 실크터치 처리 ---
             if (hasSilkTouch) {

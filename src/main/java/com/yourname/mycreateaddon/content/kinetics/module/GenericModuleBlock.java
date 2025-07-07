@@ -1,12 +1,17 @@
 package com.yourname.mycreateaddon.content.kinetics.module; // 또는 원하는 경로
 
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import com.simibubi.create.content.equipment.wrench.WrenchItem;
+import com.simibubi.create.content.logistics.filter.FilterItem;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -21,6 +26,7 @@ import com.simibubi.create.foundation.block.IBE; // IBE 임포트
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity; // BE 레지스트리 임포트
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -40,15 +46,15 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         BlockPos pos = context.getClickedPos();
         ModuleType type = getModuleType();
 
-        // 처리 모듈일 경우에만 우선순위 변경 기능 작동
-        if (type.getRecipeTypeSupplier() != null) {
+        // [핵심 수정] 조건을 확장하여, 일반 처리 모듈 또는 필터 모듈일 경우에 우선순위 변경 기능이 작동하도록 함
+        if (type.getRecipeTypeSupplier() != null || type == ModuleType.FILTER) {
             if (!level.isClientSide) {
                 withBlockEntityDo(level, pos, be -> be.cyclePriority(context.getPlayer()));
             }
             return InteractionResult.SUCCESS;
         }
 
-        // 처리 모듈이 아닌 경우, 블록을 회전시키는 기본 동작을 수행
+        // 위 조건에 해당하지 않는 모듈은 블록을 회전시키는 기본 동작을 수행
         return IWrenchable.super.onWrenched(state, context);
     }
     @Override
@@ -74,7 +80,38 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             }
         }
     }
+    // [수정] useItemOn 메서드를 오버라이드하여 필터 상호작용 추가
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        // [핵심 수정] 손에 든 아이템이 렌치일 경우, 이 메서드가 반응하지 않도록 함
+        if (stack.getItem() instanceof WrenchItem) {
+            return super.useItemOn(stack, state, level, pos, player, hand, hit);
+        }
 
+        // 필터 모듈에 대해서만 필터 장착/해제 로직을 실행
+        if (getModuleType() == ModuleType.FILTER) {
+            if (!level.isClientSide) {
+                withBlockEntityDo(level, pos, be -> {
+                    ItemStack filterInSlot = be.getFilter();
+                    ItemStack heldItem = player.getItemInHand(hand);
+
+                    // 손에 필터를 들고 있고, 모듈의 필터 슬롯이 비어있을 때
+                    if (heldItem.getItem() instanceof FilterItem && filterInSlot.isEmpty()) {
+                        be.setFilter(heldItem.split(1));
+                        player.getInventory().setChanged();
+                    }
+                    // 손이 비어있고(쉬프트 클릭), 모듈에 필터가 있을 때
+                    else if (heldItem.isEmpty() && player.isShiftKeyDown() && !filterInSlot.isEmpty()) {
+                        player.getInventory().placeItemBackInInventory(filterInSlot);
+                        be.setFilter(ItemStack.EMPTY);
+                    }
+                });
+            }
+            return ItemInteractionResult.SUCCESS;
+        }
+
+        return super.useItemOn(stack, state, level, pos, player, hand, hit);
+    }
     // --- [수정] 데이터 보존을 위한 드롭 로직 ---
     @Override
     protected @NotNull List<ItemStack> getDrops(@NotNull BlockState state, LootParams.@NotNull Builder params) {

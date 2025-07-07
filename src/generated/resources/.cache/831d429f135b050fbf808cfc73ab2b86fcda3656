@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-07T07:43:40.8386606	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-07-08T00:21:10.7576252	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 3222d8e1c2398f71dbf75105c17e7ce94ec8b8cb assets/mycreateaddon/blockstates/blast_furnace_module.json
 748c6e9125c39bd09b3d25986ff32052aeaad432 assets/mycreateaddon/blockstates/compactor_module.json
 b23f072ed7d0c640e14ae8f5ca207a82e9a147c9 assets/mycreateaddon/blockstates/coolant_module.json
@@ -7,6 +7,7 @@ b0617d7c2bc67bd57d2174579287a4b8da4dfe42 assets/mycreateaddon/blockstates/diamon
 a5f94c69ff50a90e35a2362389f7a5d776372699 assets/mycreateaddon/blockstates/drill_core.json
 a44a6ffd9e2661efcff545070ba2e4dd9eedec96 assets/mycreateaddon/blockstates/efficiency_module.json
 fc0334e2fb75f6216d4095ecca8aa22f091ebd77 assets/mycreateaddon/blockstates/explosive_drill_head.json
+076695f5711c29727cd6d47b911e51dbb36214aa assets/mycreateaddon/blockstates/filter_module.json
 7ccda9a5e71565e420ffeab27db54718cbbb5a82 assets/mycreateaddon/blockstates/fluid_buffer_module.json
 03c9c6026ea888f7eea087c369ed594b3cb12859 assets/mycreateaddon/blockstates/frame_module.json
 789ad1af8f589fe2b01d772f37a68596e865f94a assets/mycreateaddon/blockstates/furnace_module.json
@@ -18,8 +19,8 @@ bc42c58476d973247dbfcdb359196a0ae3c2a399 assets/mycreateaddon/blockstates/pump_h
 8220c675340b84444a24de71b8f1b7daffc7108b assets/mycreateaddon/blockstates/reinforcement_module.json
 292784f9c60bc3c7287ddbed78b38afb5b36a9e3 assets/mycreateaddon/blockstates/speed_module.json
 00134134b9edae22ba8c1c74d5ea78beed718101 assets/mycreateaddon/blockstates/washer_module.json
-ea286aa40a93de54e0d7cd964d0cf06ae448d96d assets/mycreateaddon/lang/en_ud.json
-604d085c3e9e7e3faf25487d676de4feba9bf876 assets/mycreateaddon/lang/en_us.json
+e8c3567c4ba7aefdaf2856d087f8ebf6857ec9d8 assets/mycreateaddon/lang/en_ud.json
+118a3800ad8e3b77038946b790f2b4ef4dba78cb assets/mycreateaddon/lang/en_us.json
 e379a4f0418a38a64db20578009bbc513aec2038 assets/mycreateaddon/models/item/blast_furnace_module.json
 f029a7f4230a4bad6662b580c4134cb3bbc5277e assets/mycreateaddon/models/item/compactor_module.json
 7c3f95395a351abd6cb13f16f7621354f6b51aa1 assets/mycreateaddon/models/item/coolant_module.json
@@ -29,6 +30,7 @@ e23c0e9923a93b502387c2144c27ded3f399559d assets/mycreateaddon/models/item/diamon
 4a6b19fe045fd057ab414bcf11bed4e54f04f4fa assets/mycreateaddon/models/item/drill_core.json
 e62645066c782dd3bf0223a63345e7ba30d19a98 assets/mycreateaddon/models/item/efficiency_module.json
 b14e4894ef040a7ffe6f9ddcff8aa5a338e9a6ab assets/mycreateaddon/models/item/explosive_drill_head.json
+4205c14cc5033e2c154f333aa76058f1b287f56a assets/mycreateaddon/models/item/filter_module.json
 4c4c509ab76ab0763ed16e60bf83b67063c51a90 assets/mycreateaddon/models/item/fluid_buffer_module.json
 b60ac514627297a130a411b1d73a5115d7f17140 assets/mycreateaddon/models/item/frame_module.json
 31054315eb38f5b9f10022be53b1a496476b9e4c assets/mycreateaddon/models/item/furnace_module.json
@@ -48,6 +50,7 @@ d94c9fc59e3eae958a6b8ded67bd660b0cd90508 data/mycreateaddon/loot_table/blocks/di
 3df0f274e47b1a7b39247a0e18cd56ed56b29255 data/mycreateaddon/loot_table/blocks/drill_core.json
 20a7d72c30e1be683c3d540709e35570aa1e377c data/mycreateaddon/loot_table/blocks/efficiency_module.json
 498066e19a5933cbfc9cc439dc3edbe5c88ad7e1 data/mycreateaddon/loot_table/blocks/explosive_drill_head.json
+b24f19d88cb5ce97f9d1daa35f09451219ca84f7 data/mycreateaddon/loot_table/blocks/filter_module.json
 64b0ddc07a2dd555fc19a1c273aaad53cc0bd5e3 data/mycreateaddon/loot_table/blocks/fluid_buffer_module.json
 da3805af61ad7000aa9fa2bcefd5e149e08cbd62 data/mycreateaddon/loot_table/blocks/frame_module.json
 81460c53b3b041d99e6639270860fbfc2b59d9fc data/mycreateaddon/loot_table/blocks/furnace_module.json

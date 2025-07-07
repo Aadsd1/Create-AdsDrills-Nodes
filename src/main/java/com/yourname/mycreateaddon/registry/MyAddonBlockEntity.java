@@ -37,6 +37,7 @@ public class MyAddonBlockEntity {
                     MyAddonBlocks.HEATSINK_MODULE,
                     MyAddonBlocks.COOLANT_MODULE,
                     MyAddonBlocks.COMPACTOR_MODULE,
+                    MyAddonBlocks.FILTER_MODULE,
                     MyAddonBlocks.FURNACE_MODULE,
                     MyAddonBlocks.BLAST_FURNACE_MODULE,
                     MyAddonBlocks.CRUSHER_MODULE,

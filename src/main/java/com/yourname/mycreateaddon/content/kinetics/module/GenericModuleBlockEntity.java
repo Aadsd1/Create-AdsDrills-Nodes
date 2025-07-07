@@ -1,9 +1,12 @@
 package com.yourname.mycreateaddon.content.kinetics.module;
 
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.content.logistics.filter.FilterItem;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -22,18 +25,21 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
+import com.simibubi.create.content.logistics.filter.FilterItemStack;
 import net.neoforged.neoforge.fluids.FluidStack; // 추가
 import net.minecraft.core.particles.ParticleTypes; // 추가
 import net.minecraft.sounds.SoundEvents; // 추가
 import net.minecraft.sounds.SoundSource; // 추가
 import net.minecraft.world.level.Level; // 추가
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
 
-public class GenericModuleBlockEntity extends KineticBlockEntity implements IProcessingModule,IActiveSystemModule, IBulkProcessingModule {
+public class GenericModuleBlockEntity extends KineticBlockEntity implements IProcessingModule,IActiveSystemModule, IBulkProcessingModule, IHaveGoggleInformation {
 
 
     // 렌더링 관련 필드
@@ -50,9 +56,54 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     // [추가] 우선순위 필드. 기본값은 99 (가장 낮음)
     private int processingPriority = 99;
     private static final int MAX_PRIORITY = 10;
-    // [추가] 우선순위 값을 얻는 getter
+
     public int getProcessingPriority() {
+        // 필터 모듈은 최우선 순위(0)를 가짐
         return processingPriority;
+    }
+    // [신규] 필터 슬롯에 쉽게 접근하기 위한 헬퍼 메서드
+    public ItemStack getFilter() {
+        if (getModuleType() == ModuleType.FILTER && itemHandler != null) {
+            return itemHandler.getStackInSlot(0);
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public void setFilter(ItemStack stack) {
+        if (getModuleType() == ModuleType.FILTER && itemHandler != null) {
+            itemHandler.setStackInSlot(0, stack);
+            setChanged(); // 상태 변경 알림
+        }
+    }
+
+    // [신규] addToGoggleTooltip 메서드 추가
+    @Override
+    public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        // 이 BE의 블록이 GenericModuleBlock인지 확인
+        if (!(getBlockState().getBlock() instanceof GenericModuleBlock block)) {
+            return false;
+        }
+
+        ModuleType type = block.getModuleType();
+        boolean hasPriority = (type.getRecipeTypeSupplier() != null || type == ModuleType.FILTER);
+
+        // 우선순위 기능이 있는 모듈일 경우에만 툴팁을 추가
+        if (hasPriority) {
+            // Create의 기본 운동 정보(Stress 등)를 표시하지 않으려면 super 호출을 제거하거나 주석 처리할 수 있습니다.
+            // 여기서는 유지하여 운동 정보도 함께 보이도록 합니다.
+            // super.addToGoggleTooltip(tooltip, isPlayerSneaking); // KineticBlockEntity에는 이 메서드가 없으므로 호출 불가
+
+            // "Processing Priority" 헤더 추가
+            tooltip.add(Component.literal("")); // 줄바꿈
+            tooltip.add(Component.translatable("goggle.mycreateaddon.module.processing_priority").withStyle(ChatFormatting.GRAY));
+
+            // 현재 설정된 우선순위 값을 표시
+            tooltip.add(Component.literal(" " + this.processingPriority).withStyle(ChatFormatting.AQUA));
+
+            return true; // 툴팁이 추가되었음을 알림
+        }
+
+        return false; // 툴팁을 추가하지 않았음을 알림
     }
 
     // [추가] 우선순위를 순환시키는 메서드
@@ -79,29 +130,62 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     public GenericModuleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
 
+
         ModuleType moduleType = getModuleType();
-        if (moduleType.getItemCapacity() > 0) {
-            // [핵심 추가] ItemStackHandler를 익명 클래스로 생성하여 onContentsChanged를 오버라이드합니다.
+
+        if (moduleType == ModuleType.FILTER) {
+            // 필터 모듈일 경우, 필터 전용 핸들러를 사용
+            this.itemHandler = new FilterModuleItemStackHandler(1, this);
+        }
+        else if (moduleType.getItemCapacity() > 0) {
+            // 다른 아이템 버퍼 모듈일 경우, 기존의 일반 핸들러를 사용
             this.itemHandler = new ItemStackHandler(moduleType.getItemCapacity()) {
                 @Override
                 protected void onContentsChanged(int slot) {
                     setChanged();
-                    sendData(); // 내용물이 바뀌면 클라이언트에 업데이트를 보냅니다.
+                    sendData();
                 }
             };
         }
+
         if (moduleType.getFluidCapacity() > 0) {
-            // [핵심 추가] FluidTank를 익명 클래스로 생성하여 onContentsChanged를 오버라이드합니다.
             this.fluidHandler = new FluidTank(moduleType.getFluidCapacity()) {
                 @Override
                 protected void onContentsChanged() {
                     setChanged();
-                    sendData(); // 내용물이 바뀌면 클라이언트에 업데이트를 보냅니다.
+                    sendData();
                 }
             };
         }
     }
+    @Override
+    public List<ItemStack> processItem(ItemStack stack, DrillCoreBlockEntity core) {
 
+        // 1. 이 모듈이 "필터 모듈"일 경우의 로직
+        if (getModuleType() == ModuleType.FILTER) {
+            ItemStack filterStack = getFilter();
+            if (filterStack.isEmpty()) {
+                return Collections.singletonList(stack);
+            }
+
+            // 1. FilterItemStack.of()를 사용하여 필터 아이템의 모든 NBT 데이터를 포함한 객체를 생성합니다.
+            //    이 메서드는 아이템 타입에 따라 ListFilterItemStack 등을 알아서 반환해 줍니다.
+            FilterItemStack filter = FilterItemStack.of(filterStack);
+
+            // 2. 생성된 객체의 test 메서드를 호출합니다.
+            //    이 메서드는 허용/거부 모드를 포함한 모든 필터링 로직을 내부적으로 수행합니다.
+            //    test()가 true를 반환하면 "이 아이템은 통과해야 한다"는 최종 판정입니다.
+            if (filter.test(level, stack)) {
+                return Collections.singletonList(stack); // 통과
+            } else {
+                return Collections.emptyList(); // 거부 (파괴)
+            }
+        }
+        // 2. 이 모듈이 "필터가 아닌 다른 모든 처리 모듈"일 경우의 로직
+        else {
+            return IProcessingModule.super.processItem(stack, core);
+        }
+    }
     /**
      * [신규] IBulkProcessingModule 인터페이스의 구현 메서드
      */
@@ -184,7 +268,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
                 serverLevel.sendParticles(ParticleTypes.CRIT, px, py, pz, 7, 0.3, 0.3, 0.3, 0.1);
             }
             case WASHER -> {
-                serverLevel.playSound(null, modulePos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 0.5F, 1.2F);
+                serverLevel.playSound(null, modulePos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.0F, 1.2F);
 
                 // [위치 조정] 파티클이 블록 위에서 튀도록 조정
                 double px = modulePos.getX() + 0.5;
@@ -244,6 +328,12 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
 
     @Override
     public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
+
+        // 필터 모듈은 항상 작동 준비 완료 상태
+        if (getModuleType() == ModuleType.FILTER) {
+            return true;
+        }
+
         // [핵심 수정] 모듈 타입에 따라 작동 조건을 실시간으로 확인
         return switch (getModuleType()) {
             case WASHER -> {
@@ -266,6 +356,11 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
 
     @Override
     public void consumeResources(DrillCoreBlockEntity core) {
+
+        // 필터 모듈은 별도의 자원을 소모하지 않음
+        if (getModuleType() == ModuleType.FILTER) {
+            return;
+        }
         float efficiency = core.getHeatEfficiency();
 
         switch (getModuleType()) {

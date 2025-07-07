@@ -134,5 +134,6 @@ public class MyAddonDatagen {
         registrate.addRawLang("mycreateaddon.upgrade_success.silktouch", "Silk Touch applied to Drill Head.");
         registrate.addRawLang("mycreateaddon.upgrade_success.fortune", "Fortune on Drill Head upgraded to level %s.");
         registrate.addRawLang("goggle.mycreateaddon.ore_node.fluid.empty", "None");
+        registrate.addRawLang("goggle.mycreateaddon.module.processing_priority", "Processing Priority");
     }
 }

@@ -1,0 +1,24 @@
+{
+  "credit": "Model for Filter module",
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "#all",
+    "all": "mycreateaddon:block/filter_module"
+  },
+
+  "elements": [
+    {
+      "name": "FilterModule",
+      "from": [2, 2, 2],
+      "to": [14, 14, 14],
+      "faces": {
+        "down":  { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "up":    { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "north": { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "south": { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "west":  { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "east":  { "uv": [2, 2, 14, 14], "texture": "#all"}
+      }
+    }
+  ]
+}

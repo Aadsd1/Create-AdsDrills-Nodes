@@ -283,5 +283,17 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
+    public static final BlockEntry<GenericModuleBlock> FILTER_MODULE = REGISTRATE
+            .block("filter_module", p -> new GenericModuleBlock(p, ModuleType.FILTER))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
     public static void register() {}
 }

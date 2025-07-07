@@ -6,10 +6,7 @@ import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.foundation.recipe.RecipeFinder;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.Level;
 
 import net.minecraft.core.BlockPos; // 추가
@@ -32,6 +29,7 @@ public interface IProcessingModule {
     void playEffects(Level level, BlockPos modulePos);
 
     default List<ItemStack> processItem(ItemStack stack, DrillCoreBlockEntity core) {
+
         Level level = core.getLevel();
         BlockPos modulePos = ((GenericModuleBlockEntity)this).getBlockPos();
         if (level == null || getRecipeType() == null) return Collections.singletonList(stack);
@@ -75,15 +73,31 @@ public interface IProcessingModule {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private Optional<RecipeHolder<?>> findRecipe(ItemStack stack, Level level) {
         RecipeType<?> type = getRecipeType();
-        Object cacheKey = "my_addon_drill_processing_" + type.toString();
-        if (type == RecipeType.SMELTING || type == RecipeType.BLASTING || type == RecipeType.SMOKING) {
-            return level.getRecipeManager().getRecipeFor((RecipeType) type, new SingleRecipeInput(stack), level);
-        } else {
-            return RecipeFinder.get(cacheKey, level, holder -> {
-                Recipe<?> recipe = holder.value();
-                if (recipe.getIngredients().isEmpty() || recipe.getType() != type) return false;
-                return recipe.getIngredients().getFirst().test(stack);
-            }).stream().findFirst();
+        if (type == null) {
+            return Optional.empty();
         }
+
+        // 1. RecipeFinder를 사용하여, 해당 레시피 타입(예: Crushing)에 속하는 모든 레시피를 가져옵니다.
+        //    이때, 캐시 키를 사용하여 매번 모든 레시피를 스캔하는 것을 방지합니다.
+        Object cacheKey = "my_addon_drill_processing_" + type.toString();
+        List<RecipeHolder<?>> allRecipesOfType = RecipeFinder.get(cacheKey, level,
+                holder -> holder.value().getType() == type
+        );
+
+        // 2. 가져온 레시피 리스트를 순회하며, 입력된 아이템(stack)과 재료가 일치하는 레시피를 찾습니다.
+        for (RecipeHolder<?> recipeHolder : allRecipesOfType) {
+            Recipe<?> recipe = recipeHolder.value();
+            // 레시피의 모든 재료를 확인합니다.
+            for (Ingredient ingredient : recipe.getIngredients()) {
+                // 재료가 입력된 아이템과 일치하는지 확인합니다.
+                if (ingredient.test(stack)) {
+                    // 일치하는 레시피를 찾았으면 즉시 반환합니다.
+                    return (Optional) Optional.of(recipeHolder);
+                }
+            }
+        }
+
+        // 일치하는 레시피를 찾지 못했으면 빈 Optional을 반환합니다.
+        return Optional.empty();
     }
 }

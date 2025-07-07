@@ -24,11 +24,11 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -49,6 +49,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         HEAD_MISSING, // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
         DUPLICATE_PROCESSING_MODULE
     }
+
     // --- [신규] 연결된 버퍼 모듈의 핸들러를 저장할 리스트 ---
     private final List<IItemHandler> itemBufferHandlers = new ArrayList<>();
     private final List<IFluidHandler> fluidBufferHandlers = new ArrayList<>();
@@ -90,9 +91,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private float totalStressImpact = 0f;
     private float totalHeatModifier = 0f; // [신규]
 
-    private boolean canWasherWork = false;
-    private boolean canHeaterWork = false;
-    private boolean canBlastHeaterWork = false;
+    //private boolean canWasherWork = false;
+  //  private boolean canHeaterWork = false;
+//    private boolean canBlastHeaterWork = false;
 
 
     // [핵심 추가] heat 필드에 대한 public getter
@@ -263,15 +264,21 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         Direction headFacing = inputFacing.getOpposite();
 
         // --- 2. 헤드 확인 ---
-        BlockState headState = level.getBlockState(worldPosition.relative(headFacing));
-        if (headState.getBlock() instanceof IDrillHead head) { // [수정] 인터페이스 인스턴스를 바로 가져옴
-            this.cachedHeadPos = worldPosition.relative(headFacing);
-            // [신규] 헤드가 가진 스트레스 부하를 totalStressImpact에 더합니다.
+
+        BlockPos potentialHeadPos = worldPosition.relative(headFacing);
+        BlockState headState = level.getBlockState(potentialHeadPos);
+
+        // 조건 1: 해당 위치의 블록이 IDrillHead인가?
+        // 조건 2: 그 헤드 블록의 FACING 방향이 코어가 바라보는 방향(headFacing)과 일치하는가?
+        if (headState.getBlock() instanceof IDrillHead head &&
+                headState.hasProperty(DirectionalKineticBlock.FACING) &&
+                headState.getValue(DirectionalKineticBlock.FACING) == headFacing) {
+
+            this.cachedHeadPos = potentialHeadPos;
             this.totalStressImpact += head.getStressImpact();
         } else {
             this.invalidityReason = InvalidityReason.HEAD_MISSING;
         }
-
         // --- 3. 재귀적 모듈 구조 탐색 ---
         Set<BlockPos> allFoundModules = new HashSet<>();
         List<BlockPos> allOtherCores = new ArrayList<>();
@@ -299,9 +306,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
 
         // --- 4. 유효성 검사 및 데이터 집계 ---
-        Set<ModuleType> foundProcessingTypes = new HashSet<>();
-
-        if (invalidityReason == InvalidityReason.NONE) {
+        if (this.invalidityReason == InvalidityReason.NONE || this.invalidityReason == InvalidityReason.HEAD_MISSING) {
             if (allFoundModules.size() > MAX_MODULES) {
                 this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
             } else {
@@ -309,6 +314,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 this.structureValid = true;
                 this.structureCache = allFoundModules;
 
+                Set<Object> foundProcessingKeys = new HashSet<>();
                 for (BlockPos modulePos : this.structureCache) {
                     if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                         ModuleType type = moduleBE.getModuleType();
@@ -319,47 +325,62 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
 
 
-                        // 1. 일반 처리 모듈인 경우
-                        if (moduleBE instanceof IProcessingModule && type.getRecipeTypeSupplier() != null) {
-                            // 기존과 동일하게 레시피 타입을 Set에 추가
-                            if (!foundProcessingTypes.add(type)) {
-                                this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
-                                this.structureCache.clear();
-                                this.structureValid = false;
-                                break;
-                            }
-                            processingModuleChain.add(modulePos);
-                        }
+                        // --- 모듈 종류에 따른 분기 처리 및 중복 검사 ---
+                        // --- [핵심 수정] ModuleType을 기준으로 역할을 명확히 구분하여 처리 ---
 
-                        // 2. 벌크 처리 모듈(압축기)인 경우
-                        if (moduleBE instanceof IBulkProcessingModule) {
-                            // 압축기 모듈을 나타내는 고유한 객체(여기서는 ModuleType.COMPACTOR)를 Set에 추가
-                            if (!foundProcessingTypes.add(type)) {
-                                // 만약 Set에 이미 COMPACTOR 타입이 있다면, 중복으로 간주
-                                this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
-                                this.structureCache.clear();
-                                this.structureValid = false;
-                                break;
-                            }
-                            bulkProcessingModules.add(modulePos);
-                        }
+                        boolean isDuplicate = false;
 
-                        // 3. 액티브 시스템 모듈 처리 (중복 검사 없음)
-                        if (moduleBE instanceof IActiveSystemModule) {
+                        // 1. 이 모듈이 "일반 처리 모듈"인가? (레시피가 있는 타입들)
+                        if (type.getRecipeTypeSupplier() != null) {
+                            RecipeType<?> recipeType = type.getRecipeTypeSupplier().get();
+                            // 키: RecipeType 자체
+                            if (!foundProcessingKeys.add(recipeType)) {
+                                isDuplicate = true;
+                            } else {
+                                processingModuleChain.add(modulePos);
+                            }
+                        }
+                        // 2. 이 모듈이 "압축 모듈"인가?
+                        else if (type == ModuleType.COMPACTOR) {
+                            // 키: ModuleType.COMPACTOR 자체
+                            if (!foundProcessingKeys.add(ModuleType.COMPACTOR)) {
+                                isDuplicate = true;
+                            } else {
+                                bulkProcessingModules.add(modulePos);
+                            }
+                        }
+                        // 3. 이 모듈이 "냉각 모듈"인가? (다른 액티브 모듈이 추가되면 여기에 else if 추가)
+                        else if (type == ModuleType.COOLANT) {
+                            // 냉각 모듈은 여러 개 설치 가능하므로 중복 검사 없음
                             activeSystemModules.add(modulePos);
+                        }
+                        // 4. 그 외의 모든 모듈 (SPEED, FRAME, HEATSINK 등)
+                        else {
+                            // 아무런 처리도 하지 않음 (중복 검사 없음)
+                        }
+
+                        // 중복이 발견되면 즉시 루프를 탈출
+                        if (isDuplicate) {
+                            this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
+                            this.structureValid = false;
+                            break;
                         }
                     }
                 }
-
-                // 중복이 발견되지 않았다면, 체인을 정상적으로 정렬
+                // 구조가 유효할 때만 정렬 실행
                 if (this.structureValid) {
-                    // [핵심 수정] 정렬 기준 변경
                     processingModuleChain.sort(Comparator.comparingInt(pos -> {
                         if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity gme) {
                             return gme.getProcessingPriority();
                         }
-                        return 99; // BE가 없는 예외적인 경우, 가장 낮은 우선순위 부여
+                        return 99;
                     }));
+                } else {
+                    // 구조가 비활성화되었다면 모든 기능 리스트를 비움
+                    processingModuleChain.clear();
+                    bulkProcessingModules.clear();
+                    activeSystemModules.clear();
+                    structureCache.clear();
                 }
             }
         }
@@ -532,13 +553,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     }
 
+
     @Override
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
         this.structureValid = compound.getBoolean("StructureValid");
         this.totalSpeedBonus = compound.getFloat("SpeedBonus");
         this.totalStressImpact = compound.getFloat("StressImpact");
-
         this.heat = compound.getFloat("Heat");
         this.isOverheated = compound.getBoolean("Overheated");
 
@@ -549,22 +570,24 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             this.invalidityReason = InvalidityReason.NONE;
         }
 
+        // [핵심 수정] processingModuleChain을 클라이언트와 서버 양쪽에서 모두 로드하도록 변경
+        processingModuleChain.clear();
+        if (compound.contains("ProcessingChain", 9)) {
+            ListTag chainTag = compound.getList("ProcessingChain", 10);
+            for (int i = 0; i < chainTag.size(); i++) {
+                CompoundTag posTag = chainTag.getCompound(i);
+                this.processingModuleChain.add(new BlockPos(
+                        posTag.getInt("X"),
+                        posTag.getInt("Y"),
+                        posTag.getInt("Z")
+                ));
+            }
+        }
+
         if (clientPacket) {
+            // 클라이언트 전용 데이터 로드
             this.visualSpeed = compound.getFloat("VisualSpeed");
 
-            this.processingModuleChain.clear();
-            if (compound.contains("ProcessingChain", 9)) {
-                ListTag chainTag = compound.getList("ProcessingChain", 10);
-                for (int i = 0; i < chainTag.size(); i++) {
-                    // [핵심 수정] NbtUtils 대신 수동으로 X, Y, Z를 읽어 BlockPos 생성
-                    CompoundTag posTag = chainTag.getCompound(i);
-                    this.processingModuleChain.add(new BlockPos(
-                            posTag.getInt("X"),
-                            posTag.getInt("Y"),
-                            posTag.getInt("Z")
-                    ));
-                }
-            }
             Set<BlockPos> newCache = new HashSet<>();
             if (compound.contains("StructureCache", 9)) {
                 ListTag cacheList = compound.getList("StructureCache", 10);
@@ -579,19 +602,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
             this.structureCache = newCache;
         } else {
-            // 서버 측에서 월드를 로드할 때
-            this.processingModuleChain.clear();
-            if (compound.contains("ProcessingChain", 9)) {
-                ListTag chainTag = compound.getList("ProcessingChain", 10);
-                for (int i = 0; i < chainTag.size(); i++) {
-                    CompoundTag posTag = chainTag.getCompound(i);
-                    this.processingModuleChain.add(new BlockPos(
-                            posTag.getInt("X"),
-                            posTag.getInt("Y"),
-                            posTag.getInt("Z")
-                    ));
-                }
-            }
+            // [핵심 수정] 서버가 월드를 로드할 때, 다음 틱에 구조 재검사를 강제함
             needsStructureCheck = true;
         }
     }
@@ -652,20 +663,21 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
     }
-    private void updateProcessingConditions() {
-        // 와셔 모듈 조건
-        FluidStack waterToSimulate = new FluidStack(Fluids.WATER, 100);
-        this.canWasherWork = getInternalFluidBuffer().drain(waterToSimulate, IFluidHandler.FluidAction.SIMULATE).getAmount() >= 100;
-        // 히터 모듈 조건
-        this.canHeaterWork = getHeat() >= 50f;
-        // 블래스트 히터 모듈 조건
-        this.canBlastHeaterWork = getHeat() >= 90f;
-    }
+//    private void updateProcessingConditions() {
+//        // 와셔 모듈 조건
+//        FluidStack waterToSimulate = new FluidStack(Fluids.WATER, 100);
+//        this.canWasherWork = getInternalFluidBuffer().drain(waterToSimulate, IFluidHandler.FluidAction.SIMULATE).getAmount() >= 100;
+//        // 히터 모듈 조건
+//        this.canHeaterWork = getHeat() >= 50f;
+//        // 블래스트 히터 모듈 조건
+//        this.canBlastHeaterWork = getHeat() >= 90f;
+//    }
+
 
     // 모듈이 사용할 getter들
-    public boolean canWasherWork() { return this.canWasherWork; }
-    public boolean canHeaterWork() { return this.canHeaterWork; }
-    public boolean canBlastHeaterWork() { return this.canBlastHeaterWork; }
+    //public boolean canWasherWork() { return this.canWasherWork; }
+  //  public boolean canHeaterWork() { return this.canHeaterWork; }
+//    public boolean canBlastHeaterWork() { return this.canBlastHeaterWork; }
 
     public void serverTick() {
         // 기존 tick() 메서드에 있던 모든 서버 로직을 여기로 옮깁니다.
@@ -682,9 +694,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
         // [핵심 추가] 주기적인 상태 업데이트
-        if (tickCounter % 20 == 0) {
-            updateProcessingConditions();
-        }
+        //if (tickCounter % 20 == 0) {
+          //  updateProcessingConditions();
+        //}
         float finalSpeed = getFinalSpeed();
 
         IDrillHead headBlock = null;

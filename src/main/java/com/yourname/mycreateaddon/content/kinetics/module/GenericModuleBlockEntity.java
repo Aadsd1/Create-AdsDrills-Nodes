@@ -13,10 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
@@ -110,7 +107,6 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
      */
     @Override
     public boolean processBulk(IResourceAccessor coreResources) {
-        // 이 BE가 압축 모듈일 경우에만 로직 실행
         if (getModuleType() != ModuleType.COMPACTOR) {
             return false;
         }
@@ -118,47 +114,39 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         assert level != null;
         RecipeManager recipeManager = level.getRecipeManager();
 
-        // 3x3 조합법만 확인
-        for (CraftingRecipe recipe : recipeManager.getAllRecipesFor(RecipeType.CRAFTING).stream().map(h -> h.value()).toList()) {
+        for (CraftingRecipe recipe : recipeManager.getAllRecipesFor(RecipeType.CRAFTING).stream().map(RecipeHolder::value).toList()) {
             if (recipe.getIngredients().size() == 9 && !recipe.getResultItem(level.registryAccess()).isEmpty()) {
 
-                // 모든 재료가 동일한 아이템인지 확인 (예: 철 너겟 9개)
                 Ingredient firstIngredient = recipe.getIngredients().getFirst();
-                if (firstIngredient.isEmpty()) continue;
+                // [수정] 첫 번째 재료의 아이템 목록이 비어있으면 이 레시피는 건너뜁니다.
+                if (firstIngredient.isEmpty() || firstIngredient.getItems().length == 0) continue;
 
                 boolean allSame = true;
                 for (int i = 1; i < 9; i++) {
-                    if (!firstIngredient.test(recipe.getIngredients().get(i).getItems()[0])) {
+                    ItemStack[] items = recipe.getIngredients().get(i).getItems();
+                    // [수정] 다른 재료들의 아이템 목록도 비어있지 않은지 확인합니다.
+                    if (items.length == 0 || !firstIngredient.test(items[0])) {
                         allSame = false;
                         break;
                     }
                 }
 
                 if (allSame) {
-                    // 재료 아이템 스택 생성
                     ItemStack ingredientStack = firstIngredient.getItems()[0].copy();
-                    ingredientStack.setCount(9); // 9개 필요
+                    ingredientStack.setCount(9);
 
-                    // 1. 코어 버퍼에 재료가 충분한지 시뮬레이션
                     if (coreResources.consumeItems(ingredientStack, true).isEmpty()) {
-                        // 2. 충분하다면, 실제로 재료를 소모
                         coreResources.consumeItems(ingredientStack, false);
-
-                        // 3. 결과물을 코어 버퍼에 다시 삽입
                         ItemStack resultStack = recipe.getResultItem(level.registryAccess()).copy();
                         ItemHandlerHelper.insertItem(coreResources.getInternalItemBuffer(), resultStack, false);
-
-                        // 4. 시각/청각 효과 재생
                         playCompactingEffects();
-
-                        // 5. 작업 성공!
                         return true;
                     }
                 }
             }
         }
 
-        return false; // 조합 가능한 레시피를 찾지 못함
+        return false;
     }
 
     private void playCompactingEffects() {
@@ -256,42 +244,51 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
 
     @Override
     public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
+        // [핵심 수정] 모듈 타입에 따라 작동 조건을 실시간으로 확인
         return switch (getModuleType()) {
-            case WASHER -> core.canWasherWork();
-            case FURNACE -> core.canHeaterWork();
-            case BLAST_FURNACE -> core.canBlastHeaterWork();
-            case CRUSHER -> true;
+            case WASHER -> {
+                // 와셔 모듈은 작동 시점에 물 100mb를 소모할 수 있는지 직접 확인
+                FluidStack waterToSimulate = new FluidStack(Fluids.WATER, 100);
+                yield core.getInternalFluidBuffer().drain(waterToSimulate, IFluidHandler.FluidAction.SIMULATE).getAmount() >= 100;
+            }
+            case FURNACE ->
+                // 용광로 모듈은 코어의 열이 50 이상인지 직접 확인
+                    core.getHeat() >= 50f;
+            case BLAST_FURNACE ->
+                // 제련 용광로 모듈은 코어의 열이 90 이상인지 직접 확인
+                    core.getHeat() >= 90f;
+            case CRUSHER ->
+                // 분쇄기는 별도의 조건이 없음
+                    true;
             default -> false;
         };
     }
 
     @Override
     public void consumeResources(DrillCoreBlockEntity core) {
-        // [핵심] 코어의 현재 열 효율을 가져옵니다.
         float efficiency = core.getHeatEfficiency();
 
         switch (getModuleType()) {
-            case FURNACE -> {
-                // 효율이 200%(2.0f)일 때, 열 소모량이 절반으로 줄어듭니다.
-                // 효율이 100%(1.0f)일 때는 기본 소모량(10)을 유지합니다.
-                float heatToConsume = 10.1f / (efficiency+0.1f);
+            case FURNACE: {
+                float heatToConsume = 10.1f / (efficiency + 0.1f);
                 core.addHeat(-heatToConsume);
+                break;
             }
-            case BLAST_FURNACE -> {
-                float heatToConsume = 20.1f / (efficiency+0.1f);
+            case BLAST_FURNACE: {
+                float heatToConsume = 20.1f / (efficiency + 0.1f);
                 core.addHeat(-heatToConsume);
+                break;
             }
-            case WASHER -> {
-                // 효율이 200%(2.0f)일 때, 물 소모량이 절반으로 줄어듭니다.
-                int waterToConsume = (int) (101 / efficiency+1);
-
+            case WASHER: {
+                // [수정] 여기서도 고정된 값으로 물을 소모
+                int waterToConsume = 100;
                 FluidStack waterRequest = new FluidStack(Fluids.WATER, waterToConsume);
                 core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.EXECUTE);
+                break; // case 문에 break 추가
             }
-            default -> {}
+            default: {}
         }
     }
-
     // --- [신규] Capability 등록 이벤트에서 사용할 Getter ---
     @Nullable
     public ItemStackHandler getItemHandler() {

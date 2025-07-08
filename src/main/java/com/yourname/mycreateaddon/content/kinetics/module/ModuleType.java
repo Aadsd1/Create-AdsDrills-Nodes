@@ -25,6 +25,8 @@ public enum ModuleType {
     ENERGY_INPUT(0.5f, 0.0f, 0.0f, 0, 0, 0), // 외부 에너지를 받는 포트
     ENERGY_BUFFER(0.2f, 0.0f, 0.0f, 0, 0, 100000), // 에너지 저장 용량 100kFE 증가
     KINETIC_DYNAMO(16.0f, 0.0f, 0.1f, 0, 0, 0), // 회전력을 FE로 변환 (높은 스트레스, 약간의 열 발생)
+    // [신규] 공명기 모듈: 필터처럼 1칸의 인벤토리를 가짐
+    RESONATOR(1.0f, 0.0f, 0.0f, 1, 0, 0),
 
     FURNACE(1.5f, 0.0f, 0.0f, 0, 0, 0, () -> RecipeType.SMELTING),
     BLAST_FURNACE(2.5f, 0.0f, 0.0f, 0, 0, 0, () -> RecipeType.BLASTING),

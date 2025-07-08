@@ -5,6 +5,7 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.LaserDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.*;
@@ -24,6 +25,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import com.yourname.mycreateaddon.content.kinetics.base.DrillEnergyStorage; // [신규] 임포트
 import net.minecraft.world.level.block.Block;
@@ -57,6 +59,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private final List<IFluidHandler> fluidBufferHandlers = new ArrayList<>();
     private final List<BlockPos> activeSystemModules = new ArrayList<>();
     private final List<BlockPos> bulkProcessingModules = new ArrayList<>();
+    private final List<BlockPos> resonatorModules = new ArrayList<>(); // [신규]
+
     private final DrillEnergyStorage energyBuffer = new DrillEnergyStorage(0, Integer.MAX_VALUE, Integer.MAX_VALUE, this::setChanged);
     // --- [추가] 과열 시스템 관련 필드 ---
     private float heat = 0.0f;
@@ -182,6 +186,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             return remainder;
         }
     }
+
+
+
+
     /** heat 값을 안전하게 변경합니다. */
     public void addHeat(float amount) {
         this.heat = Mth.clamp(this.heat + amount, 0, 100);
@@ -196,7 +204,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         IFluidHandler virtualHandler = getInternalFluidBuffer();
         return virtualHandler.drain(fluidToConsume, simulate ? IFluidHandler.FluidAction.SIMULATE : IFluidHandler.FluidAction.EXECUTE);
     }
-
+    /**
+     * [신규] IResourceAccessor의 consumeEnergy 메서드 구현
+     */
+    @Override
+    public int consumeEnergy(int amount, boolean simulate) {
+        return this.energyBuffer.extractEnergy(amount, simulate);
+    }
 
     public void onBroken() {
         if (level != null && !level.isClientSide()) {
@@ -242,7 +256,23 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public float getVisualSpeed() {
         return this.visualSpeed;
     }
+    // [핵심 수정] Optional<Item>을 반환하도록 변경
+    public Optional<Item> getResonatorFilter() {
+        if (level == null || resonatorModules.isEmpty()) {
+            return Optional.empty();
+        }
+        BlockPos resonatorPos = resonatorModules.getFirst();
+        if (level.getBlockEntity(resonatorPos) instanceof GenericModuleBlockEntity moduleBE) {
+            return moduleBE.getResonatorFilterItem();
+        }
+        return Optional.empty();
+    }
 
+    // [신규] 특정 자원만 채굴하는 메서드
+    public List<ItemStack> mineSpecificNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch, Item specificItem) {
+        if (level == null || level.isClientSide()) return List.of();
+        return nodeBE.applySpecificMiningTick(miningAmount, fortune, silkTouch, specificItem);
+    }
 
     public void scheduleStructureCheck() {
         if (level != null && !level.isClientSide) {
@@ -264,6 +294,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.fluidBufferHandlers.clear();
         this.activeSystemModules.clear(); // [신규] 리스트 초기화
         this.bulkProcessingModules.clear(); // [신규] 리스트 초기화
+        this.resonatorModules.clear(); // [신규] 초기화
         this.totalSpeedBonus = 0f;
         this.totalStressImpact = BASE_STRESS_IMPACT;
         this.totalHeatModifier = 0f; // [신규] 초기화
@@ -318,7 +349,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
 
-        MyCreateAddon.LOGGER.info("Found {} modules in total.", allFoundModules.size());
         // --- 4. 유효성 검사 및 데이터 집계 ---
         if (this.invalidityReason == InvalidityReason.NONE || this.invalidityReason == InvalidityReason.HEAD_MISSING) {
             if (allFoundModules.size() > MAX_MODULES) {
@@ -332,7 +362,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                         ModuleType type = moduleBE.getModuleType();
 
-                        MyCreateAddon.LOGGER.info("Step 1 & 2: Recognized Module '{}' at {} with energy capacity: {}", type.name(), modulePos, type.getEnergyCapacity());
                         totalSpeedBonus += type.getSpeedBonus();
                         totalStressImpact += type.getStressImpact();
                         totalHeatModifier += type.getHeatModifier();
@@ -363,7 +392,15 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                             } else {
                                 bulkProcessingModules.add(modulePos);
                             }
+
+                        } else if (type == ModuleType.RESONATOR) { // [핵심 수정]
+                            if (!foundProcessingKeys.add(ModuleType.RESONATOR)) {
+                                isDuplicate = true;
+                            } else {
+                                resonatorModules.add(modulePos);
+                            }
                         }
+
 
                         // [수정] 냉각/에너지 관련 모듈을 activeSystemModules에 추가
                         else if (type == ModuleType.COOLANT || type == ModuleType.KINETIC_DYNAMO || type == ModuleType.ENERGY_INPUT) {
@@ -390,11 +427,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
 
 
-        MyCreateAddon.LOGGER.info("Step 3: Aggregated total energy capacity: {}", totalEnergyCapacity);
 
         this.energyBuffer.setCapacity(totalEnergyCapacity);
 
-        MyCreateAddon.LOGGER.info("Step 4: Final capacity set on energy buffer: {}", this.energyBuffer.getMaxEnergyStored());
         if (!this.structureValid) {
             this.structureCache.clear();
             this.processingModuleChain.clear();
@@ -423,19 +458,21 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
+
+    // [핵심 수정] 레이저 헤드가 호출할 수 있도록 원래 시그니처의 메서드를 복원/유지합니다.
     public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount) {
         if (level == null || level.isClientSide() || cachedHeadPos == null) {
             return Collections.emptyList();
         }
+        // 레이저는 행운/실크터치가 없으므로, 기본값으로 호출합니다.
+        return nodeBE.applyMiningTick(miningAmount, 0, false);
+    }
 
-        int fortune = 0;
-        boolean silkTouch = false;
-
-        if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
-            fortune = headBE.getFortuneLevel();
-            silkTouch = headBE.hasSilkTouch();
+    // [유지] 로터리 헤드는 이 메서드를 계속 사용합니다.
+    public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch) {
+        if (level == null || level.isClientSide() || cachedHeadPos == null) {
+            return Collections.emptyList();
         }
-
         return nodeBE.applyMiningTick(miningAmount, fortune, silkTouch);
     }
 
@@ -571,6 +608,22 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 cacheList.add(posTag);
             }
             compound.put("StructureCache", cacheList);
+
+
+
+            // --- [핵심 추가] ---
+            // 공명기 모듈 위치 리스트를 클라이언트에 동기화합니다.
+            if (!resonatorModules.isEmpty()) {
+                ListTag resonatorList = new ListTag();
+                for (BlockPos pos : resonatorModules) {
+                    CompoundTag posTag = new CompoundTag();
+                    posTag.putInt("X", pos.getX());
+                    posTag.putInt("Y", pos.getY());
+                    posTag.putInt("Z", pos.getZ());
+                    resonatorList.add(posTag);
+                }
+                compound.put("ResonatorModules", resonatorList);
+            }
         }
 
     }
@@ -629,6 +682,21 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 }
             }
             this.structureCache = newCache;
+
+
+            // 동기화된 공명기 모듈 위치 리스트를 읽어옵니다.
+            this.resonatorModules.clear();
+            if (compound.contains("ResonatorModules", 9)) { // 9 = ListTag
+                ListTag resonatorList = compound.getList("ResonatorModules", 10); // 10 = CompoundTag
+                for (int i = 0; i < resonatorList.size(); i++) {
+                    CompoundTag posTag = resonatorList.getCompound(i);
+                    this.resonatorModules.add(new BlockPos(
+                            posTag.getInt("X"),
+                            posTag.getInt("Y"),
+                            posTag.getInt("Z")
+                    ));
+                }
+            }
         } else {
             // [핵심 수정] 서버가 월드를 로드할 때, 다음 틱에 구조 재검사를 강제함
 
@@ -727,7 +795,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
         // [핵심 추가] 주기적인 상태 업데이트
         //if (tickCounter % 20 == 0) {
-          //  updateProcessingConditions();
+        //  updateProcessingConditions();
         //}
         float finalSpeed = getFinalSpeed();
 
@@ -819,6 +887,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             else if (level.getBlockEntity(cachedHeadPos) instanceof PumpHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(finalSpeed); // 펌프는 정방향 회전
                 // 펌프는 열 시각화가 없으므로 updateClientHeat는 호출하지 않음
+
+            } else if (level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity headBE) { // [신규]
+                headBE.updateVisualSpeed(finalSpeed); // 레이저는 정방향 회전
             }
 
             if (finalSpeed != 0) {
@@ -1096,7 +1167,22 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             // 쉬프트 안내 문구
             tooltip.add(Component.literal(" ").append(Component.translatable("goggle.mycreateaddon.sneak_for_details").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC)));
         }
+        // [신규] 레이저 헤드 전용 정보 추가
+        if (hasHead() && level != null && level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity laserBE) {
+            tooltip.add(Component.literal("")); // 구분선
+            tooltip.add(Component.literal(" ")
+                    .append(laserBE.getMode().getDisplayName().copy().withStyle(ChatFormatting.RED)));
 
+            int energyCost = 0;
+            if (laserBE.getMode() == LaserDrillHeadBlockEntity.OperatingMode.DECOMPOSITION) {
+                energyCost = 500; // 분해 모드 에너지 소모량 (하드코딩, 나중에 BE 필드에서 가져올 수 있음)
+            } else {
+                energyCost = 100 * laserBE.activeTargets.size(); // 채굴 모드 에너지 소모량
+            }
+            tooltip.add(Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.energy_cost", energyCost)
+                            .withStyle(ChatFormatting.GRAY)));
+        }
 
         // --- 저장 공간 정보 (항상 표시) ---
         boolean hasItemBuffers = false;

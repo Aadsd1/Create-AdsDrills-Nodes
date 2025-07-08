@@ -42,11 +42,17 @@ public class MyAddonBlockEntity {
                     MyAddonBlocks.BLAST_FURNACE_MODULE,
                     MyAddonBlocks.CRUSHER_MODULE,
                     MyAddonBlocks.WASHER_MODULE,
+                    MyAddonBlocks.RESONATOR_MODULE, // [신규]
                     MyAddonBlocks.ENERGY_INPUT_MODULE,
                     MyAddonBlocks.ENERGY_BUFFER_MODULE,
                     MyAddonBlocks.KINETIC_DYNAMO_MODULE
             )
             .renderer(()->GenericModuleRenderer::new)
+            .register();
+    public static final BlockEntityEntry<LaserDrillHeadBlockEntity> LASER_DRILL_HEAD = REGISTRATE
+            .blockEntity("laser_drill_head", LaserDrillHeadBlockEntity::new)
+            .visual(() -> LaserDrillHeadVisual::new) // [핵심 수정] Visual 등록
+            .validBlocks(MyAddonBlocks.LASER_DRILL_HEAD)
             .register();
 
     public static final BlockEntityEntry<OreNodeBlockEntity> ORE_NODE = REGISTRATE

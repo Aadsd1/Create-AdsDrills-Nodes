@@ -1,9 +1,12 @@
 package com.yourname.mycreateaddon.content.kinetics.base;
 
+import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+
+import java.util.List;
 
 /**
  * 드릴 구조 내의 자원(아이템, 유체)에 대한 접근을 제공하는 인터페이스.
@@ -24,6 +27,13 @@ public interface IResourceAccessor {
     IFluidHandler getInternalFluidBuffer();
 
     /**
+     * [신규] 내부 버퍼에서 에너지를 지정된 양만큼 소모합니다.
+     * @param amount 소모할 에너지의 양 (FE)
+     * @param simulate 시뮬레이션 여부 (true이면 실제로 소모하지 않음)
+     * @return 실제로 소모된 에너지 양
+     */
+    int consumeEnergy(int amount, boolean simulate);
+    /**
      * 내부 버퍼에서 특정 종류의 아이템을 지정된 양만큼 소모합니다.
      * @param stackToConsume 소모할 아이템의 종류와 개수
      * @param simulate 시뮬레이션 여부 (true이면 실제로 소모하지 않음)
@@ -38,4 +48,5 @@ public interface IResourceAccessor {
      * @return 실제로 소모된 유체 스택 (요청보다 적을 수 있음)
      */
     FluidStack consumeFluid(FluidStack fluidToConsume, boolean simulate);
+
 }

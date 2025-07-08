@@ -88,6 +88,12 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             return super.useItemOn(stack, state, level, pos, player, hand, hit);
         }
 
+        if (getModuleType() == ModuleType.RESONATOR) {
+            if (!level.isClientSide) {
+                withBlockEntityDo(level, pos, be -> be.setResonatorFilter(stack, player));
+            }
+            return ItemInteractionResult.SUCCESS;
+        }
         // 필터 모듈에 대해서만 필터 장착/해제 로직을 실행
         if (getModuleType() == ModuleType.FILTER) {
             if (!level.isClientSide) {
@@ -109,6 +115,7 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             }
             return ItemInteractionResult.SUCCESS;
         }
+
 
         return super.useItemOn(stack, state, level, pos, player, hand, hit);
     }

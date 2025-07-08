@@ -9,6 +9,7 @@ import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.ExplosiveDrillHeadBlock;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.LaserDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
@@ -321,6 +322,31 @@ public class MyAddonBlocks {
             .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item().model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block"))).build()
+            .register();
+    // [신규]
+    public static final BlockEntry<GenericModuleBlock> RESONATOR_MODULE = REGISTRATE
+            .block("resonator_module", p -> new GenericModuleBlock(p, ModuleType.RESONATOR))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item()
+            .model((c, p) ->
+                    p.withExistingParent(c.getId().getPath(),
+                            p.modLoc("block/" + c.getId().getPath() + "/block")))
+            .build()
+            .register();
+
+    public static final BlockEntry<LaserDrillHeadBlock> LASER_DRILL_HEAD = REGISTRATE
+            .block("laser_drill_head", LaserDrillHeadBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(p -> p.noOcclusion().isRedstoneConductor((s,l,pos) -> false))
+            .blockstate(BlockStateGen.directionalBlockProvider(true))
+            .item()
+            .model((c, p)
+                    -> p.withExistingParent(c.getId().getPath(),
+                    p.modLoc("block/" + c.getId().getPath() + "/item")))
+            .build()
             .register();
     public static void register() {}
 }

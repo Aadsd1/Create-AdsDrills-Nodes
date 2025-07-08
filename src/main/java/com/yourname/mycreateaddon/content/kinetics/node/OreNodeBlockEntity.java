@@ -69,7 +69,47 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         super(type, pos, state);
     }
 
+    // [신규] 특정 아이템만 채굴하는 메서드
+    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
+        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
+            return Collections.emptyList();
+        }
 
+        float effectiveMiningAmount = miningAmount / getHardness();
+        this.miningProgress += (int) effectiveMiningAmount;
+        int miningResistance = 1000;
+
+        if (this.miningProgress >= miningResistance) {
+            this.miningProgress -= miningResistance;
+            this.currentYield--;
+            setChanged();
+            sendData();
+
+            // 실크터치는 여기서도 작동
+            if (hasSilkTouch) {
+                Block blockToDrop = this.itemToBlockMap.get(specificItemToMine);
+                return Collections.singletonList(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
+            }
+
+            // 행운/풍부함 로직 적용
+            ItemStack finalDrop = new ItemStack(specificItemToMine);
+            int dropCount = 1;
+            if (fortuneLevel > 0) {
+                RandomSource rand = serverLevel.getRandom();
+                for (int i = 0; i < fortuneLevel; i++) {
+                    if (rand.nextInt(fortuneLevel + 2) > 1) dropCount++;
+                }
+            }
+            finalDrop.setCount(dropCount);
+            if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                finalDrop.grow(finalDrop.getCount());
+            }
+
+            return Collections.singletonList(finalDrop);
+        }
+
+        return Collections.emptyList();
+    }
 
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {

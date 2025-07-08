@@ -136,5 +136,23 @@ public class MyAddonDatagen {
         registrate.addRawLang("mycreateaddon.upgrade_success.fortune", "Fortune on Drill Head upgraded to level %s.");
         registrate.addRawLang("goggle.mycreateaddon.ore_node.fluid.empty", "None");
         registrate.addRawLang("goggle.mycreateaddon.module.processing_priority", "Processing Priority");
+        registrate.addRawLang("mycreateaddon.laser_head.mode.wide_beam", "Mode: Wide-Beam");
+        registrate.addRawLang("mycreateaddon.laser_head.mode.resonance", "Mode: Resonance");
+        registrate.addRawLang("mycreateaddon.laser_head.mode.decomposition", "Mode: Decomposition");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.energy_cost", "Energy Cost: %s FE/t"); // [신규]
+        registrate.addRawLang("mycreateaddon.node_designator.linked", "Laser Head linked.");
+        registrate.addRawLang("mycreateaddon.node_designator.not_linked", "Link to a Laser Head first! (Sneak + Right-Click)");
+        registrate.addRawLang("mycreateaddon.node_designator.linked_to", "Linked to: %s, %s, %s");
+        registrate.addRawLang("mycreateaddon.node_designator.tooltip", "Links to a Laser Head to designate targets.");
+        registrate.addRawLang("mycreateaddon.node_designator.target_set", "Target set: %s");
+        registrate.addRawLang("mycreateaddon.node_designator.target_removed", "Target removed: %s");
+        registrate.addRawLang("mycreateaddon.node_designator.target_limit", "Target limit reached (4).");
+        registrate.addRawLang("mycreateaddon.resonator.set", "Resonance frequency set to: %s");
+        registrate.addRawLang("mycreateaddon.resonator.cleared", "Resonance frequency cleared.");
+        registrate.addRawLang("goggle.mycreateaddon.laser_head.header", "Laser Drill Head Status");
+        registrate.addRawLang("goggle.mycreateaddon.laser_head.resonance_target", "Resonance Target: ");
+        registrate.addRawLang("goggle.mycreateaddon.laser_head.no_resonance_target", "None");
+        registrate.addRawLang("goggle.mycreateaddon.laser_head.designated_targets", "Designated Targets:");
+        registrate.addRawLang("goggle.mycreateaddon.laser_head.no_targets", "No designated targets.");
     }
 }

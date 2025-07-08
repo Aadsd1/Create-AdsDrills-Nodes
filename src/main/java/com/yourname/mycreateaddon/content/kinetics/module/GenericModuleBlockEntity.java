@@ -10,11 +10,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -34,10 +37,7 @@ import net.minecraft.sounds.SoundEvents; // 추가
 import net.minecraft.sounds.SoundSource; // 추가
 import net.minecraft.world.level.Level; // 추가
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 
 
@@ -53,6 +53,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     protected @Nullable FluidTank fluidHandler;
     protected @Nullable DrillEnergyStorage energyInputBuffer; // [핵심 수정] 타입 변경
 
+    private Item resonatorFilter = null; // [신규] 공명 필터 아이템 저장
     // [신규] 냉각 로직 관련 상수
     private static final float COOLANT_ACTIVATION_HEAT = 5.0f; // 5도 이상일 때 작동
     private static final int WATER_CONSUMPTION_PER_TICK = 5; // 틱당 물 5mb 소모 (초당 100mb)
@@ -80,6 +81,23 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         }
     }
 
+    // [신규] 공명 필터 설정 메서드
+    public void setResonatorFilter(ItemStack stack, Player player) {
+        if (stack.isEmpty()) {
+            this.resonatorFilter = null;
+            player.displayClientMessage(Component.translatable("mycreateaddon.resonator.cleared"), true);
+        } else {
+            this.resonatorFilter = stack.getItem();
+            player.displayClientMessage(Component.translatable("mycreateaddon.resonator.set", this.resonatorFilter.getDescription()), true);
+        }
+        setChanged();
+        sendData();
+    }
+
+    // [신규] 코어가 사용할 getter
+    public Optional<Item> getResonatorFilterItem() {
+        return Optional.ofNullable(this.resonatorFilter);
+    }
 
     @Override
     public void initialize() {
@@ -173,8 +191,8 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
 
         ModuleType moduleType = getModuleType();
 
-        if (moduleType == ModuleType.FILTER) {
-            // 필터 모듈일 경우, 필터 전용 핸들러를 사용
+        // [핵심 수정] 공명기 모듈도 필터처럼 1칸짜리 인벤토리를 갖도록 함
+        if (moduleType == ModuleType.FILTER || moduleType == ModuleType.RESONATOR) {
             this.itemHandler = new FilterModuleItemStackHandler(1, this);
         }
         else if (moduleType.getItemCapacity() > 0) {
@@ -529,6 +547,9 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         if (energyInputBuffer != null && energyInputBuffer.getEnergyStored() > 0)
             compound.put("EnergyInputBuffer", energyInputBuffer.serializeNBT(registries)); // [신규]
 
+        if (resonatorFilter != null) { // [신규]
+            compound.putString("ResonatorFilter", BuiltInRegistries.ITEM.getKey(resonatorFilter).toString());
+        }
         if (!energyConnections.isEmpty()) {
             compound.put("EnergyConnections", new IntArrayTag(energyConnections.stream().mapToInt(Direction::ordinal).toArray()));
         }
@@ -560,7 +581,11 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
                 energyInputBuffer.setEnergy(intTag.getAsInt());
             }
         }
-
+        if (compound.contains("ResonatorFilter")) { // [신규]
+            this.resonatorFilter = BuiltInRegistries.ITEM.get(ResourceLocation.parse(compound.getString("ResonatorFilter")));
+        } else {
+            this.resonatorFilter = null;
+        }
         energyConnections.clear();
         if (compound.contains("EnergyConnections")) {
             for (int dirOrdinal : compound.getIntArray("EnergyConnections")) {

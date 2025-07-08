@@ -295,5 +295,32 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
+    // [신규] 에너지 관련 모듈 등록
+    public static final BlockEntry<GenericModuleBlock> ENERGY_INPUT_MODULE = REGISTRATE
+            .block("energy_input_module", p -> new GenericModuleBlock(p, ModuleType.ENERGY_INPUT))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item().model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block"))).build()
+            .register();
+
+    public static final BlockEntry<GenericModuleBlock> ENERGY_BUFFER_MODULE = REGISTRATE
+            .block("energy_buffer_module", p -> new GenericModuleBlock(p, ModuleType.ENERGY_BUFFER))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item().model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block"))).build()
+            .register();
+
+    public static final BlockEntry<GenericModuleBlock> KINETIC_DYNAMO_MODULE = REGISTRATE
+            .block("kinetic_dynamo_module", p -> new GenericModuleBlock(p, ModuleType.KINETIC_DYNAMO))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item().model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block"))).build()
+            .register();
     public static void register() {}
 }

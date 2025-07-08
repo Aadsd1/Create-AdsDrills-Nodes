@@ -2,8 +2,8 @@ package com.yourname.mycreateaddon.content.kinetics.module;
 
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-import com.simibubi.create.content.logistics.filter.FilterItem;
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.kinetics.base.DrillEnergyStorage;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import net.minecraft.ChatFormatting;
@@ -20,6 +20,8 @@ import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
@@ -45,9 +47,11 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     // 렌더링 관련 필드
     private Set<Direction> visualConnections = new HashSet<>();
     private float visualSpeed = 0f;
+    private Set<Direction> energyConnections = new HashSet<>(); // [신규] 에너지 연결 방향 저장
     // --- [신규] 독립 저장소 필드 ---
     protected @Nullable ItemStackHandler itemHandler;
     protected @Nullable FluidTank fluidHandler;
+    protected @Nullable DrillEnergyStorage energyInputBuffer; // [핵심 수정] 타입 변경
 
     // [신규] 냉각 로직 관련 상수
     private static final float COOLANT_ACTIVATION_HEAT = 5.0f; // 5도 이상일 때 작동
@@ -76,6 +80,42 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         }
     }
 
+
+    @Override
+    public void initialize() {
+        super.initialize();
+        // 월드에 처음 로드될 때 주변을 확인
+        updateEnergyConnections();
+    }
+
+    /**
+     * [신규] 주변 블록을 스캔하여 에너지 연결이 가능한 방향을 업데이트합니다.
+     */
+    public void updateEnergyConnections() {
+        if (level == null || level.isClientSide() || getModuleType() != ModuleType.ENERGY_INPUT) {
+            return;
+        }
+
+        Set<Direction> newConnections = new HashSet<>();
+        for (Direction dir : Direction.values()) {
+            // 이웃 블록이 해당 방향에서 에너지 Capability를 제공하는지 확인
+            IEnergyStorage energy = level.getCapability(Capabilities.EnergyStorage.BLOCK, worldPosition.relative(dir), dir.getOpposite());
+            if (energy != null && energy.canReceive()) {
+                newConnections.add(dir);
+            }
+        }
+
+        if (!this.energyConnections.equals(newConnections)) {
+            this.energyConnections = newConnections;
+            setChanged();
+            sendData(); // 클라이언트에 변경사항 전송
+        }
+    }
+
+    // [신규] Visual이 사용할 getter
+    public Set<Direction> getEnergyConnections() {
+        return energyConnections;
+    }
     // [신규] addToGoggleTooltip 메서드 추가
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
@@ -156,6 +196,12 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
                     sendData();
                 }
             };
+        }
+        // [신규] 에너지 입력 모듈일 경우, 자체 버퍼 생성
+
+        // [핵심 수정] 새로운 DrillEnergyStorage 사용
+        if (moduleType == ModuleType.ENERGY_INPUT) {
+            this.energyInputBuffer = new DrillEnergyStorage(10000, 1000, 0, this::setChanged);
         }
     }
     @Override
@@ -281,33 +327,41 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     }
     @Override
     public void onCoreTick(DrillCoreBlockEntity core) {
-        // 이 BE가 냉각 모듈일 경우에만 로직 실행
-        if (getModuleType() != ModuleType.COOLANT) {
-            return;
-        }
+        ModuleType type = getModuleType();
 
-        // 코어의 열이 활성화 온도 이상일 때만 작동
-        if (core.getHeat() > COOLANT_ACTIVATION_HEAT) {
-            assert level != null;
-            // 1. 소모할 물을 정의하고, 코어의 버퍼에 충분한 양이 있는지 시뮬레이션
-            FluidStack waterToConsume = new FluidStack(Fluids.WATER, WATER_CONSUMPTION_PER_TICK);
-            if (core.consumeFluid(waterToConsume, true).getAmount() == WATER_CONSUMPTION_PER_TICK) {
-                // 2. 충분하다면, 실제로 물을 소모
-                core.consumeFluid(waterToConsume, false);
-
-                // 3. 코어의 열을 식힘
-                core.addHeat(-HEAT_REDUCTION_PER_TICK);
-
-                // 4. 시각/청각 효과 재생 (서버에서만)
-                if (!level.isClientSide && level.getRandom().nextFloat() < 0.2f) {
-                    level.playSound(null, getBlockPos(), SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.3F, 1.5F + level.getRandom().nextFloat() * 0.5f);
-                    if (level instanceof ServerLevel serverLevel) {
-                        double px = getBlockPos().getX() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8;
-                        double py = getBlockPos().getY() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8;
-                        double pz = getBlockPos().getZ() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8;
-                        serverLevel.sendParticles(ParticleTypes.CLOUD, px, py, pz, 1, 0, 0.1, 0, 0.0);
+        // 냉각 모듈 로직
+        if (type == ModuleType.COOLANT) {
+            if (core.getHeat() > COOLANT_ACTIVATION_HEAT) {
+                assert level != null;
+                FluidStack waterToConsume = new FluidStack(Fluids.WATER, WATER_CONSUMPTION_PER_TICK);
+                if (core.consumeFluid(waterToConsume, true).getAmount() == WATER_CONSUMPTION_PER_TICK) {
+                    core.consumeFluid(waterToConsume, false);
+                    core.addHeat(-HEAT_REDUCTION_PER_TICK);
+                    if (!level.isClientSide && level.getRandom().nextFloat() < 0.2f) {
+                        level.playSound(null, getBlockPos(), SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.3F, 1.5F + level.getRandom().nextFloat() * 0.5f);
+                        if (level instanceof ServerLevel serverLevel) {
+                            serverLevel.sendParticles(ParticleTypes.CLOUD, getBlockPos().getX() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8, getBlockPos().getY() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8, getBlockPos().getZ() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8, 1, 0, 0.1, 0, 0.0);
+                        }
                     }
                 }
+            }
+        }
+
+        // [신규] 에너지 입력 모듈: 자신의 버퍼 에너지를 코어로 옮김
+        if (type == ModuleType.ENERGY_INPUT && energyInputBuffer != null) {
+            int energyToTransfer = energyInputBuffer.extractEnergy(1000, true);
+            if (energyToTransfer > 0) {
+                int accepted = core.getInternalEnergyBuffer().receiveEnergy(energyToTransfer, false);
+                energyInputBuffer.extractEnergy(accepted, false);
+            }
+        }
+
+        // [신규] 회전력 발전 모듈: 회전 속도에 비례하여 FE 생성
+        if (type == ModuleType.KINETIC_DYNAMO) {
+            float currentSpeed = Math.abs(getVisualSpeed()); // 코어에서 동기화된 속도 사용
+            if (currentSpeed > 0) {
+                int energyGenerated = (int) (currentSpeed / 4f); // 밸런스 조절 필요
+                core.getInternalEnergyBuffer().receiveEnergy(energyGenerated, false);
             }
         }
     }
@@ -394,6 +448,15 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
     public FluidTank getFluidHandler() {
         return fluidHandler;
     }
+    // [신규] 외부에서 에너지 Capability를 요청할 때, 에너지 입력 버퍼를 반환
+    @Nullable
+    public IEnergyStorage getEnergyHandler() {
+        if (getModuleType() == ModuleType.ENERGY_INPUT) {
+            return energyInputBuffer;
+        }
+        return null;
+    }
+
     // 자신의 모듈 타입을 반환하는 중요한 메서드
     public ModuleType getModuleType() {
         if (getBlockState().getBlock() instanceof GenericModuleBlock gmb) {
@@ -463,6 +526,12 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
             compound.put("Tank", fluidHandler.writeToNBT(registries, new CompoundTag()));
         }
 
+        if (energyInputBuffer != null && energyInputBuffer.getEnergyStored() > 0)
+            compound.put("EnergyInputBuffer", energyInputBuffer.serializeNBT(registries)); // [신규]
+
+        if (!energyConnections.isEmpty()) {
+            compound.put("EnergyConnections", new IntArrayTag(energyConnections.stream().mapToInt(Direction::ordinal).toArray()));
+        }
         compound.putInt("ProcessingPriority", processingPriority);
         if (clientPacket) {
             if (!visualConnections.isEmpty()) {
@@ -485,7 +554,21 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         if (fluidHandler != null && compound.contains("Tank")) {
             fluidHandler.readFromNBT(registries, compound.getCompound("Tank"));
         }
+        if (energyInputBuffer != null && compound.contains("EnergyInputBuffer")) {
+            // [핵심 수정] deserializeNBT 대신, 직접 값을 읽어와 setEnergy를 호출
+            if (compound.get("EnergyInputBuffer") instanceof net.minecraft.nbt.IntTag intTag) {
+                energyInputBuffer.setEnergy(intTag.getAsInt());
+            }
+        }
 
+        energyConnections.clear();
+        if (compound.contains("EnergyConnections")) {
+            for (int dirOrdinal : compound.getIntArray("EnergyConnections")) {
+                if (dirOrdinal >= 0 && dirOrdinal < Direction.values().length) {
+                    energyConnections.add(Direction.values()[dirOrdinal]);
+                }
+            }
+        }
         // [추가] 우선순위 값 로드
         if (compound.contains("ProcessingPriority")) {
             processingPriority = compound.getInt("ProcessingPriority");

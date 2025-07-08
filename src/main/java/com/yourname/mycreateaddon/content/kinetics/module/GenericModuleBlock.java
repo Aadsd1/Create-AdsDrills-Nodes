@@ -137,7 +137,11 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         if (level.isClientSide()) {
             return;
         }
+        // 코어에 구조 재검사를 알림
         findAndNotifyCore(level, pos);
+
+        // [신규] 자신의 BE에 에너지 연결 상태를 업데이트하도록 알림
+        withBlockEntityDo(level, pos, GenericModuleBlockEntity::updateEnergyConnections);
     }
 
     public static void findAndNotifyCore(Level level, BlockPos startPos) {

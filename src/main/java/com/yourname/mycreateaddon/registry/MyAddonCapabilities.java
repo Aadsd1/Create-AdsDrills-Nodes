@@ -44,5 +44,12 @@ public class MyAddonCapabilities {
                 }
         );
 
+        // [신규] 에너지 핸들러 등록
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                MyAddonBlockEntity.GENERIC_MODULE.get(),
+                (moduleBE, context) -> moduleBE.getEnergyHandler() // 모듈 BE의 핸들러를 그대로 반환
+        );
+
     }
 }

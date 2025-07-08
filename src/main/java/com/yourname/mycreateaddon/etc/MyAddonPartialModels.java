@@ -26,6 +26,7 @@ public class MyAddonPartialModels {
             DRILL_TIP_GOLD_LOCATION = loc("rotary_drill_head/tip/gold"),
             DRILL_TIP_EMERALD_LOCATION = loc("rotary_drill_head/tip/emerald"),
             EXPLOSIVE_DRILL_HEAD_LOCATION = loc("explosive_drill_head/block"),
+            ENERGY_PORT_LOCATION=loc("energy_port/block"),
             PUMP_HEAD_COG_LOCATION = loc("pump_head/cog");
 
     // --- PartialModel은 위 ResourceLocation을 사용하여 생성합니다 ---
@@ -38,6 +39,7 @@ public class MyAddonPartialModels {
             DIAMOND_DRILL_BODY = PartialModel.of(DIAMOND_DRILL_BODY_LOCATION),
             IRON_DRILL_TIP = PartialModel.of(DRILL_TIP_IRON_LOCATION),
             DIAMOND_DRILL_TIP = PartialModel.of(DRILL_TIP_DIAMOND_LOCATION),
+            ENERGY_PORT=PartialModel.of(ENERGY_PORT_LOCATION),
             EMERALD_DRILL_TIP = PartialModel.of(DRILL_TIP_EMERALD_LOCATION),
             GOLD_DRILL_TIP = PartialModel.of(DRILL_TIP_GOLD_LOCATION),
             EXPLOSIVE_DRILL_HEAD = PartialModel.of(EXPLOSIVE_DRILL_HEAD_LOCATION),

@@ -125,6 +125,7 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage_header", "Internal Storage");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.items", "Items");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.fluid", "Fluid");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.energy", "Energy"); // [신규]
         registrate.addRawLang("goggle.mycreateaddon.drill_core.storage.empty", "Empty");
         registrate.addRawLang("mycreateaddon.priority_changed", "Processing Priority set to: %s");
         registrate.addRawLang("goggle.mycreateaddon.sneak_for_details", "(Hold Sneak for details)");

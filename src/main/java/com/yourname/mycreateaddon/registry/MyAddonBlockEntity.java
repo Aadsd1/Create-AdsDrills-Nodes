@@ -41,7 +41,10 @@ public class MyAddonBlockEntity {
                     MyAddonBlocks.FURNACE_MODULE,
                     MyAddonBlocks.BLAST_FURNACE_MODULE,
                     MyAddonBlocks.CRUSHER_MODULE,
-                    MyAddonBlocks.WASHER_MODULE
+                    MyAddonBlocks.WASHER_MODULE,
+                    MyAddonBlocks.ENERGY_INPUT_MODULE,
+                    MyAddonBlocks.ENERGY_BUFFER_MODULE,
+                    MyAddonBlocks.KINETIC_DYNAMO_MODULE
             )
             .renderer(()->GenericModuleRenderer::new)
             .register();

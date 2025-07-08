@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-08T00:21:10.7576252	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-07-08T09:34:34.5472466	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 3222d8e1c2398f71dbf75105c17e7ce94ec8b8cb assets/mycreateaddon/blockstates/blast_furnace_module.json
 748c6e9125c39bd09b3d25986ff32052aeaad432 assets/mycreateaddon/blockstates/compactor_module.json
 b23f072ed7d0c640e14ae8f5ca207a82e9a147c9 assets/mycreateaddon/blockstates/coolant_module.json
@@ -6,6 +6,8 @@ b23f072ed7d0c640e14ae8f5ca207a82e9a147c9 assets/mycreateaddon/blockstates/coolan
 b0617d7c2bc67bd57d2174579287a4b8da4dfe42 assets/mycreateaddon/blockstates/diamond_rotary_drill_head.json
 a5f94c69ff50a90e35a2362389f7a5d776372699 assets/mycreateaddon/blockstates/drill_core.json
 a44a6ffd9e2661efcff545070ba2e4dd9eedec96 assets/mycreateaddon/blockstates/efficiency_module.json
+4af1e40f8a12a7308f9f7235721ab75c8894a144 assets/mycreateaddon/blockstates/energy_buffer_module.json
+120255c8e22f4e194758e1faa7ca42eafa7ece93 assets/mycreateaddon/blockstates/energy_input_module.json
 fc0334e2fb75f6216d4095ecca8aa22f091ebd77 assets/mycreateaddon/blockstates/explosive_drill_head.json
 076695f5711c29727cd6d47b911e51dbb36214aa assets/mycreateaddon/blockstates/filter_module.json
 7ccda9a5e71565e420ffeab27db54718cbbb5a82 assets/mycreateaddon/blockstates/fluid_buffer_module.json
@@ -14,13 +16,14 @@ fc0334e2fb75f6216d4095ecca8aa22f091ebd77 assets/mycreateaddon/blockstates/explos
 ad1721292b7ae75142cf82ba66c2250da0584c7e assets/mycreateaddon/blockstates/heatsink_module.json
 714800ced43cd6c00cb5fcf859036258e181549c assets/mycreateaddon/blockstates/iron_rotary_drill_head.json
 63f77c6ac2426626bab1a71befdc3bc3c09fc3ea assets/mycreateaddon/blockstates/item_buffer_module.json
+f45ec5c57afc760c679f8bb9c1dce7a59b3c0057 assets/mycreateaddon/blockstates/kinetic_dynamo_module.json
 384c1440c232a97aa459608cf3ab9b24a9934ef7 assets/mycreateaddon/blockstates/ore_node.json
 bc42c58476d973247dbfcdb359196a0ae3c2a399 assets/mycreateaddon/blockstates/pump_head.json
 8220c675340b84444a24de71b8f1b7daffc7108b assets/mycreateaddon/blockstates/reinforcement_module.json
 292784f9c60bc3c7287ddbed78b38afb5b36a9e3 assets/mycreateaddon/blockstates/speed_module.json
 00134134b9edae22ba8c1c74d5ea78beed718101 assets/mycreateaddon/blockstates/washer_module.json
-e8c3567c4ba7aefdaf2856d087f8ebf6857ec9d8 assets/mycreateaddon/lang/en_ud.json
-118a3800ad8e3b77038946b790f2b4ef4dba78cb assets/mycreateaddon/lang/en_us.json
+3945b671ce432e2d9f172ead39f0e2cb367fc476 assets/mycreateaddon/lang/en_ud.json
+a233df23376dc3ef5f29d2858d09ff350c76daa6 assets/mycreateaddon/lang/en_us.json
 e379a4f0418a38a64db20578009bbc513aec2038 assets/mycreateaddon/models/item/blast_furnace_module.json
 f029a7f4230a4bad6662b580c4134cb3bbc5277e assets/mycreateaddon/models/item/compactor_module.json
 7c3f95395a351abd6cb13f16f7621354f6b51aa1 assets/mycreateaddon/models/item/coolant_module.json
@@ -29,6 +32,8 @@ f029a7f4230a4bad6662b580c4134cb3bbc5277e assets/mycreateaddon/models/item/compac
 e23c0e9923a93b502387c2144c27ded3f399559d assets/mycreateaddon/models/item/diamond_rotary_drill_head.json
 4a6b19fe045fd057ab414bcf11bed4e54f04f4fa assets/mycreateaddon/models/item/drill_core.json
 e62645066c782dd3bf0223a63345e7ba30d19a98 assets/mycreateaddon/models/item/efficiency_module.json
+ec43e0c4c8c83b7ee501ffd156c657239291fe79 assets/mycreateaddon/models/item/energy_buffer_module.json
+cc3f7bfe9daaabe2c300b0f2e6d38a72138885df assets/mycreateaddon/models/item/energy_input_module.json
 b14e4894ef040a7ffe6f9ddcff8aa5a338e9a6ab assets/mycreateaddon/models/item/explosive_drill_head.json
 4205c14cc5033e2c154f333aa76058f1b287f56a assets/mycreateaddon/models/item/filter_module.json
 4c4c509ab76ab0763ed16e60bf83b67063c51a90 assets/mycreateaddon/models/item/fluid_buffer_module.json
@@ -37,6 +42,7 @@ b60ac514627297a130a411b1d73a5115d7f17140 assets/mycreateaddon/models/item/frame_
 2a0d9242c95da111fd67022832f3abcf1493f92a assets/mycreateaddon/models/item/heatsink_module.json
 8c6aff4fce98c18d5b20dee0e97d53e2a71904a0 assets/mycreateaddon/models/item/iron_rotary_drill_head.json
 0e614dddadeb3ccde56a1870b879cff94b2be103 assets/mycreateaddon/models/item/item_buffer_module.json
+91dc51f9346f697b75747304ccb522d110f72b08 assets/mycreateaddon/models/item/kinetic_dynamo_module.json
 e9b1dd5748afe42adc4568efe8278b0a53d06cf6 assets/mycreateaddon/models/item/ore_node.json
 4e6ccd2c8074ff14a2dfa0de6a9a59c0c4dbf454 assets/mycreateaddon/models/item/pump_head.json
 a2c4fef3ebf95b8a16da9a9ad8bf85d6e573021b assets/mycreateaddon/models/item/reinforcement_module.json
@@ -49,6 +55,8 @@ d691303b122a77a1c015726708c70e74d819c4d5 data/mycreateaddon/loot_table/blocks/co
 d94c9fc59e3eae958a6b8ded67bd660b0cd90508 data/mycreateaddon/loot_table/blocks/diamond_rotary_drill_head.json
 3df0f274e47b1a7b39247a0e18cd56ed56b29255 data/mycreateaddon/loot_table/blocks/drill_core.json
 20a7d72c30e1be683c3d540709e35570aa1e377c data/mycreateaddon/loot_table/blocks/efficiency_module.json
+6c16d2ba292042131f18a620eff8b8c4eaa05848 data/mycreateaddon/loot_table/blocks/energy_buffer_module.json
+0fe65cebbcb0d970b21ba645353174dcf7c84352 data/mycreateaddon/loot_table/blocks/energy_input_module.json
 498066e19a5933cbfc9cc439dc3edbe5c88ad7e1 data/mycreateaddon/loot_table/blocks/explosive_drill_head.json
 b24f19d88cb5ce97f9d1daa35f09451219ca84f7 data/mycreateaddon/loot_table/blocks/filter_module.json
 64b0ddc07a2dd555fc19a1c273aaad53cc0bd5e3 data/mycreateaddon/loot_table/blocks/fluid_buffer_module.json
@@ -57,6 +65,7 @@ da3805af61ad7000aa9fa2bcefd5e149e08cbd62 data/mycreateaddon/loot_table/blocks/fr
 fbf60c42e6c92a4c4f95af369e234bfc75a0e37a data/mycreateaddon/loot_table/blocks/heatsink_module.json
 d66366bc03b9d3faaf354a6d6cb6282ff4d37554 data/mycreateaddon/loot_table/blocks/iron_rotary_drill_head.json
 e39e90869557632a5b2e3dcb2d87ce3627ec40c4 data/mycreateaddon/loot_table/blocks/item_buffer_module.json
+b965fc19f254a5d495a897c0abb5ca081ac8897f data/mycreateaddon/loot_table/blocks/kinetic_dynamo_module.json
 947aaef299551c1cf122618df3973029d99ff3e6 data/mycreateaddon/loot_table/blocks/ore_node.json
 dcc559798f23f75d130bfe5fde1c1b327d53b1e9 data/mycreateaddon/loot_table/blocks/pump_head.json
 2b8185dd46d73e362e7cad292871c7e52d3900fe data/mycreateaddon/loot_table/blocks/reinforcement_module.json

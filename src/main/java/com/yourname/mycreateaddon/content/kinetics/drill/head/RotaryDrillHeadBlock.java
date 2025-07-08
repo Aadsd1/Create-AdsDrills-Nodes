@@ -64,13 +64,20 @@ public class RotaryDrillHeadBlock extends DirectionalKineticBlock implements IDr
             int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
 
             if (miningAmount > 0) {
-                List<ItemStack> minedItems = core.mineNode(nodeBE, miningAmount);
+                // [핵심 수정] BE에서 업그레이드 정보를 가져와서 전달
+                int fortune = 0;
+                boolean silkTouch = false;
+                if (level.getBlockEntity(headPos) instanceof RotaryDrillHeadBlockEntity headBE) {
+                    fortune = headBE.getFortuneLevel();
+                    silkTouch = headBE.hasSilkTouch();
+                }
+
+                List<ItemStack> minedItems = core.mineNode(nodeBE, miningAmount, fortune, silkTouch);
                 for (ItemStack minedItem : minedItems) {
                     if (!minedItem.isEmpty()) {
                         core.processMinedItem(minedItem);
                     }
                 }
-
             }
         }
     }

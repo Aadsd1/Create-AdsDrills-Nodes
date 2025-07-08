@@ -32,9 +32,14 @@ public class RotaryDrillHeadVisual extends KineticBlockEntityVisual<RotaryDrillH
     public RotaryDrillHeadVisual(VisualizationContext context, RotaryDrillHeadBlockEntity blockEntity, float partialTick) {
         super(context, blockEntity, partialTick);
         // 1. 몸통 모델 생성
-        PartialModel bodyPartial = (this.blockState.getBlock() == MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD.get())
-                ? MyAddonPartialModels.DIAMOND_DRILL_BODY
-                : MyAddonPartialModels.IRON_DRILL_BODY;
+        PartialModel bodyPartial;
+        if (this.blockState.getBlock() == MyAddonBlocks.NETHERITE_ROTARY_DRILL_HEAD.get()) {
+            bodyPartial = MyAddonPartialModels.NETHERITE_DRILL_BODY;
+        } else if (this.blockState.getBlock() == MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD.get()) {
+            bodyPartial = MyAddonPartialModels.DIAMOND_DRILL_BODY;
+        } else {
+            bodyPartial = MyAddonPartialModels.IRON_DRILL_BODY;
+        }
 
         Direction facing = this.blockState.getValue(DirectionalKineticBlock.FACING);
 
@@ -86,7 +91,9 @@ public class RotaryDrillHeadVisual extends KineticBlockEntityVisual<RotaryDrillH
         } else if (blockEntity.getFortuneLevel() > 0) {
             requiredTipPartial = MyAddonPartialModels.GOLD_DRILL_TIP;
         } else {
-            if (this.blockState.getBlock() == MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD.get()) {
+            if (this.blockState.getBlock() == MyAddonBlocks.NETHERITE_ROTARY_DRILL_HEAD.get()) {
+                requiredTipPartial = MyAddonPartialModels.NETHERITE_DRILL_TIP;
+            } else if (this.blockState.getBlock() == MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD.get()) {
                 requiredTipPartial = MyAddonPartialModels.DIAMOND_DRILL_TIP;
             } else {
                 requiredTipPartial = MyAddonPartialModels.IRON_DRILL_TIP;

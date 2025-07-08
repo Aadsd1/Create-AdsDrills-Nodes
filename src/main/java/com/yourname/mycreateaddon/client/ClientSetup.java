@@ -60,6 +60,8 @@ public class ClientSetup {
         event.register(new ModelResourceLocation(MyAddonPartialModels.DRILL_TIP_GOLD_LOCATION,"standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.DRILL_TIP_EMERALD_LOCATION,"standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.PUMP_HEAD_COG_LOCATION, "standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.NETHERITE_DRILL_BODY_LOCATION,"standalone"));
+        event.register(new ModelResourceLocation(MyAddonPartialModels.NETHERITE_DRILL_TIP_LOCATION,"standalone"));
 
     }
 

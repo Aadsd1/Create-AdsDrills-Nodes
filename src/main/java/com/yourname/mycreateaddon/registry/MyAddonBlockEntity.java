@@ -66,10 +66,17 @@ public class MyAddonBlockEntity {
             .validBlocks(MyAddonBlocks.PUMP_HEAD)
             .renderer(()->PumpHeadRenderer::new) // 나중에 만들 파일
             .register();
+    public static final BlockEntityEntry<HydraulicDrillHeadBlockEntity> HYDRAULIC_DRILL_HEAD = REGISTRATE
+            .blockEntity("hydraulic_drill_head", HydraulicDrillHeadBlockEntity::new)
+            .visual(()->HydraulicDrillHeadVisual::new)
+            .validBlocks(MyAddonBlocks.HYDRAULIC_DRILL_HEAD)
+            // 렌더러는 비워둬도 Visual이 작동합니다.
+            .register();
     public static final BlockEntityEntry<RotaryDrillHeadBlockEntity> ROTARY_DRILL_HEAD = REGISTRATE
             .blockEntity("rotary_drill_head", RotaryDrillHeadBlockEntity::new)
             .visual(()->RotaryDrillHeadVisual::new)
-            .validBlocks(MyAddonBlocks.IRON_ROTARY_DRILL_HEAD, MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD)
+            .validBlocks(MyAddonBlocks.IRON_ROTARY_DRILL_HEAD, MyAddonBlocks.DIAMOND_ROTARY_DRILL_HEAD,
+                    MyAddonBlocks.NETHERITE_ROTARY_DRILL_HEAD )
             .renderer(()->RotaryDrillHeadRenderer::new)
             .register();
 

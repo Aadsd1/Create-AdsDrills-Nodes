@@ -465,10 +465,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             return Collections.emptyList();
         }
         // 레이저는 행운/실크터치가 없으므로, 기본값으로 호출합니다.
-        return nodeBE.applyMiningTick(miningAmount, 0, false);
+        // [수정] 아래의 상세 메서드를 호출하도록 변경
+        return this.mineNode(nodeBE, miningAmount, 0, false);
     }
 
     // [유지] 로터리 헤드는 이 메서드를 계속 사용합니다.
+    // [핵심 수정] 이제 모든 헤드가 이 메서드를 최종적으로 호출합니다.
     public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch) {
         if (level == null || level.isClientSide() || cachedHeadPos == null) {
             return Collections.emptyList();

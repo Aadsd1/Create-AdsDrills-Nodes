@@ -8,10 +8,7 @@ import com.tterrag.registrate.providers.loot.RegistrateBlockLootTables;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.ExplosiveDrillHeadBlock;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.LaserDrillHeadBlock;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlock;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlock;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.content.kinetics.module.ModuleType;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
@@ -158,6 +155,29 @@ public class MyAddonBlocks {
             .build()
             .register();
 
+    public static final BlockEntry<RotaryDrillHeadBlock> NETHERITE_ROTARY_DRILL_HEAD = REGISTRATE
+            .block("netherite_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.1f, 0.15f, 4, 16.0f))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .blockstate(BlockStateGen.directionalBlockProvider(true))
+            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
+            .item()
+            .model((context, provider) ->
+                    provider.withExistingParent(context.getId().getPath(),
+                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
+            .build()
+            .register();
+
+    public static final BlockEntry<HydraulicDrillHeadBlock> HYDRAULIC_DRILL_HEAD = REGISTRATE
+            .block("hydraulic_drill_head", HydraulicDrillHeadBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .blockstate(BlockStateGen.directionalBlockProvider(true))
+            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
+            .item()
+            .model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block")))
+            .build()
+            .register();
 
     // [신규] 펌프 헤드 등록
     public static final BlockEntry<PumpHeadBlock> PUMP_HEAD = REGISTRATE

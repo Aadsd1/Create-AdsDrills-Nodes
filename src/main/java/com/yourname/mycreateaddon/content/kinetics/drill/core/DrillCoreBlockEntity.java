@@ -191,10 +191,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public void addHeat(float amount) {
         this.heat = Mth.clamp(this.heat + amount, 0, 100);
     }
-    /** 크러셔 모듈이 추가 스트레스를 가할 때 호출됩니다. (2단계 구현) */
-    public void applyCrusherStress() {
-        // TODO: 추가 스트레스 적용 로직 구현
-    }
     @Override
     public FluidStack consumeFluid(FluidStack fluidToConsume, boolean simulate) {
         // [수정] 가상 핸들러의 drain 메서드를 직접 호출하여 유체를 소모

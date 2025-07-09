@@ -113,6 +113,14 @@ public class MyAddonBlocks {
             .build()
             .register();
 
+    public static final BlockEntry<GenericModuleBlock> REDSTONE_BRAKE_MODULE = REGISTRATE
+            .block("redstone_brake_module", p -> new GenericModuleBlock(p, ModuleType.REDSTONE_BRAKE))
+            .initialProperties(SharedProperties::stone)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .item().model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block"))).build()
+            .register();
 
     public static final BlockEntry<OreNodeBlock> ORE_NODE = REGISTRATE
             .block("ore_node", OreNodeBlock::new)

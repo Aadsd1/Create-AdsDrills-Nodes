@@ -13,10 +13,32 @@ public class MyAddonItems {
 
     private static final CreateRegistrate REGISTRATE = MyCreateAddon.registrate();
 
-
-    public static final ItemEntry<Item> CRACKED_IRON_CHUNK = REGISTRATE.item("cracked_iron_chunk", Item::new)
+    public static final ItemEntry<Item> CINNABAR = REGISTRATE.item("cinnabar", Item::new)
             .register();
-    // [신규]
+    public static final ItemEntry<Item> THE_FOSSIL = REGISTRATE.item("fossil", Item::new)
+            .register();
+    public static final ItemEntry<Item> IVORY_CRYSTAL = REGISTRATE.item("ivory_crystal", Item::new)
+            .register();
+    public static final ItemEntry<Item> KOH_I_NOOR = REGISTRATE.item("koh_i_noor", Item::new)
+            .register();
+    public static final ItemEntry<Item> RAW_ROSE_GOLD_CHUNK = REGISTRATE.item("raw_rose_gold_chunk", Item::new)
+            .register();
+    public static final ItemEntry<Item> ROSE_GOLD = REGISTRATE.item("rose_gold", Item::new)
+            .register();
+    public static final ItemEntry<Item> SILKY_JEWEL = REGISTRATE.item("silky_jewel", Item::new)
+            .register();
+    public static final ItemEntry<Item> THUNDER_STONE = REGISTRATE.item("thunder_stone", Item::new)
+            .register();
+    public static final ItemEntry<Item> ULTRAMARINE = REGISTRATE.item("ultramarine", Item::new)
+            .register();
+    public static final ItemEntry<Item> RAW_STEEL_CHUNK = REGISTRATE.item("raw_steel_chunk", Item::new)
+            .register();
+    public static final ItemEntry<Item> STEEL_INGOT = REGISTRATE.item("steel_ingot", Item::new)
+            .register();
+    public static final ItemEntry<Item> XOMV = REGISTRATE.item("xomv", Item::new)
+            .register();
+
+
     public static final ItemEntry<NeutralizerItem> NEUTRALIZER = REGISTRATE.item("neutralizer", NeutralizerItem::new)
             .register();
 

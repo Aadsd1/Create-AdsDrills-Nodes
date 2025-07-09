@@ -36,6 +36,7 @@ public class MyAddonBlockEntity {
                     MyAddonBlocks.FLUID_BUFFER_MODULE,
                     MyAddonBlocks.HEATSINK_MODULE,
                     MyAddonBlocks.COOLANT_MODULE,
+                    MyAddonBlocks.REDSTONE_BRAKE_MODULE,
                     MyAddonBlocks.COMPACTOR_MODULE,
                     MyAddonBlocks.FILTER_MODULE,
                     MyAddonBlocks.FURNACE_MODULE,

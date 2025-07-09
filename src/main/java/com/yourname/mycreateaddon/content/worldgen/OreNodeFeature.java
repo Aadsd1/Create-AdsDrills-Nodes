@@ -2,6 +2,7 @@ package com.yourname.mycreateaddon.content.worldgen;
 
 
 import com.mojang.serialization.Codec;
+import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import net.minecraft.core.BlockPos;
@@ -54,6 +55,25 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     private static Field uniformHeight_maxInclusiveField;
     private static final float MAX_BONUS_MULTIPLIER = 3.0f;
     private static final int EFFECTIVE_DISTANCE = 10;
+    // [신규] 비율 프리셋을 정의하는 내부 record
+    private record RatioPreset(String name, List<Float> ratios) {}
+
+    // [신규] 사용 가능한 모든 프리셋 리스트
+    private static final List<RatioPreset> PRESETS = List.of(
+            // 1개 광물 집중형
+            new RatioPreset("Dominant",   List.of(0.85f)),
+            new RatioPreset("Rich Vein",  List.of(0.70f)),
+
+            // 2개 광물 혼합형
+            new RatioPreset("Balanced Pair", List.of(0.45f, 0.45f)),
+            new RatioPreset("Major/Minor",   List.of(0.60f, 0.30f)),
+            new RatioPreset("Alloy",         List.of(0.50f, 0.40f)),
+
+            // 3개 광물 혼합형
+            new RatioPreset("Trio",          List.of(0.30f, 0.30f, 0.30f)),
+            new RatioPreset("Tiered Trio",   List.of(0.50f, 0.30f, 0.15f)),
+            new RatioPreset("Scattered Mix", List.of(0.40f, 0.25f, 0.25f))
+    );
 
     // [추가] 스캔 결과를 담을 간단한 record
     private record OreScanResult(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap) {}
@@ -69,18 +89,22 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         OreNodeConfiguration config = context.config();
         RandomSource random = context.random();
 
-        BlockState backgroundState = level.getBlockState(origin);
-        if (!backgroundState.isSolidRender(level, origin)) {
+        // [핵심 수정 1] setBlock을 하기 전에 원래 블록 상태를 저장합니다.
+        BlockState originalState = level.getBlockState(origin);
+
+        // 유효성 검사는 원래 블록을 기준으로 합니다.
+        if (!originalState.isSolidRender(level, origin)) {
             return false;
         }
-        Block backgroundBlock = backgroundState.getBlock();
+        Block backgroundBlock = originalState.getBlock(); // 불순물 및 배경 텍스처용
 
+        // 이제 setBlock을 호출합니다.
         level.setBlock(origin, MyAddonBlocks.ORE_NODE.get().defaultBlockState(), 3);
         BlockEntity be = level.getBlockEntity(origin);
 
         if (be instanceof OreNodeBlockEntity nodeBE) {
-            // [수정] 두 개의 맵을 모두 생성
-            OreScanResult scanResult = scanAndGenerateOreData(context, origin, random);
+            // [핵심 수정 2] 저장해둔 원래 블록 상태(originalState)를 스캔 메서드에 전달합니다.
+            OreScanResult scanResult = scanAndGenerateOreData(context, origin, random, originalState);
             Map<Item, Float> composition = scanResult.composition();
             Map<Item, Block> itemToBlockMap = scanResult.itemToBlockMap();
 
@@ -89,7 +113,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                 itemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
             }
 
-            // [수정] 대표 블록을 찾을 때 두 맵을 모두 활용
+            // 대표 블록 찾기
             Block representativeOreBlock = findRepresentativeOreBlock(composition, itemToBlockMap);
 
 
@@ -119,10 +143,10 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                 }
             }
 
-            // [수정] configure 메서드에 유체 정보 전달
+            // [핵심 수정 3] configure 메서드에는 원래 블록을 전달합니다.
             nodeBE.configure(scanResult.composition(), scanResult.itemToBlockMap(),
                     maxYield, hardness, richness, regeneration,
-                    backgroundBlock, representativeOreBlock,
+                    backgroundBlock, representativeOreBlock, // 여기는 backgroundBlock 변수를 그대로 사용
                     fluidToPlace, fluidCapacity);
             return true;
         }
@@ -151,7 +175,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     }
 
     // [수정] 스캔 로직을 두 개의 맵을 반환하도록 변경
-    private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource) {
+    private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource, BlockState originalState) {
         WorldGenLevel level = context.level();
         int nodeYLevel = pos.getY();
 
@@ -161,6 +185,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         Map<Item, Float> weightedSelection = new HashMap<>();
         Map<Item, Block> itemToBlockMap = new HashMap<>(); // 아이템-블록 매핑 맵
+
         WorldGenerationContext worldGenContext = new WorldGenerationContext(context.chunkGenerator(), level);
 
         var registryAccess = context.level().registryAccess();
@@ -175,8 +200,15 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
             if (configuredFeature.feature() == Feature.ORE && configuredFeature.config() instanceof OreConfiguration oreConfig) {
                 for (OreConfiguration.TargetBlockState target : oreConfig.targetStates) {
+
                     Block oreBlock = target.state.getBlock();
+
+                    if (oreBlock instanceof OreNodeBlock) {
+                        continue;
+                    }
+
                     Item oreItem = getOreItem(oreBlock, level);
+
 
                     if (oreItem != Items.AIR) {
                         TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
@@ -201,44 +233,69 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
             }
         }
 
+
+// 스캔된 광물이 없으면 빈 결과 반환
         if (weightedSelection.isEmpty()) {
             return new OreScanResult(Collections.emptyMap(), Collections.emptyMap());
         }
 
-        // 1. 선택된 광물들에 랜덤 가중치 추가
-        Map<Item, Float> randomizedWeights = new HashMap<>();
-        for (Map.Entry<Item, Float> entry : weightedSelection.entrySet()) {
-            // 기존 가중치에 0.75 ~ 1.25 사이의 랜덤 배율을 곱함
-            float randomMultiplier = 0.75f + randomSource.nextFloat() * 0.5f;
-            randomizedWeights.put(entry.getKey(), entry.getValue() * randomMultiplier);
+
+// 2. 가중치가 높은 순서대로 '주요 광물 후보' 리스트를 정렬합니다.
+        List<Item> potentialOres = weightedSelection.entrySet().stream()
+                .sorted(Map.Entry.<Item, Float>comparingByValue().reversed())
+                .map(Map.Entry::getKey)
+                .toList();
+
+// 3. 노드에 포함될 '주요 광물'의 개수를 1~3개 사이에서 결정합니다.
+        int oreTypeCount = 1 + randomSource.nextInt(Math.min(3, potentialOres.size()));
+
+// 4. 결정된 개수에 맞는 프리셋을 랜덤하게 선택합니다.
+        final int finalOreTypeCount = oreTypeCount;
+        List<RatioPreset> suitablePresets = PRESETS.stream()
+                .filter(p -> p.ratios().size() == finalOreTypeCount)
+                .toList();
+
+        if (suitablePresets.isEmpty()) {
+            return new OreScanResult(Collections.emptyMap(), Collections.emptyMap());
         }
+        RatioPreset selectedPreset = suitablePresets.get(randomSource.nextInt(suitablePresets.size()));
 
-        // 2. 랜덤화된 가중치를 기준으로 상위 N개 광물 선택
-        Random random = new Random(randomSource.nextLong());
-        int oreTypeCount = 1 + random.nextInt(Math.min(3, randomizedWeights.size()));
-
-        List<Map.Entry<Item, Float>> potentialOres = new ArrayList<>(randomizedWeights.entrySet());
-        // 가중치 역순으로 정렬
-        potentialOres.sort(Map.Entry.<Item, Float>comparingByValue().reversed());
-
+// 5. 선택된 프리셋을 기반으로 '주요 광물'의 비율을 결정합니다.
         Map<Item, Float> finalComposition = new HashMap<>();
-        float totalWeight = 0;
+        float totalRatio = 0f;
 
-        // 정렬된 리스트에서 상위 N개만 선택
         for (int i = 0; i < oreTypeCount; i++) {
-            Map.Entry<Item, Float> entry = potentialOres.get(i);
-            finalComposition.put(entry.getKey(), entry.getValue());
-            totalWeight += entry.getValue();
+            Item selectedOre = potentialOres.get(i);
+            float baseRatio = selectedPreset.ratios().get(i);
+            float noise = (randomSource.nextFloat() - 0.5f) * 0.3f; // 비율에 약간의 변동성 추가
+            float finalRatio = baseRatio * (1 + noise);
+
+            finalComposition.put(selectedOre, finalRatio);
+            totalRatio += finalRatio;
         }
 
-        // 3. 최종 비율 계산 (기존과 동일)
-        for (Map.Entry<Item, Float> entry : finalComposition.entrySet()) {
-            entry.setValue(entry.getValue() / totalWeight);
+// [핵심 수정] '불순물' 추가 로직 변경
+        float remainingRatio = 1.0f - totalRatio;
+        if (remainingRatio > 0.05f) {
+            // '주요 광물'로 선택되지 않은 나머지 후보들 중에서 불순물을 선택합니다.
+            List<Item> impurityCandidates = new ArrayList<>(potentialOres);
+            impurityCandidates.removeAll(finalComposition.keySet());
+
+            if (!impurityCandidates.isEmpty()) {
+                // 나머지 후보들 중에서 하나를 랜덤하게 골라 남은 공간을 채웁니다.
+                Item selectedImpurity = impurityCandidates.get(randomSource.nextInt(impurityCandidates.size()));
+                finalComposition.put(selectedImpurity, remainingRatio);
+                totalRatio += remainingRatio;
+            }
+            // 만약 나머지 후보가 없다면(모든 광물이 주요 광물로 선택됨), 남은 공간은 비워둡니다.
         }
+
+// 7. 모든 비율의 합이 1.0이 되도록 최종 정규화합니다.
+        final float finalTotalRatio = totalRatio;
+        finalComposition.replaceAll((item, ratio) -> ratio / finalTotalRatio);
 
         return new OreScanResult(finalComposition, itemToBlockMap);
     }
-
     /**
      * [업그레이드] 바이옴 특성과 피처를 스캔하여 노드에 할당할 유체를 결정하는 메서드
      * 이제 LakeFeature와 SpringFeature를 모두 탐색합니다.

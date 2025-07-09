@@ -146,5 +146,6 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.laser_head.no_resonance_target", "None");
         registrate.addRawLang("goggle.mycreateaddon.laser_head.designated_targets", "Designated Targets:");
         registrate.addRawLang("goggle.mycreateaddon.laser_head.no_targets", "No designated targets.");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.halted_by_redstone", "System Halted by Redstone Signal");
     }
 }

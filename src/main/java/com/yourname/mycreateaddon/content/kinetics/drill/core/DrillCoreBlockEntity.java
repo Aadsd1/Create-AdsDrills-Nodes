@@ -56,6 +56,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private final List<BlockPos> activeSystemModules = new ArrayList<>();
     private final List<BlockPos> bulkProcessingModules = new ArrayList<>();
     private final List<BlockPos> resonatorModules = new ArrayList<>(); // [신규]
+    private final List<BlockPos> redstoneBrakeModules = new ArrayList<>();
 
     private final DrillEnergyStorage energyBuffer = new DrillEnergyStorage(0, Integer.MAX_VALUE, Integer.MAX_VALUE, this::setChanged);
     // --- [추가] 과열 시스템 관련 필드 ---
@@ -220,12 +221,16 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     // [추가] 열 효율까지 모두 계산된 최종 속도를 반환하는 getter
     public float getFinalSpeed() {
+        // [핵심 추가] 다른 모든 검사보다 먼저 레드스톤 제동을 확인
+        if (isHaltedByRedstone()) {
+            return 0;
+        }
+
         if (!this.structureValid || isOverStressed()) {
             return 0;
         }
         return getSpeed() * getHeatEfficiency();
     }
-
     // [수정] 새로운 효율 계산 메서드
     public float getHeatEfficiency() {
         if (isOverheated || heat >= 100.0f) {
@@ -285,14 +290,15 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.processingModuleChain.clear();
         this.itemBufferHandlers.clear();
         this.fluidBufferHandlers.clear();
-        this.activeSystemModules.clear(); // [신규] 리스트 초기화
-        this.bulkProcessingModules.clear(); // [신규] 리스트 초기화
-        this.resonatorModules.clear(); // [신규] 초기화
+        this.activeSystemModules.clear();
+        this.bulkProcessingModules.clear();
+        this.resonatorModules.clear();
+        this.redstoneBrakeModules.clear();
         this.speedMultiplier = 1.0;
         this.stressMultiplier = 1.0;
         this.heatMultiplier = 1.0;
-        this.totalStressImpact = BASE_STRESS_IMPACT; // 코어 및 헤드의 기본 스트레스는 유지
-        int totalEnergyCapacity = 0; // [신규] 에너지 용량 초기화
+        this.totalStressImpact = BASE_STRESS_IMPACT;
+        int totalEnergyCapacity = 0;
         this.cachedHeadPos = null;
         this.invalidityReason = InvalidityReason.NONE;
         this.structureValid = false;
@@ -404,6 +410,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         // [수정] 냉각/에너지 관련 모듈을 activeSystemModules에 추가
                         else if (type == ModuleType.COOLANT || type == ModuleType.KINETIC_DYNAMO || type == ModuleType.ENERGY_INPUT) {
                             activeSystemModules.add(modulePos);
+
+                        } else if (type == ModuleType.REDSTONE_BRAKE) { // [신규]
+                            redstoneBrakeModules.add(modulePos);
                         }
 
                         if (isDuplicate) {
@@ -457,6 +466,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
+    // [신규] 레드스톤 신호로 정지되었는지 확인하는 헬퍼 메서드
+    private boolean isHaltedByRedstone() {
+        if (level == null || redstoneBrakeModules.isEmpty()) {
+            return false;
+        }
+        // 연결된 브레이크 모듈 중 하나라도 레드스톤 신호를 받으면 true 반환
+        for (BlockPos modulePos : redstoneBrakeModules) {
+
+            if (level.hasNeighborSignal(modulePos)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     // [핵심 수정] 레이저 헤드가 호출할 수 있도록 원래 시그니처의 메서드를 복원/유지합니다.
     public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount) {
@@ -1019,7 +1042,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     .withStyle(ChatFormatting.RED);
         }
         tooltip.add(Component.literal(" ").append(status));
-
+        if (isHaltedByRedstone()) {
+            tooltip.add(Component.literal(" ")
+                    .append(Component.translatable("goggle.mycreateaddon.drill_core.halted_by_redstone")
+                            .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
+        }
         // 오류 원인 (오류가 있을 때만 표시)
         if (!structureValid || invalidityReason != InvalidityReason.NONE) {
             String reasonKey = switch (invalidityReason) {

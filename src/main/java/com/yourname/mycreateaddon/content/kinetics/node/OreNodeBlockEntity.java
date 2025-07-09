@@ -1,9 +1,12 @@
 package com.yourname.mycreateaddon.content.kinetics.node;
 
 
+import com.simibubi.create.AllItems;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.crafting.NodeRecipe;
 import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -16,9 +19,13 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.SmeltingRecipe;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -29,6 +36,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.function.Supplier;
 
 // IHaveGoggleInformation 인터페이스를 구현합니다.
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
@@ -216,7 +224,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 
 
-    // [수정] 실크터치 로직을 새 맵을 사용하도록 변경
     public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0) {
             return Collections.emptyList();
@@ -228,77 +235,159 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         if (this.miningProgress >= miningResistance) {
             this.miningProgress -= miningResistance;
+
+            // [핵심] 조합 레시피 발동 시도
+            for (NodeRecipe recipe : NodeRecipe.RECIPES) {
+                // 1. 레시피 조건 확인
+                if (checkRecipeConditions(recipe)) {
+                    // 2. 확률 체크
+                    if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
+                        // 3. 레시피 발동!
+                        this.currentYield -= recipe.consumptionMultiplier(); // 매장량 추가 소모
+                        setChanged();
+                        sendData();
+                        // 행운 효과를 결과물에도 적용 (선택적)
+                        ItemStack result = recipe.output().copy();
+                        return Collections.singletonList(result);
+                    }
+                }
+            }
+
+            // 조합 레시피가 발동되지 않았다면, 일반 채굴 진행
             this.currentYield--;
             setChanged();
             sendData();
 
-            if (this.cracked) {
-                return Collections.singletonList(new ItemStack(MyAddonItems.CRACKED_IRON_CHUNK.get()));
-            }
-
-            // --- [핵심 수정] 확률 계산 로직 ---
-
-            // 1. 맵의 엔트리를 리스트로 변환
-            List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
-
-            // 2. 아이템 ID를 기준으로 리스트를 정렬하여 항상 동일한 순서를 보장
-            sortedComposition.sort(Comparator.comparing(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey())));
-
-            Item itemToDrop = null;
-            double random = serverLevel.getRandom().nextDouble();
-            float cumulative = 0f;
-
-            // 3. 정렬된 리스트를 순회하며 확률 계산
-            for (Map.Entry<Item, Float> entry : sortedComposition) {
-                cumulative += entry.getValue();
-                if (random < cumulative) {
-                    itemToDrop = entry.getKey();
-                    break;
-                }
-            }
-
-            if (itemToDrop == null) {
-                // 만약의 경우(부동소수점 오류 등)를 대비해, 리스트의 첫 번째 아이템이라도 선택
-                if (!sortedComposition.isEmpty()) {
-                    itemToDrop = sortedComposition.getFirst().getKey();
-                } else {
-                    return Collections.emptyList(); // 노드 구성이 비어있으면 아무것도 드롭하지 않음
-                }
-            }
-
-            // --- 1. 실크터치 처리 ---
-            if (hasSilkTouch) {
-                // 선택된 아이템에 해당하는 블록을 맵에서 찾아 드롭
-                Block blockToDrop = this.itemToBlockMap.get(itemToDrop);
-                return Collections.singletonList(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
-                // 만약 맵에 없다면 (오류 상황), 대표 블록이라도 드롭
-            }
-
-            // --- 2. 일반 채굴 (아이템 직접 드롭) ---
-            ItemStack finalDrop = new ItemStack(itemToDrop);
-
-            // 행운 로직
-            int dropCount = 1;
-            if (fortuneLevel > 0) {
-                RandomSource rand = serverLevel.getRandom();
-                for (int i = 0; i < fortuneLevel; i++) {
-                    if (rand.nextInt(fortuneLevel + 2) > 1) {
-                        dropCount++;
-                    }
-                }
-            }
-            finalDrop.setCount(dropCount);
-
-            // 풍부함 로직
-            if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                finalDrop.grow(finalDrop.getCount());
-            }
-
-            return Collections.singletonList(finalDrop);
+            // 균열 상태든 아니든, 일반 드롭 로직은 getNormalDrops가 처리
+            // (이전 답변의 균열 보너스 로직은 getNormalDrops 내부로 옮기거나 여기서 처리 가능)
+            return getNormalDrops(fortuneLevel, hasSilkTouch);
         }
 
         return Collections.emptyList();
     }
+
+    private boolean checkRecipeConditions(NodeRecipe recipe) {
+        // 1. 유체 조건 확인
+        // 레시피가 유체를 요구하는데, 노드에 해당 유체가 없으면 실패.
+        if (recipe.requiredFluid() != null &&
+                (this.fluidContent.isEmpty() || this.fluidContent.getFluid() != recipe.requiredFluid())) {
+            return false;
+        }
+
+        // 2. 광물 조건 확인
+        for (Supplier<Item> requiredItemSupplier : recipe.requiredItems()) {
+            Item requiredItem = requiredItemSupplier.get(); // 실제 Item 객체 가져오기
+
+            // 2a. 노드에 필수 광물이 아예 없는 경우 실패
+            if (!this.resourceComposition.containsKey(requiredItem)) {
+                return false;
+            }
+
+            // 2b. 최소 비율 조건 확인
+            float currentRatio = this.resourceComposition.get(requiredItem);
+
+            // recipe.minimumRatios 맵에서 현재 아이템(requiredItem)에 해당하는 최소 비율을 찾아야 함.
+            // Supplier를 직접 비교하는 대신, Supplier가 가리키는 Item을 비교해야 함.
+            Float minimumRatio = null;
+            for (Map.Entry<Supplier<Item>, Float> entry : recipe.minimumRatios().entrySet()) {
+                if (entry.getKey().get() == requiredItem) { // .get()으로 실제 Item을 꺼내서 비교
+                    minimumRatio = entry.getValue();
+                    break;
+                }
+            }
+
+            // 최소 비율 값을 찾지 못했거나, 현재 비율이 최소치보다 낮으면 실패
+            if (minimumRatio == null || currentRatio < minimumRatio) {
+                return false;
+            }
+        }
+
+        // 모든 유체 및 광물 조건을 통과했다면, 이 레시피는 유효함.
+        return true;
+    }
+    /**
+     * 일반적인 채굴 규칙에 따라 드롭될 아이템 리스트를 반환합니다.
+     * 이 메서드는 조합 레시피가 발동하지 않았을 때 호출됩니다.
+     *
+     * @param fortuneLevel 적용할 행운 인챈트 레벨
+     * @param hasSilkTouch 실크터치 적용 여부
+     * @return 드롭될 아이템 스택의 리스트
+     */
+    private List<ItemStack> getNormalDrops(int fortuneLevel, boolean hasSilkTouch) {
+        // 레벨이 없거나, 노드 구성 정보가 비어있으면 아무것도 드롭하지 않음
+        if (level == null || resourceComposition.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // --- 1. 드롭될 아이템 종류 결정 (가중치 기반 랜덤 선택) ---
+
+        // 맵의 순서를 보장하기 위해 아이템 ID를 기준으로 정렬된 리스트를 생성
+        List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
+        sortedComposition.sort(Comparator.comparing(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()).toString()));
+
+        Item itemToDrop = null;
+        double randomValue = level.getRandom().nextDouble(); // 0.0 ~ 1.0 사이의 난수 생성
+        float cumulativeProbability = 0f;
+
+        // 정렬된 리스트를 순회하며 난수와 누적 확률을 비교하여 아이템 선택
+        for (Map.Entry<Item, Float> entry : sortedComposition) {
+            cumulativeProbability += entry.getValue();
+            if (randomValue < cumulativeProbability) {
+                itemToDrop = entry.getKey();
+                break;
+            }
+        }
+
+        // 만약의 경우(부동소수점 오류 등) 아이템이 선택되지 않았다면, 리스트의 첫 번째 아이템을 기본값으로 사용
+        if (itemToDrop == null) {
+            itemToDrop = sortedComposition.getFirst().getKey();
+        }
+
+        // --- 2. 실크터치 처리 ---
+
+        if (hasSilkTouch) {
+            // 아이템-블록 매핑에서 선택된 아이템에 해당하는 블록을 찾음
+            Block blockToDrop = this.itemToBlockMap.get(itemToDrop);
+
+            // 만약 맵에 해당 아이템이 없다면(오류 상황), 노드의 대표 광석 블록이라도 드롭
+            ItemStack silkStack = new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId)));
+
+            // 아이템 대신 블록을 리스트에 담아 반환
+            return Collections.singletonList(silkStack);
+        }
+
+        // --- 3. 일반 드롭 (행운 및 풍부함 효과 적용) ---
+
+        ItemStack finalDrop = new ItemStack(itemToDrop);
+        int dropCount = 1; // 기본 드롭량은 1개
+
+        // 행운(Fortune) 레벨에 따른 추가 드롭량 계산
+        if (fortuneLevel > 0) {
+            RandomSource random = level.getRandom();
+            // 바닐라의 행운 로직과 유사하게, 레벨에 따라 추가 드롭 확률과 개수가 결정됨
+            int bonusDrops = 0;
+            for (int i = 0; i < fortuneLevel; i++) {
+                if (random.nextInt(100) < 50) { // 50% 확률로 추가 드롭 시도
+                    bonusDrops++;
+                }
+            }
+            // 운이 좋으면 더 많이 나올 수 있도록 약간의 변동성 추가
+            dropCount += random.nextInt(bonusDrops + 1);
+        }
+
+        // 풍부함(Richness) 스탯에 따른 추가 드롭량 계산
+        // 풍부함이 1.0을 초과하는 만큼의 확률로 드롭량이 1개 더 증가
+        if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
+            dropCount++;
+        }
+
+        // 최종 계산된 드롭량을 아이템 스택에 설정
+        finalDrop.setCount(dropCount);
+
+        // 최종 아이템 스택을 리스트에 담아 반환
+        return Collections.singletonList(finalDrop);
+    }
+    // [참고] OreNodeFeature에 있던 getOreItem 헬퍼 메서드를 여기로 가져오거나,
 
 
     @Override

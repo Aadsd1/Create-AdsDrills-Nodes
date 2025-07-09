@@ -2,7 +2,6 @@ package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.*;
@@ -93,9 +92,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     // [신규] 드릴 코어 자체의 기본 스트레스 부하를 정의합니다.
     public static final float BASE_STRESS_IMPACT = 4.0f;
     // --- 모듈 효과 집계 필드 ---
-    private float totalSpeedBonus = 0f;
+    private double speedMultiplier = 1.0;
+    private double stressMultiplier = 1.0;
+    private double heatMultiplier = 1.0;
     private float totalStressImpact = 0f;
-    private float totalHeatModifier = 0f; // [신규]
 
     //private boolean canWasherWork = false;
   //  private boolean canHeaterWork = false;
@@ -292,9 +292,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.activeSystemModules.clear(); // [신규] 리스트 초기화
         this.bulkProcessingModules.clear(); // [신규] 리스트 초기화
         this.resonatorModules.clear(); // [신규] 초기화
-        this.totalSpeedBonus = 0f;
-        this.totalStressImpact = BASE_STRESS_IMPACT;
-        this.totalHeatModifier = 0f; // [신규] 초기화
+        this.speedMultiplier = 1.0;
+        this.stressMultiplier = 1.0;
+        this.heatMultiplier = 1.0;
+        this.totalStressImpact = BASE_STRESS_IMPACT; // 코어 및 헤드의 기본 스트레스는 유지
         int totalEnergyCapacity = 0; // [신규] 에너지 용량 초기화
         this.cachedHeadPos = null;
         this.invalidityReason = InvalidityReason.NONE;
@@ -359,9 +360,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                         ModuleType type = moduleBE.getModuleType();
 
-                        totalSpeedBonus += type.getSpeedBonus();
-                        totalStressImpact += type.getStressImpact();
-                        totalHeatModifier += type.getHeatModifier();
+                        // [핵심 수정] 복리 계산으로 변경
+                        speedMultiplier *= (1.0 + type.getSpeedBonus());
+                        stressMultiplier *= (1.0 + type.getStressImpact()); // 스트레스도 곱셈으로 변경
+                        heatMultiplier *= (1.0 + type.getHeatModifier());
+
+                        // [참고] 만약 모듈의 스트레스만 합산하고 싶다면 아래와 같이 유지
+                        // totalStressImpact += type.getStressImpact();
+
                         totalEnergyCapacity+=type.getEnergyCapacity();
                         if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
                         if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
@@ -548,7 +554,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     @Override
     public float getSpeed() {
         if (isOverStressed()) return 0;
-        return super.getTheoreticalSpeed() * (1.0f + this.totalSpeedBonus);
+        // [핵심 수정] 곱셈으로 누적된 배율을 적용
+        return (float) (super.getTheoreticalSpeed() * this.speedMultiplier);
     }
 
     public float getInputSpeed() {
@@ -557,12 +564,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
 
     // [유지] 이 메서드들은 스트레스 관련 문제를 최종적으로 해결하기 위해 여전히 필요합니다.
+
     @Override
     public float calculateStressApplied() {
         if (!structureValid || invalidityReason == InvalidityReason.HEAD_MISSING) return 0;
-
-        // totalStressImpact가 음수일 경우 0을 반환하여 음수 스트레스 전달을 방지합니다.
-        return Math.max(0, this.totalStressImpact);
+        // [핵심 수정] 기본 스트레스(코어+헤드)에 모듈로 인한 스트레스 배율을 곱합니다.
+        // Reinforcement 모듈(-2.0f) 같은 경우엔 stressMultiplier가 음수가 되므로, 0 이상이 되도록 clamp 처리합니다.
+        float finalStress = (float) (this.totalStressImpact * Math.max(0, this.stressMultiplier));
+        return Math.max(0, finalStress);
     }
 
     @Override
@@ -571,13 +580,23 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return 0;
     }
 
-    // ... (write, read, addToGoggleTooltip은 이전과 동일) ...
+
     @Override
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(compound, registries, clientPacket);
         compound.putBoolean("StructureValid", this.structureValid);
-        compound.putFloat("SpeedBonus", this.totalSpeedBonus);
-        compound.putFloat("StressImpact", this.totalStressImpact);
+
+        // [핵심 수정] 새로운 배율 변수들을 저장합니다.
+        // 기본값(1.0)이 아닐 때만 저장하여 NBT 데이터를 최적화할 수 있습니다.
+        if (this.speedMultiplier != 1.0)
+            compound.putDouble("SpeedMultiplier", this.speedMultiplier);
+        if (this.stressMultiplier != 1.0)
+            compound.putDouble("StressMultiplier", this.stressMultiplier);
+        if (this.heatMultiplier != 1.0)
+            compound.putDouble("HeatMultiplier", this.heatMultiplier);
+
+        // totalStressImpact는 이제 모듈 스트레스를 제외한 '기본' 스트레스 합계입니다.
+        compound.putFloat("BaseStressImpact", this.totalStressImpact);
         compound.putInt("InvalidityReason", this.invalidityReason.ordinal());
 
         CompoundTag energyTag = new CompoundTag();
@@ -628,12 +647,21 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
+
     @Override
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
         this.structureValid = compound.getBoolean("StructureValid");
-        this.totalSpeedBonus = compound.getFloat("SpeedBonus");
-        this.totalStressImpact = compound.getFloat("StressImpact");
+
+        // [핵심 수정] 새로운 배율 변수들을 NBT에서 읽어옵니다.
+        // 키가 없으면 기본값(1.0)을 사용합니다.
+        this.speedMultiplier = compound.contains("SpeedMultiplier") ? compound.getDouble("SpeedMultiplier") : 1.0;
+        this.stressMultiplier = compound.contains("StressMultiplier") ? compound.getDouble("StressMultiplier") : 1.0;
+        this.heatMultiplier = compound.contains("HeatMultiplier") ? compound.getDouble("HeatMultiplier") : 1.0;
+
+        // BaseStressImpact를 읽어와 totalStressImpact에 할당합니다.
+        this.totalStressImpact = compound.contains("BaseStressImpact") ? compound.getFloat("BaseStressImpact") : BASE_STRESS_IMPACT;
+
         this.heat = compound.getFloat("Heat");
         this.isOverheated = compound.getBoolean("Overheated");
 
@@ -809,9 +837,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             float baseHeatGen = headBlock.getHeatGeneration();
             float speedFactor = Math.max(1, Math.abs(finalSpeed) / 64f);
 
-            // [핵심 수정] 집계된 열 효율 보너스를 적용합니다.
-            // totalHeatModifier는 음수 값이므로, 1.0f에 더해 최종 배율을 계산합니다.
-            float finalHeatMultiplier = Math.max(0, 1.0f + totalHeatModifier);
+            // [핵심 수정] 곱셈으로 누적된 열 생성 배율을 적용합니다.
+            // heatMultiplier는 음수 보너스가 적용되어 1.0보다 작은 값이 됩니다. (예: 0.8)
+            float finalHeatMultiplier = (float) Math.max(0, this.heatMultiplier);
             float heatThisTick = baseHeatGen * speedFactor * finalHeatMultiplier;
 
             addHeat(heatThisTick);
@@ -1029,30 +1057,34 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             // --- 상세 정보 뷰 (SHIFT) ---
 
             // [성능 보너스 상세]
-            if (structureValid && (totalSpeedBonus > 0 || totalStressImpact != 0 || totalHeatModifier < 0)) { // [수정] 조건 추가
+            // [수정] 복리 계산 결과를 반영하도록 조건 및 내용 수정
+            if (structureValid && (speedMultiplier != 1.0 || stressMultiplier != 1.0 || heatMultiplier != 1.0)) {
                 tooltip.add(Component.literal(""));
-                if (totalSpeedBonus > 0) {
+                if (speedMultiplier != 1.0) {
+                    String sign = speedMultiplier > 1.0 ? "+" : "";
+                    ChatFormatting color = speedMultiplier > 1.0 ? ChatFormatting.AQUA : ChatFormatting.RED;
                     tooltip.add(Component.literal(" ")
                             .append(Component.translatable("goggle.mycreateaddon.drill_core.speed_bonus").withStyle(ChatFormatting.GRAY))
                             .append(": ")
-                            .append(Component.literal("+" + (int) (totalSpeedBonus * 100) + "%")
-                                    .withStyle(style -> style.withColor(ChatFormatting.AQUA).withBold(true))));
+                            .append(Component.literal(String.format("%s%.1f%%", sign, (speedMultiplier - 1.0) * 100))
+                                    .withStyle(style -> style.withColor(color).withBold(true))));
                 }
-                if (totalStressImpact != 0) {
-                    String sign = totalStressImpact > 0 ? "+" : "";
-                    ChatFormatting color = totalStressImpact > 0 ? ChatFormatting.GOLD : ChatFormatting.GREEN;
+                if (stressMultiplier != 1.0) {
+                    String sign = stressMultiplier > 1.0 ? "+" : "";
+                    ChatFormatting color = stressMultiplier > 1.0 ? ChatFormatting.GOLD : ChatFormatting.GREEN;
                     tooltip.add(Component.literal(" ")
                             .append(Component.translatable("goggle.mycreateaddon.drill_core.stress_impact").withStyle(ChatFormatting.GRAY))
                             .append(": ")
-                            .append(Component.literal(sign + String.format("%.1f", totalStressImpact) + " SU")
+                            .append(Component.literal(String.format("%s%.1f%%", sign, (stressMultiplier - 1.0) * 100))
                                     .withStyle(style -> style.withColor(color).withBold(true))));
                 }
-                // [신규] 열 효율 툴팁
-                if (totalHeatModifier < 0) {
+                if (heatMultiplier != 1.0) {
+                    // 열 '감소'는 음수 보너스이므로, (1.0 - heatMultiplier)로 표시
+                    double heatReduction = (1.0 - heatMultiplier) * 100;
                     tooltip.add(Component.literal(" ")
                             .append(Component.translatable("goggle.mycreateaddon.drill_core.heat_reduction").withStyle(ChatFormatting.GRAY))
                             .append(": ")
-                            .append(Component.literal(String.format("%.0f%%", -totalHeatModifier * 100))
+                            .append(Component.literal(String.format("%.1f%%", heatReduction))
                                     .withStyle(style -> style.withColor(ChatFormatting.BLUE).withBold(true))));
                 }
             }

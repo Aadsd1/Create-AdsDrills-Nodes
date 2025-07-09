@@ -1,12 +1,10 @@
 package com.yourname.mycreateaddon.content.kinetics.base;
 
-import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
-import java.util.List;
 
 /**
  * 드릴 구조 내의 자원(아이템, 유체)에 대한 접근을 제공하는 인터페이스.

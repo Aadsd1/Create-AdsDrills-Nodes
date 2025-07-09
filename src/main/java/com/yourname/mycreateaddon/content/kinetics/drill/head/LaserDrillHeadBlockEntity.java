@@ -16,7 +16,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -67,7 +66,7 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
 
     // 렌더링을 위한 타겟 위치 리스트 (클라이언트로 동기화 필요)
     public List<BlockPos> activeTargets = new ArrayList<>();
-    private List<BlockPos> designatedTargets = new ArrayList<>(); // [신규] 플레이어가 지정한 타겟
+    private final List<BlockPos> designatedTargets = new ArrayList<>(); // [신규] 플레이어가 지정한 타겟
 
 
     public LaserDrillHeadBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -384,5 +383,4 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
             }
         }
     }
-    @Override public float getGeneratedSpeed() { return 0; }
 }

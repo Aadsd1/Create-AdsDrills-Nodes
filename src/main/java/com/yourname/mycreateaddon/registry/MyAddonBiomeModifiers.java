@@ -1,6 +1,6 @@
 package com.yourname.mycreateaddon.registry;
 
-import com.mojang.serialization.Codec;
+
 import com.mojang.serialization.MapCodec;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.worldgen.ConditionalFeatureAdditionModifier;

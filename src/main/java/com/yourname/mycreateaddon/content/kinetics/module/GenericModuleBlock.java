@@ -82,7 +82,7 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
     }
     // [수정] useItemOn 메서드를 오버라이드하여 필터 상호작용 추가
     @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+    protected @NotNull ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         // [핵심 수정] 손에 든 아이템이 렌치일 경우, 이 메서드가 반응하지 않도록 함
         if (stack.getItem() instanceof WrenchItem) {
             return super.useItemOn(stack, state, level, pos, player, hand, hit);

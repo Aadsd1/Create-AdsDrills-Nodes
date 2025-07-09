@@ -2,8 +2,6 @@ package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
-import com.simibubi.create.content.kinetics.base.IRotate;
-import com.yourname.mycreateaddon.MyCreateAddon;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;

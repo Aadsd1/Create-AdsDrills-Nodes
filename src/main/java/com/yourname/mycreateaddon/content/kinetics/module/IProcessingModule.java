@@ -9,8 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.Level;
 
-import net.minecraft.core.BlockPos; // 추가
-import net.minecraft.world.level.Level; // 추가
+import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collections;

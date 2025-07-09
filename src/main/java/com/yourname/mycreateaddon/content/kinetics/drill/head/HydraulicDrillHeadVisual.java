@@ -25,7 +25,7 @@ public class HydraulicDrillHeadVisual extends KineticBlockEntityVisual<Hydraulic
 
         Direction facing = this.blockState.getValue(DirectionalKineticBlock.FACING);
         headModel.setPosition(getVisualPosition())
-                .rotateToFace(Direction.UP, facing);
+                .rotateToFace(Direction.SOUTH, facing);
 
         updateRotation();
     }

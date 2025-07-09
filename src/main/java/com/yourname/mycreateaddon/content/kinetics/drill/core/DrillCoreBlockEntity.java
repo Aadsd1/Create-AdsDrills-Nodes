@@ -4,10 +4,7 @@ import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.LaserDrillHeadBlockEntity;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.PumpHeadBlockEntity;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.*;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.ChatFormatting;
@@ -893,7 +890,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             } else if (level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity headBE) { // [신규]
                 headBE.updateVisualSpeed(finalSpeed); // 레이저는 정방향 회전
             }
-
+            else if (level.getBlockEntity(cachedHeadPos) instanceof HydraulicDrillHeadBlockEntity headBE) {
+                headBE.updateVisualSpeed(-finalSpeed);
+            }
             if (finalSpeed != 0) {
                 headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
             }
@@ -973,7 +972,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         } while (successfulBulkProcess); // 내용물 변화가 없을 때까지 반복
     }
-
+    public int getTickCounter() {
+        return this.tickCounter;
+    }
 
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {

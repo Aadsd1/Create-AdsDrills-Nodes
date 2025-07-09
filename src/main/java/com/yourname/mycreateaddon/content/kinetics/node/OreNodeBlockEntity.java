@@ -69,6 +69,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         super(type, pos, state);
     }
 
+    // [신규] 수압 헤드 등이 노드의 전체 구성을 알 수 있도록 public getter를 추가합니다.
+    public Map<Item, Float> getResourceComposition() {
+        return this.resourceComposition;
+    }
     // [신규] 특정 아이템만 채굴하는 메서드
     public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {

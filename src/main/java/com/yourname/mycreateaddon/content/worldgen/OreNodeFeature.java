@@ -254,7 +254,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         if (biomeHolder.is(BiomeTags.IS_NETHER)) {
             weightedFluids.put(Fluids.LAVA, 20.0f);
         } else if (biomeHolder.is(BiomeTags.IS_OCEAN) || biomeHolder.is(BiomeTags.IS_RIVER)) {
-            weightedFluids.put(Fluids.WATER, 20.0f);
+            weightedFluids.put(Fluids.WATER, 25.0f);
         } else {
             weightedFluids.put(Fluids.WATER, 10.0f);
             if (biomeHolder.value().getBaseTemperature() > 1.0f) {
@@ -293,8 +293,9 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     BlockState fluidBlockState = lakeConfig.fluid().getState(random, pos);
                     Fluid fluid = fluidBlockState.getFluidState().getType();
                     if (fluid != Fluids.EMPTY) {
-                        // 호수는 크기가 크므로 더 높은 가중치 부여
-                        weightedFluids.merge(fluid, 25.0f, Float::sum);
+                        // [핵심 수정] 물 호수일 경우 훨씬 높은 가중치를 부여
+                        float weight = (fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER) ? 4.0f : 1.0f;
+                        weightedFluids.merge(fluid, weight, Float::sum);
                     }
                 }
                 // [신규] 2-2. SpringFeature 확인
@@ -303,7 +304,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     Fluid fluid = springConfig.state.getType();
                     if (fluid != Fluids.EMPTY) {
                         // 샘은 비교적 작으므로, 호수보다는 낮은 가중치 부여
-                        weightedFluids.merge(fluid, 15.0f, Float::sum);
+                        weightedFluids.merge(fluid, 2.0f, Float::sum);
                     }
                 }
             }

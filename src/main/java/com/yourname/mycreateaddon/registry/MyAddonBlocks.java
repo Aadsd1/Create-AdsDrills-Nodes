@@ -179,10 +179,19 @@ public class MyAddonBlocks {
             .blockstate((c, p)
                     -> p.simpleBlock(c.get(), p.models().getExistingFile(
                             p.modLoc("block/" + c.getId().getPath() + "/block"))))
+            .loot(RegistrateBlockLootTables::dropSelf)
+            .item()
+            .model((c, p)
+                    -> p.withExistingParent(c.getId().getPath(),
+                    p.modLoc("block/" + c.getId().getPath() + "/block")))
+            .build()
             .register();
 
     public static final BlockEntry<RotaryDrillHeadBlock> IRON_ROTARY_DRILL_HEAD = REGISTRATE
-            .block("iron_rotary_drill_head", p -> new RotaryDrillHeadBlock(p, 0.25f, 0.05f,MINING_LEVEL_IRON,4.0f))
+            .block("iron_rotary_drill_head",
+                    p -> new RotaryDrillHeadBlock(p,
+                            0.25f, 0.05f,
+                            MINING_LEVEL_IRON,4.0f))
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true))

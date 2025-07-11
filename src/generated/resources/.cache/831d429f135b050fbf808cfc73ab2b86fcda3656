@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-11T11:49:53.5828891	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-07-11T15:35:36.0068308	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 c2353b1d3b2e0466e6a976b235577fea4cc51ef6 assets/mycreateaddon/blockstates/artificial_node.json
 3222d8e1c2398f71dbf75105c17e7ce94ec8b8cb assets/mycreateaddon/blockstates/blast_furnace_module.json
 748c6e9125c39bd09b3d25986ff32052aeaad432 assets/mycreateaddon/blockstates/compactor_module.json
@@ -31,6 +31,7 @@ bc42c58476d973247dbfcdb359196a0ae3c2a399 assets/mycreateaddon/blockstates/pump_h
 00134134b9edae22ba8c1c74d5ea78beed718101 assets/mycreateaddon/blockstates/washer_module.json
 4a61378caa1bf6fdc16a82a21c9ce5ba5e9be925 assets/mycreateaddon/lang/en_ud.json
 51d5a14356839d03f20adbe6dc45081eb4e1bc25 assets/mycreateaddon/lang/en_us.json
+8d9feca0bf980f8964bfda9e3235ededfc738002 assets/mycreateaddon/models/item/artificial_node.json
 e379a4f0418a38a64db20578009bbc513aec2038 assets/mycreateaddon/models/item/blast_furnace_module.json
 b73abe710d8443fbf36f0fc591bb6fecaf72783a assets/mycreateaddon/models/item/brass_stabilizer_core.json
 397e553569726bb6386925be03cd905fe8a9e4b0 assets/mycreateaddon/models/item/cinnabar.json
@@ -78,7 +79,7 @@ c04da6e59686f2ea2515190dfa4600acff57bcee assets/mycreateaddon/models/item/speed_
 9b8522071a6ad3e16c7df39c204b4369d5ac514e assets/mycreateaddon/models/item/unfinished_node_data.json
 4d702c8f70f3643e12109d0ef4df39a9517c4676 assets/mycreateaddon/models/item/washer_module.json
 4b2fe9f1c3ce46600ee8e0977c09042ae447c59b assets/mycreateaddon/models/item/xomv.json
-76bc4016467fb65bbe346e2ce22219f5efe22305 data/mycreateaddon/loot_table/blocks/artificial_node.json
+430a0b4a4ec3fe81d7a6cbd7139e539c1b8123c9 data/mycreateaddon/loot_table/blocks/artificial_node.json
 e834cc580449c8f9d37a133af94e7289e9f10459 data/mycreateaddon/loot_table/blocks/blast_furnace_module.json
 d691303b122a77a1c015726708c70e74d819c4d5 data/mycreateaddon/loot_table/blocks/compactor_module.json
 9098440d9dae0bf281ee9a359fb2284ca3952485 data/mycreateaddon/loot_table/blocks/coolant_module.json

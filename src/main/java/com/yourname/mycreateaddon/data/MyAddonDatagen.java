@@ -32,7 +32,7 @@ import static com.yourname.mycreateaddon.MyCreateAddon.REGISTRATE;
 public class MyAddonDatagen {
 
     @SubscribeEvent
-    public static void gatherData(GatherDataEvent event){
+    public static void gatherData(GatherDataEvent event) {
         DataGenerator generator = event.getGenerator();
         PackOutput packOutput = generator.getPackOutput();
         CompletableFuture<HolderLookup.Provider> lookupProvider = event.getLookupProvider();
@@ -42,7 +42,7 @@ public class MyAddonDatagen {
 
         generator.addProvider(
                 true,
-                new RegistrateDataProvider(REGISTRATE,MOD_ID, event)
+                new RegistrateDataProvider(REGISTRATE, MOD_ID, event)
         );// --- 아래 내용을 추가해주세요 ---
         generator.addProvider(event.includeServer(), new DatapackBuiltinEntriesProvider(
                 packOutput, lookupProvider,
@@ -81,7 +81,6 @@ public class MyAddonDatagen {
 
     public static void addCustomLang(CreateRegistrate registrate) {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.header", "Drill Assembly");
-        registrate.addRawLang("goggle.mycreateaddon.drill_core.valid", "Operational (%s Modules)");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.invalid", "Structure Invalid");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.loop_detected", "Error: Structural loop detected.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.multiple_cores", "Error: Multiple cores in one assembly.");
@@ -147,5 +146,17 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.laser_head.designated_targets", "Designated Targets:");
         registrate.addRawLang("goggle.mycreateaddon.laser_head.no_targets", "No designated targets.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.halted_by_redstone", "System Halted by Redstone Signal");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.description", "Used in a Node Frame to determine the properties of an artificial node.");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.brass.line1", "§7- Low speed requirement.");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.brass.line2", "§7- Tolerant to crafting failures.");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.steel.line1", "§7- High speed requirement.");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.steel.line2", "§7- Progress decays quickly on failure.");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.netherite.line1", "§7- Extreme speed requirement.");
+        registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.netherite.line2", "§c§l- Progress resets instantly on failure!");
+
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.brass", "Brass Drill Core");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.steel", "Steel Drill Core");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.netherite", "Netherite Drill Core");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.valid", "Operational (%s / %s Modules)");
     }
 }

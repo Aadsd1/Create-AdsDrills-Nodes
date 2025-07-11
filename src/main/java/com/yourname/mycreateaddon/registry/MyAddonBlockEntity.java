@@ -11,6 +11,8 @@ import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleVisual;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleRenderer;
+import com.yourname.mycreateaddon.content.kinetics.node.ArtificialNodeBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.node.NodeFrameBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 
 public class MyAddonBlockEntity {
@@ -58,7 +60,15 @@ public class MyAddonBlockEntity {
 
     public static final BlockEntityEntry<OreNodeBlockEntity> ORE_NODE = REGISTRATE
             .blockEntity("ore_node", OreNodeBlockEntity::new)
-            .validBlocks(MyAddonBlocks.ORE_NODE)
+             .validBlocks(MyAddonBlocks.ORE_NODE)
+            .register();
+    public static final BlockEntityEntry<NodeFrameBlockEntity> NODE_FRAME = REGISTRATE
+            .blockEntity("node_frame", NodeFrameBlockEntity::new)
+            .validBlocks(MyAddonBlocks.NODE_FRAME)
+            .register();
+    public static final BlockEntityEntry<ArtificialNodeBlockEntity> ARTIFICIAL_NODE = REGISTRATE
+            .blockEntity("artificial_node", ArtificialNodeBlockEntity::new)
+            .validBlocks(MyAddonBlocks.ARTIFICIAL_NODE)
             .register();
     // [신규] 펌프 헤드 BE 등록
     public static final BlockEntityEntry<PumpHeadBlockEntity> PUMP_HEAD = REGISTRATE

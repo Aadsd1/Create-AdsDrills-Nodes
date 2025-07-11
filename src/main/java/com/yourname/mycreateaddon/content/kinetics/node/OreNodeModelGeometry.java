@@ -14,13 +14,22 @@ import java.util.function.Function;
 
 public class OreNodeModelGeometry implements IUnbakedGeometry<OreNodeModelGeometry> {
 
+    // 필요한 모델들의 ResourceLocation을 상수로 정의합니다.
+    private static final ResourceLocation CORE_BASE_MODEL = ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/ore_node_core_base");
+    private static final ResourceLocation CORE_HIGHLIGHT_MODEL = ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/ore_node_core_highlight");
+    private static final ResourceLocation DEFAULT_BACKGROUND_MODEL = ResourceLocation.withDefaultNamespace("block/stone");
+    private static final ResourceLocation ARTIFICIAL_BACKGROUND_MODEL = ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/artificial_node/block");
+
     @Override
     public @NotNull BakedModel bake(@NotNull IGeometryBakingContext context, ModelBaker baker, @NotNull Function<Material, TextureAtlasSprite> spriteGetter, @NotNull ModelState modelState, @NotNull ItemOverrides overrides) {
-        // 1. 코어 모델을 굽습니다.
-        BakedModel coreBaseModel = baker.bake(ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/ore_node_core_base"),modelState,spriteGetter);
-        BakedModel coreHighlightModel = baker.bake(ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/ore_node_core_highlight"),modelState,spriteGetter);
-        BakedModel defaultBackgroundModel = baker.bake(ResourceLocation.withDefaultNamespace("block/stone"),modelState,spriteGetter);
+        // bake 메서드 안에서 필요한 모든 모델을 굽습니다.
+        BakedModel coreBase = baker.bake(CORE_BASE_MODEL, modelState, spriteGetter);
+        BakedModel coreHighlight = baker.bake(CORE_HIGHLIGHT_MODEL, modelState, spriteGetter);
+        BakedModel defaultBackground = baker.bake(DEFAULT_BACKGROUND_MODEL, modelState, spriteGetter);
+        BakedModel artificialBackground = baker.bake(ARTIFICIAL_BACKGROUND_MODEL, modelState, spriteGetter);
 
-        return new OreNodeBakedModel(defaultBackgroundModel, coreBaseModel, coreHighlightModel);
+        // 구워진 모델들을 생성자에 전달하여 최종 BakedModel을 생성합니다.
+        // 이 패턴이 NeoForge에서 가장 표준적인 방식입니다.
+        return new OreNodeBakedModel(defaultBackground, coreBase, coreHighlight, artificialBackground, overrides);
     }
 }

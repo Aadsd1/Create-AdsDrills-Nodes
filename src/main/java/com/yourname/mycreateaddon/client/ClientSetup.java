@@ -1,15 +1,21 @@
 package com.yourname.mycreateaddon.client;
 
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.color.block.BlockColor;
 import net.minecraft.client.color.block.BlockColors;
+import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -45,6 +51,43 @@ public class ClientSetup {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(MyAddonPartialModels::init);
+
+
+        // [핵심] 드릴 코어 아이템에 커스텀 프로퍼티 등록
+        // [핵심] 드릴 코어 아이템에 커스텀 프로퍼티 등록
+        ItemProperties.register(
+                MyAddonBlocks.DRILL_CORE.get().asItem(),
+                ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "tier"),
+                (stack, level, entity, seed) -> {
+                    // 아이템 스택에서 BLOCK_ENTITY_DATA 컴포넌트를 가져옴
+                    CustomData blockEntityData = stack.get(DataComponents.BLOCK_ENTITY_DATA);
+                    if (blockEntityData == null) {
+                        return 0; // NBT 없으면 기본값(BRASS)인 0 반환
+                    }
+
+                    // 컴포넌트에서 NBT 태그를 복사하여 읽기
+                    CompoundTag nbt = blockEntityData.copyTag();
+                    if (!nbt.contains("CoreTier")) {
+                        return 0; // CoreTier 태그 없으면 기본값 0 반환
+                    }
+
+                    String tierName = nbt.getString("CoreTier");
+                    try {
+                        DrillCoreBlockEntity.Tier tier = DrillCoreBlockEntity.Tier.valueOf(tierName);
+
+                        // [핵심 수정] 각 티어에 명시적인 값을 반환 (JSON과 일치시킴)
+                        return switch (tier) {
+                            case BRASS -> 0;
+                            case STEEL -> 1;
+                            case NETHERITE -> 2;
+                        };
+                    } catch (IllegalArgumentException e) {
+                        return 0; // 잘못된 값이 저장되어 있으면 기본값 0 반환
+                    }
+                }
+        );
+
+
     }
 
     // 모델 등록 이벤트 핸들러는 그대로 유지합니다.
@@ -77,41 +120,34 @@ public class ClientSetup {
 
     @SubscribeEvent
     public static void onRegisterBlockColors(RegisterColorHandlersEvent.Block event) {
-        event.register((state, getter, pos, tintIndex) -> {
+        BlockColor oreNodeColorHandler = (state, getter, pos, tintIndex) -> {
             if (getter == null || pos == null || !(getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be)) {
                 return -1;
             }
 
+            // [핵심] tintIndex가 1 또는 2일 때만 색상을 반환합니다.
             if (tintIndex == 1 || tintIndex == 2) {
-                // [수정] getRepresentativeOreItemId()는 이제 정상적으로 대표 블록의 아이템 ID를 반환합니다.
                 ResourceLocation oreId = be.getRepresentativeOreItemId();
                 int baseColor = ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);
 
                 if (tintIndex == 1) {
                     return baseColor;
-                } else {
+                } else { // tintIndex == 2
                     Color c = new Color(baseColor);
                     float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
                     hsb[2] = Math.min(1.0f, hsb[2] + 0.2f);
                     return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
                 }
             }
-            else {
-                ResourceLocation backgroundId = be.getBackgroundBlockId();
-                Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
-
-                if (backgroundBlock != Blocks.AIR) {
-                    BlockColors blockColors = Minecraft.getInstance().getBlockColors();
-                    BlockState backgroundState = backgroundBlock.defaultBlockState();
-                    return blockColors.getColor(backgroundState, getter, pos, tintIndex);
-                }
-            }
 
             return -1;
+        };
 
-        }, MyAddonBlocks.ORE_NODE.get());
+        event.register(oreNodeColorHandler,
+                MyAddonBlocks.ORE_NODE.get(),
+                MyAddonBlocks.ARTIFICIAL_NODE.get()
+        );
     }
-
     // [추가] 아이템 색상 핸들러 등록 (인벤토리 아이템용)
     @SubscribeEvent
     public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {

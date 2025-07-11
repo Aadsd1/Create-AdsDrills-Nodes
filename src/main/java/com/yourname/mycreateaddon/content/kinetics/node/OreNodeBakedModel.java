@@ -1,9 +1,7 @@
 package com.yourname.mycreateaddon.content.kinetics.node;
 
-import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -16,6 +14,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.ChunkRenderTypeSet;
+import net.neoforged.neoforge.client.model.IDynamicBakedModel;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.NotNull;
 
@@ -24,100 +23,88 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OreNodeBakedModel implements BakedModel {
+public class OreNodeBakedModel implements IDynamicBakedModel {
 
     private final BakedModel defaultBackgroundModel;
     private final BakedModel coreBaseModel;
     private final BakedModel coreHighlightModel;
+    private final BakedModel artificialBackgroundModel;
+    private final ItemOverrides overrides;
 
-    public OreNodeBakedModel(BakedModel defaultBackgroundModel, BakedModel coreBaseModel, BakedModel coreHighlightModel) {
-        this.defaultBackgroundModel = defaultBackgroundModel;
-        this.coreBaseModel = coreBaseModel;
-        this.coreHighlightModel = coreHighlightModel; // 생성자에서 받기
+    public OreNodeBakedModel(BakedModel defaultBackground, BakedModel coreBase, BakedModel coreHighlight, BakedModel artificialBackground, ItemOverrides overrides) {
+        this.defaultBackgroundModel = defaultBackground;
+        this.coreBaseModel = coreBase;
+        this.coreHighlightModel = coreHighlight;
+        this.artificialBackgroundModel = artificialBackground;
+        this.overrides = overrides;
     }
 
-
-    private BakedModel getModel(BlockState state) {
-        BlockRenderDispatcher dispatcher = Minecraft.getInstance().getBlockRenderer();
-        return dispatcher.getBlockModel(state);
+    private BakedModel getModelForState(BlockState state) {
+        return Minecraft.getInstance().getBlockRenderer().getBlockModel(state);
     }
 
     @Nonnull
     @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand, @Nonnull ModelData extraData, @Nullable RenderType renderType) {
-        // [핵심 로직 변경]
-        // 1. 최종 쿼드를 담을 리스트를 생성합니다.
-
-        // 2. 배경 모델의 쿼드를 가져옵니다.
-        OreNodeBlockEntity be = extraData.get(OreNodeBlockEntity.MODEL_DATA_PROPERTY);
-        BakedModel backgroundModelToUse = defaultBackgroundModel;
-        BlockState backgroundStateToUse = Blocks.STONE.defaultBlockState();
-
-        if (be != null) {
-            ResourceLocation backgroundId = be.getBackgroundBlockId();
-            if (!backgroundId.equals(MyAddonBlocks.ORE_NODE.getId())) {
-                Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
-                backgroundStateToUse = backgroundBlock.defaultBlockState();
-                backgroundModelToUse = getModel(backgroundStateToUse);
-            }
-        }
-        // 요청된 renderType에 해당하는 배경의 쿼드를 리스트에 추가합니다.
-        List<BakedQuad> quads = new ArrayList<>(backgroundModelToUse.getQuads(backgroundStateToUse, side, rand, ModelData.EMPTY, renderType));
-
-        // 3. 코어 모델의 쿼드를 가져옵니다.
-        // 코어는 항상 CUTOUT 레이어에서만 그려져야 합니다.
-
         if (renderType == RenderType.cutout()) {
+            List<BakedQuad> quads = new ArrayList<>();
             quads.addAll(coreBaseModel.getQuads(state, side, rand, extraData, renderType));
             quads.addAll(coreHighlightModel.getQuads(state, side, rand, extraData, renderType));
+            return quads;
         }
 
-        // 4. 조합된 쿼드 리스트를 반환합니다.
-        return quads;
+        OreNodeBlockEntity be = extraData.get(OreNodeBlockEntity.MODEL_DATA_PROPERTY);
+        if (be != null) {
+            if (be instanceof ArtificialNodeBlockEntity) {
+                return artificialBackgroundModel.getQuads(state, side, rand, extraData, renderType);
+            } else {
+                ResourceLocation backgroundId = be.getBackgroundBlockId();
+                Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
+                if (backgroundBlock != Blocks.AIR) {
+                    BlockState backgroundState = backgroundBlock.defaultBlockState();
+                    return getModelForState(backgroundState).getQuads(backgroundState, side, rand, extraData, renderType);
+                }
+            }
+        }
+
+        return defaultBackgroundModel.getQuads(state, side, rand, extraData, renderType);
     }
-
-
-    // 이 메서드는 어떤 렌더 타입을 지원할지 선언합니다.
-    @Override
-    public @NotNull ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
-        // 우리 모델이 SOLID와 CUTOUT 두 가지 타입의 쿼드를 모두 생성함을 명시합니다.
-        return ChunkRenderTypeSet.of(RenderType.solid(), RenderType.cutout());
-    }
-    @SuppressWarnings("deprecation")
-    @Override
-    public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand) {
-        List<BakedQuad> quads = new ArrayList<>();
-        quads.addAll(defaultBackgroundModel.getQuads(state, side, rand));
-        quads.addAll(coreBaseModel.getQuads(state, side, rand));
-        quads.addAll(coreHighlightModel.getQuads(state,side,rand));
-        return quads;
-    }
-
-    // --- 나머지 인터페이스 메서드는 이전과 동일 ---
-    @Override
-    public boolean useAmbientOcclusion() { return defaultBackgroundModel.useAmbientOcclusion(); }
-    @Override
-    public boolean isGui3d() { return defaultBackgroundModel.isGui3d(); }
-    @Override
-    public boolean usesBlockLight() { return defaultBackgroundModel.usesBlockLight(); }
-    @Override
-    public boolean isCustomRenderer() { return false; }
-    @Override@SuppressWarnings("deprecation")
-    public @NotNull TextureAtlasSprite getParticleIcon() { return defaultBackgroundModel.getParticleIcon(); }
-    @Override
-    public @NotNull ItemOverrides getOverrides() { return ItemOverrides.EMPTY; }
-
 
     @Override
     public @NotNull TextureAtlasSprite getParticleIcon(@Nonnull ModelData data) {
         OreNodeBlockEntity be = data.get(OreNodeBlockEntity.MODEL_DATA_PROPERTY);
         if (be != null) {
+            if (be instanceof ArtificialNodeBlockEntity) {
+                return artificialBackgroundModel.getParticleIcon(data);
+            }
             ResourceLocation backgroundId = be.getBackgroundBlockId();
             Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
             if (backgroundBlock != Blocks.AIR) {
-                return getModel(backgroundBlock.defaultBlockState()).getParticleIcon(data);
+                return getModelForState(backgroundBlock.defaultBlockState()).getParticleIcon(data);
             }
         }
-        return getParticleIcon();
+        return defaultBackgroundModel.getParticleIcon(data);
     }
+
+    @Override
+    public @NotNull TextureAtlasSprite getParticleIcon() {
+        return this.getParticleIcon(ModelData.EMPTY);
+    }
+
+    @Override
+    public @NotNull ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
+        return ChunkRenderTypeSet.of(RenderType.solid(), RenderType.cutout());
+    }
+
+    // --- 나머지 BakedModel의 기본 메서드들 ---
+    @Override
+    public boolean useAmbientOcclusion() { return true; }
+    @Override
+    public boolean isGui3d() { return defaultBackgroundModel.isGui3d(); }
+    @Override
+    public boolean usesBlockLight() { return true; }
+    @Override
+    public boolean isCustomRenderer() { return false; }
+    @Override
+    public @NotNull ItemOverrides getOverrides() { return this.overrides; }
 }

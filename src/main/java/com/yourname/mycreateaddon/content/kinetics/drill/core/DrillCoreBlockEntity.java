@@ -6,6 +6,7 @@ import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.*;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,21 +21,27 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import com.yourname.mycreateaddon.content.kinetics.base.DrillEnergyStorage; // [신규] 임포트
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelProperty;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
+import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
 import java.util.*;
 
 
@@ -49,7 +56,42 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         HEAD_MISSING, // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
         DUPLICATE_PROCESSING_MODULE
     }
+    // [신규] 코어의 티어를 정의하는 enum
+    public enum Tier implements StringRepresentable {
+        BRASS(8, 1.0f, 0.1f, 4f),    // 최대 모듈 8개, 속도 배율 1.0배, 기본 냉각 0.1
+        STEEL(16, 1.25f, 0.15f, 6f),  // 최대 모듈 16개, 속도 배율 1.25배, 기본 냉각 0.15
+        NETHERITE(24, 1.5f, 0.2f, 8f);  // 최대 모듈 24개, 속도 배율 1.5배, 기본 냉각 0.2
 
+        private final int maxModules;
+        private final float speedBonus;
+        private final float baseCooling;
+        private final float baseStress;
+
+        Tier(int maxModules, float speedBonus, float baseCooling,float baseStress) {
+            this.maxModules = maxModules;
+            this.speedBonus = speedBonus;
+            this.baseCooling = baseCooling;
+            this.baseStress=baseStress;
+        }
+
+        public int getMaxModules() { return maxModules; }
+        public float getSpeedBonus() { return speedBonus; }
+        public float getBaseCooling() { return baseCooling; }
+        public float getBaseStress(){return baseStress;}
+
+        // [핵심 추가] StringRepresentable 인터페이스의 메서드를 구현합니다.
+        @Override
+        public @NotNull String getSerializedName() {
+            // enum 상수의 이름을 소문자로 변환하여 반환합니다.
+            // 예: Tier.BRASS -> "brass"
+            return this.name().toLowerCase();
+        }
+    }
+
+    // [신규] 현재 코어의 티어를 저장하는 필드. 기본값은 BRASS.
+    private Tier coreTier = Tier.BRASS;
+
+    public static final ModelProperty<DrillCoreBlockEntity> CORE_ENTITY_PROPERTY = new ModelProperty<>();
     // --- [신규] 연결된 버퍼 모듈의 핸들러를 저장할 리스트 ---
     private final List<IItemHandler> itemBufferHandlers = new ArrayList<>();
     private final List<IFluidHandler> fluidBufferHandlers = new ArrayList<>();
@@ -67,8 +109,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public static final float BOOST_START_THRESHOLD = 40.0f; // 부스트 시작 (40%)
     public static final float OVERLOAD_START_THRESHOLD = 90.0f; // 과부하 시작 (90%)
     public static final float COOLDOWN_RESET_THRESHOLD = 30.0f; // 재작동 가능 (30%)
-    public static final float MAX_BOOST_MULTIPLIER = 2.0f; // 최대 부스트 배율 (200%)
-    public static final float CORE_BASE_COOLING = 0.1f;   // 코어의 기본 냉각 속도
 
     // [추가] 고글 정보 업데이트 주기를 위한 필드
     private static final int GOGGLE_UPDATE_DEBOUNCE = 10; // 10틱 (0.5초) 마다 업데이트
@@ -88,19 +128,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     // [수정] boolean -> int 타입으로 변경
     private int structureCheckCooldown;
     private static final int MAX_STRUCTURE_RANGE = 16;
-    private static final int MAX_MODULES = 16;
 
-    // [신규] 드릴 코어 자체의 기본 스트레스 부하를 정의합니다.
-    public static final float BASE_STRESS_IMPACT = 4.0f;
     // --- 모듈 효과 집계 필드 ---
     private double speedMultiplier = 1.0;
     private double stressMultiplier = 1.0;
     private double heatMultiplier = 1.0;
     private float totalStressImpact = 0f;
-
-    //private boolean canWasherWork = false;
-  //  private boolean canHeaterWork = false;
-//    private boolean canBlastHeaterWork = false;
 
 
     // [핵심 추가] heat 필드에 대한 public getter
@@ -122,12 +155,44 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return this.structureValid;
     }
 
+    public boolean tryUpgrade(Item upgradeMaterial) {
+        if (level == null || level.isClientSide) return false;
 
+        Tier nextTier = null;
+        if (upgradeMaterial == MyAddonItems.STEEL_INGOT.get() && this.coreTier == Tier.BRASS) {
+            nextTier = Tier.STEEL;
+        } else if (upgradeMaterial == Items.NETHERITE_INGOT && this.coreTier == Tier.STEEL) {
+            nextTier = Tier.NETHERITE;
+        }
 
+        if (nextTier != null) {
+            this.coreTier = nextTier;
+
+            // [핵심] 블록의 상태(BlockState)를 새로운 티어로 업데이트
+            BlockState oldState = getBlockState();
+            BlockState newState = oldState.setValue(DrillCoreBlock.TIER, nextTier);
+            level.setBlock(getBlockPos(), newState, Block.UPDATE_ALL);
+
+            setChanged();
+            sendData();
+            scheduleStructureCheck();
+            return true;
+        }
+        return false;
+    }
     public IEnergyStorage getInternalEnergyBuffer() {
         return this.energyBuffer;
     }
+    @Nonnull
+    @Override
+    public ModelData getModelData() {
+        return ModelData.builder().with(CORE_ENTITY_PROPERTY, this).build();
+    }
 
+    // [신규] 외부에서 티어를 쉽게 가져갈 수 있도록 public getter 추가
+    public Tier getCoreTier() {
+        return this.coreTier;
+    }
     @Override
     public IItemHandler getInternalItemBuffer() {
         // [수정] null 대신, 핸들러 리스트를 사용하는 가상 핸들러를 새로 생성하여 반환
@@ -297,7 +362,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.speedMultiplier = 1.0;
         this.stressMultiplier = 1.0;
         this.heatMultiplier = 1.0;
-        this.totalStressImpact = BASE_STRESS_IMPACT;
+        this.totalStressImpact = coreTier.getBaseStress();
         int totalEnergyCapacity = 0;
         this.cachedHeadPos = null;
         this.invalidityReason = InvalidityReason.NONE;
@@ -351,7 +416,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // --- 4. 유효성 검사 및 데이터 집계 ---
         if (this.invalidityReason == InvalidityReason.NONE || this.invalidityReason == InvalidityReason.HEAD_MISSING) {
-            if (allFoundModules.size() > MAX_MODULES) {
+            if (allFoundModules.size() >coreTier.getMaxModules()) {
                 this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
             } else {
                 this.structureValid = true;
@@ -573,8 +638,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     @Override
     public float getSpeed() {
         if (isOverStressed()) return 0;
-        // [핵심 수정] 곱셈으로 누적된 배율을 적용
-        return (float) (super.getTheoreticalSpeed() * this.speedMultiplier);
+
+        // [핵심 수정] 모듈 배율과 함께 티어 보너스 배율을 추가로 곱해줍니다.
+        float baseSpeed = super.getTheoreticalSpeed();
+        return (float) (baseSpeed * this.speedMultiplier * coreTier.getSpeedBonus());
     }
 
     public float getInputSpeed() {
@@ -614,6 +681,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (this.heatMultiplier != 1.0)
             compound.putDouble("HeatMultiplier", this.heatMultiplier);
 
+        compound.putString("CoreTier", coreTier.name());
         // totalStressImpact는 이제 모듈 스트레스를 제외한 '기본' 스트레스 합계입니다.
         compound.putFloat("BaseStressImpact", this.totalStressImpact);
         compound.putInt("InvalidityReason", this.invalidityReason.ordinal());
@@ -678,8 +746,17 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.stressMultiplier = compound.contains("StressMultiplier") ? compound.getDouble("StressMultiplier") : 1.0;
         this.heatMultiplier = compound.contains("HeatMultiplier") ? compound.getDouble("HeatMultiplier") : 1.0;
 
+        if (compound.contains("CoreTier")) {
+            try {
+                this.coreTier = Tier.valueOf(compound.getString("CoreTier"));
+            } catch (IllegalArgumentException e) {
+                this.coreTier = Tier.BRASS; // 혹시 모를 오류에 대비한 기본값
+            }
+        } else {
+            this.coreTier = Tier.BRASS; // 이전 버전 호환
+        }
         // BaseStressImpact를 읽어와 totalStressImpact에 할당합니다.
-        this.totalStressImpact = compound.contains("BaseStressImpact") ? compound.getFloat("BaseStressImpact") : BASE_STRESS_IMPACT;
+        this.totalStressImpact = compound.contains("BaseStressImpact") ? compound.getFloat("BaseStressImpact") : coreTier.getBaseStress();
 
         this.heat = compound.getFloat("Heat");
         this.isOverheated = compound.getBoolean("Overheated");
@@ -839,10 +916,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 module.onCoreTick(this);
             }
         }
-        // [핵심 추가] 주기적인 상태 업데이트
-        //if (tickCounter % 20 == 0) {
-        //  updateProcessingConditions();
-        //}
         float finalSpeed = getFinalSpeed();
 
         IDrillHead headBlock = null;
@@ -862,9 +935,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             float heatThisTick = baseHeatGen * speedFactor * finalHeatMultiplier;
 
             addHeat(heatThisTick);
+
         } else {
-            // 냉각: 드릴이 어떤 이유로든(동력 없음, 과열 등) 멈춰있으면 열이 식습니다.
-            float coolingRate = CORE_BASE_COOLING;
+            // 냉각: 드릴이 멈춰있을 때 열이 식는 로직
+            // [핵심 수정] CORE_BASE_COOLING 대신 티어의 기본 냉각률을 사용
+            float coolingRate = coreTier.getBaseCooling();
             if (headBlock != null) {
                 coolingRate += headBlock.getCoolingRate();
             }
@@ -1025,6 +1100,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+
+        MutableComponent tierComponent = Component.translatable("goggle.mycreateaddon.drill_core.tier." + coreTier.name().toLowerCase())
+                .withStyle(coreTier == Tier.NETHERITE ? ChatFormatting.DARK_PURPLE : (coreTier == Tier.STEEL ? ChatFormatting.AQUA : ChatFormatting.GOLD));
+        tooltip.add(Component.literal("").append(tierComponent));
         // Create의 기본 운동 정보(Stress 등)를 표시하기 위해 super 호출을 유지합니다.
         super.addToGoggleTooltip(tooltip, isPlayerSneaking);
 
@@ -1035,7 +1114,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // 구조 유효성 상태
         MutableComponent status;
         if (structureValid && invalidityReason != InvalidityReason.HEAD_MISSING) {
-            status = Component.translatable("goggle.mycreateaddon.drill_core.valid", structureCache.size())
+            status = Component.translatable("goggle.mycreateaddon.drill_core.valid", structureCache.size(), coreTier.getMaxModules())
                     .withStyle(ChatFormatting.GREEN);
         } else {
             status = Component.translatable("goggle.mycreateaddon.drill_core.invalid")
@@ -1059,7 +1138,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             };
             if (reasonKey != null) {
                 MutableComponent reason = (invalidityReason == InvalidityReason.TOO_MANY_MODULES)
-                        ? Component.translatable(reasonKey, MAX_MODULES)
+                        // [핵심 수정]
+                        ? Component.translatable(reasonKey, coreTier.getMaxModules())
                         : Component.translatable(reasonKey);
                 tooltip.add(Component.literal(" ").append(reason.withStyle(ChatFormatting.DARK_RED)));
             }

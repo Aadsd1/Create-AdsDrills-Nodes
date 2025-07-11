@@ -1,14 +1,12 @@
 package com.yourname.mycreateaddon.content.kinetics.node;
 
 
-import com.simibubi.create.AllItems;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.crafting.NodeRecipe;
-import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -19,13 +17,9 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SmeltingRecipe;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -36,10 +30,18 @@ import net.neoforged.neoforge.fluids.FluidStack;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.List;
 import java.util.function.Supplier;
 
-// IHaveGoggleInformation 인터페이스를 구현합니다.
+
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
+
+    // [핵심] 렌더링에 필요한 데이터를 담을 ModelProperty를 정의합니다.
+    public static final ModelProperty<BakedModel> BACKGROUND_MODEL = new ModelProperty<>();
+    public static final ModelProperty<Integer> TINT_1_COLOR = new ModelProperty<>();
+    public static final ModelProperty<Integer> TINT_2_COLOR = new ModelProperty<>();
+    public static final ModelProperty<BlockState> BACKGROUND_STATE = new ModelProperty<>();
+
 
     // --- 데이터 필드 ---
     // --- 데이터 필드 ---
@@ -662,11 +664,14 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         return true;
     }
-
     @Nonnull
     @Override
     public ModelData getModelData() {
-        // 이 BlockEntity는 자신의 정보만 제공합니다.
-        return ModelData.builder().with(MODEL_DATA_PROPERTY, this).build();
+        // 이 로직은 이제 자연 광맥 노드에서만 실행됩니다.
+        ResourceLocation backgroundId = getBackgroundBlockId();
+        Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
+        BlockState backgroundState = (backgroundBlock != Blocks.AIR) ? backgroundBlock.defaultBlockState() : Blocks.STONE.defaultBlockState();
+
+        return ModelData.builder().with(BACKGROUND_STATE, backgroundState).build();
     }
 }

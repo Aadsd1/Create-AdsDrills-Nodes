@@ -52,7 +52,6 @@ public class ClientSetup {
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(MyAddonPartialModels::init);
 
-
         // [핵심] 드릴 코어 아이템에 커스텀 프로퍼티 등록
         // [핵심] 드릴 코어 아이템에 커스텀 프로퍼티 등록
         ItemProperties.register(
@@ -121,26 +120,26 @@ public class ClientSetup {
     @SubscribeEvent
     public static void onRegisterBlockColors(RegisterColorHandlersEvent.Block event) {
         BlockColor oreNodeColorHandler = (state, getter, pos, tintIndex) -> {
-            if (getter == null || pos == null || !(getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be)) {
+            if (getter == null || pos == null) {
                 return -1;
             }
+            if (getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be) {
+                // tintIndex가 1 또는 2일 때만 색상을 계산합니다.
+                if (tintIndex == 1 || tintIndex == 2) {
+                    ResourceLocation oreId = be.getRepresentativeOreItemId();
+                    int baseColor = ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);
 
-            // [핵심] tintIndex가 1 또는 2일 때만 색상을 반환합니다.
-            if (tintIndex == 1 || tintIndex == 2) {
-                ResourceLocation oreId = be.getRepresentativeOreItemId();
-                int baseColor = ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);
-
-                if (tintIndex == 1) {
-                    return baseColor;
-                } else { // tintIndex == 2
-                    Color c = new Color(baseColor);
-                    float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
-                    hsb[2] = Math.min(1.0f, hsb[2] + 0.2f);
-                    return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+                    if (tintIndex == 1) {
+                        return baseColor;
+                    } else { // tintIndex == 2
+                        Color c = new Color(baseColor);
+                        float[] hsb = Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), null);
+                        hsb[2] = Math.min(1.0f, hsb[2] + 0.2f);
+                        return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+                    }
                 }
             }
-
-            return -1;
+            return -1; // 그 외의 경우는 색상 없음
         };
 
         event.register(oreNodeColorHandler,

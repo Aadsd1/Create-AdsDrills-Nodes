@@ -176,7 +176,9 @@ public class MyAddonBlocks {
             .initialProperties(SharedProperties::stone)
             .properties(p -> p.destroyTime(-1.0f).explosionResistance(3600000.0f))
             .lang("Artificial Ore Node")
-            .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
+            .blockstate((c, p)
+                    -> p.simpleBlock(c.get(), p.models().getExistingFile(
+                            p.modLoc("block/" + c.getId().getPath() + "/block"))))
             .register();
 
     public static final BlockEntry<RotaryDrillHeadBlock> IRON_ROTARY_DRILL_HEAD = REGISTRATE

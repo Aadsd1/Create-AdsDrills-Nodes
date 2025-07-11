@@ -54,7 +54,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         MULTIPLE_CORES,
         TOO_MANY_MODULES,
         HEAD_MISSING, // 오류는 아니지만, 작동 불가 상태를 나타내기 위함
-        DUPLICATE_PROCESSING_MODULE
+        DUPLICATE_PROCESSING_MODULE,
+        NO_ENERGY_SOURCE,               // [신규] 에너지 공급원이 없는 경우
+        INSUFFICIENT_ENERGY
     }
     // [신규] 코어의 티어를 정의하는 enum
     public enum Tier implements StringRepresentable {
@@ -376,6 +378,23 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         BlockPos potentialHeadPos = worldPosition.relative(headFacing);
         BlockState headState = level.getBlockState(potentialHeadPos);
+        boolean isLaserHeadAttached = false;
+
+        if (headState.getBlock() instanceof IDrillHead head &&
+                headState.hasProperty(DirectionalKineticBlock.FACING) &&
+                headState.getValue(DirectionalKineticBlock.FACING) == headFacing) {
+
+            this.cachedHeadPos = potentialHeadPos;
+            this.totalStressImpact += head.getStressImpact();
+
+            // [신규] 레이저 헤드인지 확인
+            if (head instanceof LaserDrillHeadBlock) {
+                isLaserHeadAttached = true;
+            }
+
+        } else {
+            this.invalidityReason = InvalidityReason.HEAD_MISSING;
+        }
 
         // 조건 1: 해당 위치의 블록이 IDrillHead인가?
         // 조건 2: 그 헤드 블록의 FACING 방향이 코어가 바라보는 방향(headFacing)과 일치하는가?
@@ -415,6 +434,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
 
         // --- 4. 유효성 검사 및 데이터 집계 ---
+
         if (this.invalidityReason == InvalidityReason.NONE || this.invalidityReason == InvalidityReason.HEAD_MISSING) {
             if (allFoundModules.size() >coreTier.getMaxModules()) {
                 this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
@@ -502,6 +522,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
 
         this.energyBuffer.setCapacity(totalEnergyCapacity);
+// [핵심 추가] 구조가 유효하고 레이저 헤드가 부착된 경우에만 에너지 경고를 확인합니다.
+        if (this.structureValid && isLaserHeadAttached) {
+            if (this.energyBuffer.getMaxEnergyStored() == 0) {
+                // 에너지 버퍼나 발전기가 없어 최대 용량이 0이면
+                this.invalidityReason = InvalidityReason.NO_ENERGY_SOURCE;
+            }
+        }
 
         if (!this.structureValid) {
             this.structureCache.clear();
@@ -922,7 +949,22 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
             headBlock = h;
         }
-
+// [핵심 추가] 레이저 헤드 작동 시 에너지 부족 경고 처리
+        if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof LaserDrillHeadBlock) {
+            // 레이저 헤드가 있고, 에너지 공급원이 있는 상태에서(NO_ENERGY_SOURCE가 아님)
+            // 현재 에너지가 부족한 경우 경고 상태를 설정합니다.
+            if (this.invalidityReason != InvalidityReason.NO_ENERGY_SOURCE && this.energyBuffer.getEnergyStored() < 100) { // ENERGY_PER_MINING_TICK 값
+                if (getFinalSpeed() != 0) { // 드릴이 작동 중일 때만 에너지 부족 경고 표시
+                    this.invalidityReason = InvalidityReason.INSUFFICIENT_ENERGY;
+                }
+            } else if (this.invalidityReason == InvalidityReason.INSUFFICIENT_ENERGY) {
+                // 에너지가 충분해지거나 드릴이 멈추면 경고를 해제합니다.
+                this.invalidityReason = InvalidityReason.NONE;
+            }
+        } else if (this.invalidityReason == InvalidityReason.INSUFFICIENT_ENERGY || this.invalidityReason == InvalidityReason.NO_ENERGY_SOURCE) {
+            // 레이저 헤드가 제거되면 에너지 관련 경고도 함께 해제합니다.
+            this.invalidityReason = InvalidityReason.NONE;
+        }
         // --- 과열 로직 수정 ---
         // [핵심 수정] finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
         if (finalSpeed != 0 && headBlock != null) {
@@ -1101,6 +1143,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
 
+
+        tooltip.add(Component.literal(""));
         MutableComponent tierComponent = Component.translatable("goggle.mycreateaddon.drill_core.tier." + coreTier.name().toLowerCase())
                 .withStyle(coreTier == Tier.NETHERITE ? ChatFormatting.DARK_PURPLE : (coreTier == Tier.STEEL ? ChatFormatting.AQUA : ChatFormatting.GOLD));
         tooltip.add(Component.literal("").append(tierComponent));
@@ -1113,7 +1157,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // 구조 유효성 상태
         MutableComponent status;
-        if (structureValid && invalidityReason != InvalidityReason.HEAD_MISSING) {
+        if (structureValid && invalidityReason != InvalidityReason.HEAD_MISSING && invalidityReason != InvalidityReason.NO_ENERGY_SOURCE && invalidityReason != InvalidityReason.INSUFFICIENT_ENERGY) {
             status = Component.translatable("goggle.mycreateaddon.drill_core.valid", structureCache.size(), coreTier.getMaxModules())
                     .withStyle(ChatFormatting.GREEN);
         } else {
@@ -1134,14 +1178,21 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 case TOO_MANY_MODULES -> "goggle.mycreateaddon.drill_core.reason.too_many_modules";
                 case HEAD_MISSING -> "goggle.mycreateaddon.drill_core.reason.head_missing";
                 case DUPLICATE_PROCESSING_MODULE -> "goggle.mycreateaddon.drill_core.reason.duplicate_processing_module";
+                case NO_ENERGY_SOURCE -> "goggle.mycreateaddon.drill_core.reason.no_energy_source";
+                case INSUFFICIENT_ENERGY -> "goggle.mycreateaddon.drill_core.reason.insufficient_energy";
                 default -> null;
             };
             if (reasonKey != null) {
                 MutableComponent reason = (invalidityReason == InvalidityReason.TOO_MANY_MODULES)
-                        // [핵심 수정]
                         ? Component.translatable(reasonKey, coreTier.getMaxModules())
                         : Component.translatable(reasonKey);
-                tooltip.add(Component.literal(" ").append(reason.withStyle(ChatFormatting.DARK_RED)));
+
+                // [수정] 경고(Warning)는 노란색으로, 오류(Error)는 붉은색으로 표시
+                ChatFormatting reasonColor = switch (invalidityReason) {
+                    case HEAD_MISSING, NO_ENERGY_SOURCE, INSUFFICIENT_ENERGY -> ChatFormatting.YELLOW;
+                    default -> ChatFormatting.DARK_RED;
+                };
+                tooltip.add(Component.literal(" ").append(reason.withStyle(reasonColor)));
             }
         }
         // 과열 상태 특별 표시는 항상 보이도록 함

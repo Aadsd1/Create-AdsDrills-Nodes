@@ -63,9 +63,6 @@ public class LaserBeamRenderer {
             List<BlockPos> targets = laser.activeTargets;
 
 
-            if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getGameTime() % 20 == 0) {
-                MyCreateAddon.LOGGER.info("[CLIENT] Laser at {} has {} active targets. Target list: {}", laser.getBlockPos(), targets.size(), targets);
-            }
 
             if (targets.isEmpty()) continue;
 

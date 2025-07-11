@@ -153,7 +153,8 @@ public class MyAddonDatagen {
         registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.steel.line2", "§7- Progress decays quickly on failure.");
         registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.netherite.line1", "§7- Extreme speed requirement.");
         registrate.addRawLang("tooltip.mycreateaddon.stabilizer_core.netherite.line2", "§c§l- Progress resets instantly on failure!");
-
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.no_energy_source", "Warning: No energy source detected for Laser Head.");
+        registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.insufficient_energy", "Warning: Insufficient energy for Laser Head operation.");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.brass", "Brass Drill Core");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.steel", "Steel Drill Core");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.netherite", "Netherite Drill Core");

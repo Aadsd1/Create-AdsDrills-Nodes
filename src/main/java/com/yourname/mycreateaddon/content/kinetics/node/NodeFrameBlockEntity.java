@@ -37,6 +37,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
@@ -358,6 +360,23 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             finalItemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
             totalInputYield = 1000;
         }
+        Map<Fluid, Integer> fluidCapacities = new HashMap<>();
+
+        for (int i = 0; i < DATA_SLOT_COUNT; i++) {
+            ItemStack dataStack = inventory.getStackInSlot(i);
+            if (dataStack.isEmpty()) continue;
+            CustomData customData = dataStack.get(DataComponents.CUSTOM_DATA);
+            if (customData == null) continue;
+            CompoundTag nbt = customData.copyTag();
+
+            if (nbt.contains("FluidContent")) {
+                FluidStack fluid = FluidStack.parse(level.registryAccess(), nbt.getCompound("FluidContent")).orElse(FluidStack.EMPTY);
+                if (!fluid.isEmpty()) {
+                    int capacity = nbt.getInt("MaxFluidCapacity");
+                    fluidCapacities.merge(fluid.getFluid(), capacity, Integer::sum);
+                }
+            }
+        }
 
         // --- 2. 최종 결과물 속성 결정 ---
 
@@ -480,6 +499,25 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             }
         }
 
+        FluidStack finalFluid = FluidStack.EMPTY;
+        int finalFluidCapacity = 0;
+
+        if (!fluidCapacities.isEmpty()) {
+            // 가장 용량이 많은 액체를 최종 액체로 선택
+            Fluid dominantFluid = fluidCapacities.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey)
+                    .orElse(null);
+
+            if (dominantFluid != null) {
+                // 모든 용량을 합산
+                int totalCapacity = fluidCapacities.values().stream().mapToInt(Integer::intValue).sum();
+                // 코어 효율 보정 적용
+                finalFluidCapacity = (int) (totalCapacity * yieldMultiplier); // 광물 매장량과 동일한 보정 적용
+                finalFluid = new FluidStack(dominantFluid, 1); // 양은 중요하지 않으므로 1로 설정
+            }
+        }
+
 
         // --- [!!! 핵심 수정: 인공 노드 생성 및 데이터 주입 방식 변경 !!!] ---
         this.isCompleting = true;
@@ -527,7 +565,11 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         finalNbtForNewNode.putFloat("Richness", finalRichness);
         finalNbtForNewNode.putFloat("Regeneration", finalRegeneration);
 
-        // 인공 노드는 유체가 없으므로 관련 정보는 저장하지 않습니다.
+        if (!finalFluid.isEmpty() && finalFluidCapacity > 0) {
+            finalNbtForNewNode.put("FluidContent", finalFluid.save(level.registryAccess()));
+            finalNbtForNewNode.putInt("MaxFluidCapacity", finalFluidCapacity);
+            finalNbtForNewNode.putFloat("CurrentFluidAmount", finalFluidCapacity); // 처음엔 가득 차도록
+        }
 
         // 3. 블록을 인공 노드로 교체
         level.setBlock(currentPos, MyAddonBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);

@@ -297,8 +297,15 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
                     // [!!! 신규 추가 !!!] 아이템-블록 매핑 정보도 복사합니다.
                     if (nodeData.contains("ItemToBlockMap")) itemNbt.put("ItemToBlockMap", Objects.requireNonNull(nodeData.get("ItemToBlockMap")));
 
-                    dataItem.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(itemNbt));
+                    if (nodeData.contains("FluidContent")) {
+                        itemNbt.put("FluidContent", nodeData.getCompound("FluidContent"));
+                        // 최대 용량 정보도 함께 저장합니다.
+                        if (nodeData.contains("MaxFluidCapacity")) {
+                            itemNbt.putInt("MaxFluidCapacity", nodeData.getInt("MaxFluidCapacity"));
+                        }
+                    }
 
+                    dataItem.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(itemNbt));
                     // 3. 노드 파괴 및 아이템 드롭
                     level.destroyBlock(targetPos, false);
                     level.addFreshEntity(new ItemEntity(level, targetPos.getX() + 0.5, targetPos.getY() + 0.5, targetPos.getZ() + 0.5, dataItem));

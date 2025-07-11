@@ -11,9 +11,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Objects;
 
 // 2단계에서 NBT 관련 로직, 툴팁 등을 추가할 예정
 public class UnfinishedNodeDataItem extends Item {
@@ -51,6 +53,18 @@ public class UnfinishedNodeDataItem extends Item {
                                     .append(item.getDescription().copy().withStyle(ChatFormatting.AQUA))
                                     .append(Component.literal(String.format(": %.1f%%", ratio * 100)).withStyle(ChatFormatting.DARK_AQUA)));
                         });
+            }
+        }
+        if (tag.contains("FluidContent")) {
+            FluidStack fluid = FluidStack.parse(Objects.requireNonNull(context.registries()), tag.getCompound("FluidContent")).orElse(FluidStack.EMPTY);
+            if (!fluid.isEmpty()) {
+                int capacity = tag.getInt("MaxFluidCapacity");
+                tooltip.add(Component.literal("")); // 구분선
+                tooltip.add(Component.translatable("mycreateaddon.fluid_content.header").withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
+                        .append(fluid.getHoverName())
+                        .append(Component.literal(String.format(" (%,d mb)", capacity)).withStyle(ChatFormatting.DARK_GRAY))
+                );
             }
         }
     }

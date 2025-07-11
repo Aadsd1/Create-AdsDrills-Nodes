@@ -86,9 +86,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
             // BE의 데이터를 아이템 스택에 저장합니다.
             // level이 null일 수 있으므로 be.getLevel() 대신 builder에서 가져옵니다.
             var level = builder.getLevel();
-            if (level != null) {
-                coreBE.saveToItem(dropStack, level.registryAccess());
-            }
+            coreBE.saveToItem(dropStack, level.registryAccess());
 
             return Collections.singletonList(dropStack);
         }

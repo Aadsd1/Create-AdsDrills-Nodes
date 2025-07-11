@@ -19,6 +19,7 @@ public class MyAddonConfigs {
     }
 
     // 서버 설정 값들을 정의하는 내부 클래스
+    @SuppressWarnings("deprecation")
     public static class MyAddonServerConfig {
         public final ModConfigSpec.ConfigValue<List<? extends String>> allowedDimensions;
 

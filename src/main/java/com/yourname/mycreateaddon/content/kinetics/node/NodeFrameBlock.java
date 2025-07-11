@@ -39,8 +39,6 @@ public class NodeFrameBlock extends Block implements IBE<NodeFrameBlockEntity> {
     protected boolean isPathfindable(@NotNull BlockState state, @NotNull PathComputationType type) {
         return false;
     }
-
-
     @Override
     protected @NotNull ItemInteractionResult useItemOn(
             @NotNull ItemStack stack, @NotNull BlockState state, @NotNull Level level,
@@ -52,26 +50,24 @@ public class NodeFrameBlock extends Block implements IBE<NodeFrameBlockEntity> {
             return ItemInteractionResult.FAIL;
         }
 
-        // [1단계 추가] 아이템 회수 로직
         if (player.isShiftKeyDown() && stack.isEmpty()) {
-            if (level.isClientSide) {
-                return ItemInteractionResult.SUCCESS;
-            }
-            // BE에서 아이템 회수 로직 호출
+            if (level.isClientSide) return ItemInteractionResult.SUCCESS;
             frameBE.retrieveItem(player);
             return ItemInteractionResult.SUCCESS;
         }
 
-        // 클라이언트에서는 항상 성공으로 처리하여 즉각적인 반응성을 보장
+        // [!!! 핵심 수정 !!!]
+        // 클라이언트 측의 즉각적인 반응을 위해, isCatalystItem 체크를 여기에 추가합니다.
         if (level.isClientSide) {
-            if (stack.getItem() instanceof UnfinishedNodeDataItem || stack.getItem() instanceof StabilizerCoreItem) {
+            if (stack.getItem() instanceof UnfinishedNodeDataItem ||
+                    stack.getItem() instanceof StabilizerCoreItem ||
+                    frameBE.isCatalystItem(stack)) { // 이 부분이 추가되었습니다.
                 return ItemInteractionResult.SUCCESS;
             }
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
 
-        // 서버 측 로직 (아이템 추가)
-        // 1. 미완성 노드 데이터 아이템 처리
+        // 서버 측 로직 (이 부분은 이전 답변과 동일합니다)
         if (stack.getItem() instanceof UnfinishedNodeDataItem) {
             if (frameBE.addData(stack)) {
                 if (!player.getAbilities().instabuild) stack.shrink(1);
@@ -79,8 +75,6 @@ public class NodeFrameBlock extends Block implements IBE<NodeFrameBlockEntity> {
             }
             return ItemInteractionResult.FAIL;
         }
-
-        // 2. 안정화 코어 아이템 처리
         else if (stack.getItem() instanceof StabilizerCoreItem) {
             if (frameBE.addStabilizerCore(stack)) {
                 if (!player.getAbilities().instabuild) stack.shrink(1);
@@ -88,10 +82,17 @@ public class NodeFrameBlock extends Block implements IBE<NodeFrameBlockEntity> {
             }
             return ItemInteractionResult.FAIL;
         }
+        else if (frameBE.isCatalystItem(stack)) {
+            if (frameBE.addCatalyst(stack)) {
+                if (!player.getAbilities().instabuild) stack.shrink(1);
+                return ItemInteractionResult.SUCCESS;
+            }
+            return ItemInteractionResult.FAIL;
+        }
 
-        // 3. 처리할 아이템이 아니면 기본 상호작용으로 넘김
         return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
+
     @Override
     public void onRemove(BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
         if (state.hasBlockEntity() && (!state.is(newState.getBlock()) || !newState.hasBlockEntity())) {

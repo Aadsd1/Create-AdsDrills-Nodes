@@ -5,7 +5,9 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.base.IResourceAccessor;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.*;
 import com.yourname.mycreateaddon.content.kinetics.module.*;
+import com.yourname.mycreateaddon.content.kinetics.node.ArtificialNodeBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
+import com.yourname.mycreateaddon.crafting.Quirk;
 import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -22,7 +24,10 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.StringRepresentable;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.WitherSkeleton;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import com.yourname.mycreateaddon.content.kinetics.base.DrillEnergyStorage; // [신규] 임포트
@@ -1003,17 +1008,36 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (!wasOverheated && isOverheated) {
             boolean eventHandledByHead = false;
             if (headBlock != null) {
-                // 코어는 헤드의 종류를 묻지 않고, 그저 '과열 이벤트'가 발생했음을 알립니다.
                 eventHandledByHead = headBlock.onOverheat(level, cachedHeadPos, this);
             }
 
-            // 헤드가 이벤트를 처리하지 않았을 경우에만 (false를 반환했을 경우)
-            // 코어가 기본 과열 효과(사운드)를 재생합니다.
+            // [!!! 신규: 과열 특수 효과 발동 !!!]
+            Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
+            BlockPos nodePos = cachedHeadPos.relative(headFacing);
+            if (level.getBlockEntity(nodePos) instanceof ArtificialNodeBlockEntity artificialNode) {
+                // [수정] level.getRandom()을 사용하여 RandomSource 객체를 가져옵니다.
+                RandomSource random = level.getRandom();
+
+                // 위더의 메아리
+                if (artificialNode.hasQuirk(Quirk.WITHERING_ECHO)) {
+                    WitherSkeleton witherSkeleton = new WitherSkeleton(EntityType.WITHER_SKELETON, level);
+                    witherSkeleton.moveTo(nodePos.getX() + 0.5, nodePos.getY() + 1, nodePos.getZ() + 0.5, random.nextFloat() * 360, 0);
+                    level.addFreshEntity(witherSkeleton);
+                }
+                // 과부하 방전
+                if (artificialNode.hasQuirk(Quirk.OVERLOAD_DISCHARGE)) {
+                    if (random.nextFloat() < 0.25f) { // 25% 확률
+                        LightningBolt lightning = new LightningBolt(EntityType.LIGHTNING_BOLT, level);
+                        lightning.setPos(Vec3.atCenterOf(this.worldPosition)); // 드릴 코어 위치에 번개
+                        level.addFreshEntity(lightning);
+                    }
+                }
+            }
+
             if (!eventHandledByHead) {
                 level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
             }
         }
-
         // --- 동기화 로직 ---
         // [핵심 수정] visualSpeed를 업데이트할 때, 로컬 변수 finalSpeed를 사용합니다.
         boolean needsSync = false;

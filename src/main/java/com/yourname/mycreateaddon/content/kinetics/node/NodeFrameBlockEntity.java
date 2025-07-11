@@ -3,9 +3,12 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.item.StabilizerCoreItem;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
+import com.yourname.mycreateaddon.crafting.Quirk;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
+import com.yourname.mycreateaddon.registry.MyAddonTags;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -20,6 +23,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -32,20 +37,34 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
+
+    // [1] 인벤토리 크기를 11에서 13으로 늘립니다. (데이터 9 + 코어 1 + 촉매 2)
     protected ItemStackHandler inventory = createInventory();
     private int progress = 0;
     private static final int REQUIRED_PROGRESS = 240000;
     private boolean isCompleting = false;
+
+
+    // 슬롯 인덱스를 상수로 정의하여 가독성을 높입니다.
+
+    // 인벤토리 슬롯 상수 정의 (이 부분은 이전 답변과 동일)
+    private static final int DATA_SLOT_START = 0;
+    private static final int DATA_SLOT_COUNT = 9;
+    private static final int CORE_SLOT = 9;
+    private static final int CATALYST_SLOT_1 = 10;
+    private static final int CATALYST_SLOT_2 = 11;
+    private static final int INVENTORY_SIZE = DATA_SLOT_COUNT + 1 + 2; // 데이터 + 코어 + 촉매
+
+    private transient Map<Quirk, Float> clientQuirkCandidates = new HashMap<>();
+    public static final TagKey<Item> CATALYST_TAG = ItemTags.create(ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "catalysts"));
+
 
     public NodeFrameBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -55,55 +74,127 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
 
     private ItemStackHandler createInventory() {
-        return new ItemStackHandler(11) {
+        return new ItemStackHandler(INVENTORY_SIZE) { // 올바른 인벤토리 크기 사용
             @Override
             protected void onContentsChanged(int slot) {
+                if (level != null && !level.isClientSide) {
+                    updateQuirkCandidates();
+                }
                 setChanged();
                 sendData();
             }
         };
     }
+    // [3. 추가] 특수 효과 후보군과 가중치를 계산하는 메서드
+    private void updateQuirkCandidates() {
+        if (level == null) return; // 월드가 없으면 계산 불가
+
+        // 이 메서드는 서버/클라이언트 양쪽에서 호출될 수 있으나,
+        // 실제 동기화는 서버 -> 클라이언트로만 이루어집니다.
+
+        // --- `completeCrafting`에 있던 로직을 그대로 가져옵니다 ---
+        Map<Quirk, Float> candidates = new HashMap<>();
+        for (Quirk quirk : Quirk.values()) {
+            candidates.put(quirk, 3.0f);
+        }
+
+        ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
+        ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
+        final float CATALYST_BONUS = 15.0f;
+
+        if (!catalyst1.isEmpty()) {
+            candidates.replaceAll((quirk, weight) ->
+                    quirk.getCatalyst().get() == catalyst1.getItem() ? weight + CATALYST_BONUS : weight
+            );
+        }
+        if (!catalyst2.isEmpty()) {
+            candidates.replaceAll((quirk, weight) ->
+                    quirk.getCatalyst().get() == catalyst2.getItem() ? weight + CATALYST_BONUS : weight
+            );
+        }
+
+        ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
+        StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
+
+        switch (tier) {
+            case BRASS:
+                candidates.merge(Quirk.OVERLOAD_DISCHARGE, 2.0f, Float::sum);
+                candidates.merge(Quirk.BONE_CHILL, 1.0f, Float::sum);
+                candidates.merge(Quirk.WILD_MAGIC,1.0f,Float::sum);
+                break;
+            case STEEL:
+                candidates.put(Quirk.OVERLOAD_DISCHARGE, 0.0f);
+                candidates.put(Quirk.BONE_CHILL, 0.0f);
+                candidates.put(Quirk.WITHERING_ECHO, 0.0f);
+                candidates.put(Quirk.WILD_MAGIC,0.0f);
+                break;
+            case NETHERITE:
+                candidates.merge(Quirk.GEMSTONE_FACETS, 5.0f, Float::sum);
+                candidates.merge(Quirk.AURA_OF_VITALITY, 3.0f, Float::sum);
+                break;
+        }
+
+        // 계산된 결과를 클라이언트 동기화용 필드에 저장
+        this.clientQuirkCandidates = candidates;
+    }
+    public boolean isCatalystItem(ItemStack stack) {
+        return stack.is(MyAddonTags.CATALYSTS);
+    }
 
     public boolean addData(ItemStack dataStack) {
-        for (int i = 0; i < 9; i++) {
+        // [수정] DATA_SLOT_START와 DATA_SLOT_COUNT 상수를 사용하여 루프를 구성합니다.
+        for (int i = DATA_SLOT_START; i < DATA_SLOT_START + DATA_SLOT_COUNT; i++) {
             if (inventory.getStackInSlot(i).isEmpty()) {
                 inventory.setStackInSlot(i, dataStack.split(1));
-                // [1단계 추가] 성공 효과음
-                assert level != null;
-                level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+                playSound(SoundEvents.ITEM_FRAME_ADD_ITEM, 1.0f);
                 return true;
             }
         }
-        assert level != null;
-        level.playSound(null, worldPosition, SoundEvents.VILLAGER_NO, SoundSource.BLOCKS, 0.5f, 1.0f);
+        playSound(SoundEvents.VILLAGER_NO, 1.0f);
         return false;
     }
+
 
     public boolean addStabilizerCore(ItemStack coreStack) {
-        if (inventory.getStackInSlot(9).isEmpty()) {
-            inventory.setStackInSlot(9, coreStack.split(1));
-            // [1단계 추가] 성공 효과음
-            assert level != null;
-            level.playSound(null, worldPosition, SoundEvents.END_PORTAL_FRAME_FILL, SoundSource.BLOCKS, 1.0f, 1.2f);
+        if (inventory.getStackInSlot(CORE_SLOT).isEmpty()) {
+            inventory.setStackInSlot(CORE_SLOT, coreStack.split(1));
+            playSound(SoundEvents.END_PORTAL_FRAME_FILL, 1.2f);
             return true;
         }
-        assert level != null;
-        level.playSound(null, worldPosition, SoundEvents.VILLAGER_NO, SoundSource.BLOCKS, 0.5f, 1.0f);
+        playSound(SoundEvents.VILLAGER_NO, 1.0f);
+        return false;
+    }
+    public boolean addCatalyst(ItemStack catalystStack) {
+        if (inventory.getStackInSlot(CATALYST_SLOT_1).isEmpty()) {
+            inventory.setStackInSlot(CATALYST_SLOT_1, catalystStack.split(1));
+            playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.2f);
+            return true;
+        }
+        if (inventory.getStackInSlot(CATALYST_SLOT_2).isEmpty()) {
+            inventory.setStackInSlot(CATALYST_SLOT_2, catalystStack.split(1));
+            playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 1.4f);
+            return true;
+        }
+        playSound(SoundEvents.VILLAGER_NO, 1.0f);
         return false;
     }
 
-    // [1단계 추가] 아이템 회수 로직
     public void retrieveItem(Player player) {
-        // 코어 -> 데이터 순으로 맨 마지막에 넣은 아이템부터 회수
-        for (int i = 9; i >= 0; i--) {
+        for (int i = INVENTORY_SIZE - 1; i >= 0; i--) { // 11부터 0까지
             ItemStack stackInSlot = inventory.getStackInSlot(i);
             if (!stackInSlot.isEmpty()) {
                 ItemHandlerHelper.giveItemToPlayer(player, stackInSlot);
                 inventory.setStackInSlot(i, ItemStack.EMPTY);
-                assert level != null;
-                level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+                playSound(SoundEvents.ITEM_FRAME_REMOVE_ITEM, 1.0f);
                 return;
             }
+        }
+    }
+
+    // 사운드 재생 헬퍼 메서드
+    private void playSound(net.minecraft.sounds.SoundEvent sound, float pitch) {
+        if (level != null) {
+            level.playSound(null, worldPosition, sound, SoundSource.BLOCKS, 0.5f, pitch);
         }
     }
 
@@ -221,6 +312,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         return 0;
     }
 
+
     private void completeCrafting() {
         if (level == null || level.isClientSide) return;
 
@@ -230,7 +322,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         float totalInputYield = 0;
         int dataItemCount = 0;
 
-        for (int i = 0; i < 9; i++) {
+        for (int i = DATA_SLOT_START; i < CORE_SLOT; i++) {
             ItemStack dataStack = inventory.getStackInSlot(i);
             if (dataStack.isEmpty()) continue;
 
@@ -242,7 +334,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             totalInputYield += yield;
             dataItemCount++;
 
-            // 가중치 기반 성분 계산
             ListTag compositionList = nbt.getList("Composition", 10);
             for (int j = 0; j < compositionList.size(); j++) {
                 CompoundTag entry = compositionList.getCompound(j);
@@ -251,7 +342,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                 weightedComposition.merge(item, ratio * yield, Float::sum);
             }
 
-            // 아이템-블록 맵 병합
             ListTag itemToBlockList = nbt.getList("ItemToBlockMap", 10);
             for (int j = 0; j < itemToBlockList.size(); j++) {
                 CompoundTag entry = itemToBlockList.getCompound(j);
@@ -264,7 +354,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
 
         if (weightedComposition.isEmpty()) {
-            // 데이터가 없으면 기본 철 광맥으로 생성 (안전장치)
             weightedComposition.put(Items.RAW_IRON, 1.0f);
             finalItemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
             totalInputYield = 1000;
@@ -279,45 +368,42 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             for (Map.Entry<Item, Float> entry : weightedComposition.entrySet()) {
                 finalComposition.put(entry.getKey(), entry.getValue() / totalWeight);
             }
-        } else { // 예외 처리
+        } else {
             finalComposition.put(Items.RAW_IRON, 1.0f);
         }
 
-
-        ItemStack coreStack = inventory.getStackInSlot(9);
+        ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
         StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
 
-        // 2b. 최종 매장량 계산 (코어 등급에 따라 효율 보정)
+        // 2b. 최종 매장량 계산
         float yieldMultiplier = switch (tier) {
-            case BRASS -> 0.8f;   // 황동: 효율 80%
-            case STEEL -> 1.0f;   // 강철: 효율 100%
-            case NETHERITE -> 1.25f; // 네더라이트: 효율 125% (보너스)
+            case BRASS -> 0.8f;
+            case STEEL -> 1.0f;
+            case NETHERITE -> 1.25f;
         };
         int finalMaxYield = (int) (totalInputYield * yieldMultiplier);
 
-
-        // 2c. 최종 특성 결정 (코어 등급에 따라 범위 내 랜덤)
+        // 2c. 최종 특성 결정
         RandomSource random = level.getRandom();
         float finalHardness, finalRichness, finalRegeneration;
         switch (tier) {
             case BRASS -> {
-                finalHardness = 0.6f + (random.nextFloat() * 0.4f); // 0.6 ~ 1.0
-                finalRichness = 0.9f + (random.nextFloat() * 0.2f); // 0.9 ~ 1.1
-                finalRegeneration = 0.0005f + (random.nextFloat() * 0.001f); // 초당 0.01~0.03
+                finalHardness = 0.6f + (random.nextFloat() * 0.4f);
+                finalRichness = 0.9f + (random.nextFloat() * 0.2f);
+                finalRegeneration = 0.0005f + (random.nextFloat() * 0.001f);
             }
             case STEEL -> {
-                finalHardness = 0.9f + (random.nextFloat() * 0.6f); // 0.9 ~ 1.5
-                finalRichness = 1.05f + (random.nextFloat() * 0.3f); // 1.05 ~ 1.35
-                finalRegeneration = 0.0015f + (random.nextFloat() * 0.002f); // 초당 0.03~0.07
+                finalHardness = 0.9f + (random.nextFloat() * 0.6f);
+                finalRichness = 1.05f + (random.nextFloat() * 0.3f);
+                finalRegeneration = 0.0015f + (random.nextFloat() * 0.002f);
             }
             case NETHERITE -> {
-                finalHardness = 1.4f + (random.nextFloat() * 0.8f); // 1.4 ~ 2.2
-                finalRichness = 1.2f + (random.nextFloat() * 0.4f); // 1.2 ~ 1.6
-                finalRegeneration = 0.0025f + (random.nextFloat() * 0.003f); // 초당 0.05~0.11
+                finalHardness = 1.4f + (random.nextFloat() * 0.8f);
+                finalRichness = 1.2f + (random.nextFloat() * 0.4f);
+                finalRegeneration = 0.0025f + (random.nextFloat() * 0.003f);
             }
             default -> throw new IllegalStateException("Unexpected value: " + tier);
         }
-
 
         // 2d. 대표 블록 찾기
         Block representativeBlock = finalComposition.entrySet().stream()
@@ -325,32 +411,138 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                 .map(entry -> finalItemToBlockMap.getOrDefault(entry.getKey(), Blocks.IRON_ORE))
                 .orElse(Blocks.IRON_ORE);
 
-        // 인공 노드는 유체를 가지지 않음
-        FluidStack finalFluid = FluidStack.EMPTY;
-        int finalFluidCapacity = 0;
+        // 2e. 특수 효과(Quirk) 결정 (랜덤성 강화 버전)
+        Map<Quirk, Float> weightedQuirks = new HashMap<>();
+        for (Quirk quirk : Quirk.values()) {
+            weightedQuirks.put(quirk, 3.0f);
+        }
 
-        // --- 3. 인공 노드 생성 및 월드에 배치 ---
-        this.isCompleting = true;
-        BlockPos currentPos = this.worldPosition;
-        level.setBlock(currentPos, MyAddonBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);
+        ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
+        ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
+        final float CATALYST_BONUS = 10.0f;
 
-        BlockEntity newBE = level.getBlockEntity(currentPos);
-        if (newBE instanceof ArtificialNodeBlockEntity artificialNode) {
-            artificialNode.configure(
-                    finalComposition,
-                    finalItemToBlockMap,
-                    finalMaxYield,
-                    finalHardness,
-                    finalRichness,
-                    finalRegeneration,
-                    MyAddonBlocks.ARTIFICIAL_NODE.get(), // 배경 블록은 인공 노드 블록 자신
-                    representativeBlock,
-                    finalFluid,
-                    finalFluidCapacity
+        if (!catalyst1.isEmpty()) {
+            weightedQuirks.replaceAll((quirk, weight) ->
+                    quirk.getCatalyst().get() == catalyst1.getItem() ? weight + CATALYST_BONUS : weight
+            );
+        }
+        if (!catalyst2.isEmpty()) {
+            weightedQuirks.replaceAll((quirk, weight) ->
+                    quirk.getCatalyst().get() == catalyst2.getItem() ? weight + CATALYST_BONUS : weight
             );
         }
 
-        // 제작 완료 효과
+        int quirkCount = 0;
+        switch (tier) {
+            case BRASS:
+                quirkCount = 1;
+                weightedQuirks.merge(Quirk.OVERLOAD_DISCHARGE, 2.0f, Float::sum);
+                weightedQuirks.merge(Quirk.BONE_CHILL, 1.0f, Float::sum);
+                break;
+            case STEEL:
+                quirkCount = (random.nextFloat() < 0.7f) ? 2 : 1;
+                weightedQuirks.put(Quirk.OVERLOAD_DISCHARGE, 0.0f);
+                weightedQuirks.put(Quirk.BONE_CHILL, 0.0f);
+                weightedQuirks.put(Quirk.WITHERING_ECHO, 0.0f);
+                break;
+            case NETHERITE:
+                quirkCount = (random.nextFloat() < 0.8f) ? 3 : 2;
+                weightedQuirks.merge(Quirk.GEMSTONE_FACETS, 5.0f, Float::sum);
+                weightedQuirks.merge(Quirk.AURA_OF_VITALITY, 3.0f, Float::sum);
+                break;
+        }
+
+        List<Quirk> finalQuirks = new ArrayList<>();
+        List<Map.Entry<Quirk, Float>> candidates = new ArrayList<>(weightedQuirks.entrySet());
+
+        for (int i = 0; i < quirkCount && !candidates.isEmpty(); i++) {
+            float totalQuirkWeight = 0;
+            for (Map.Entry<Quirk, Float> entry : candidates) {
+                totalQuirkWeight += entry.getValue();
+            }
+
+            if (totalQuirkWeight <= 0) break;
+
+            float randomValue = random.nextFloat() * totalQuirkWeight;
+
+            Map.Entry<Quirk, Float> selectedEntry = null;
+            for (Map.Entry<Quirk, Float> entry : candidates) {
+                randomValue -= entry.getValue();
+                if (randomValue <= 0) {
+                    selectedEntry = entry;
+                    break;
+                }
+            }
+
+            if (selectedEntry != null) {
+                finalQuirks.add(selectedEntry.getKey());
+                candidates.remove(selectedEntry);
+            }
+        }
+
+
+        // --- [!!! 핵심 수정: 인공 노드 생성 및 데이터 주입 방식 변경 !!!] ---
+        this.isCompleting = true;
+        BlockPos currentPos = this.worldPosition;
+
+        // 1. 생성될 ArtificialNodeBlockEntity에 주입할 모든 데이터를 담을 NBT 태그를 준비합니다.
+        CompoundTag finalNbtForNewNode = new CompoundTag();
+
+        // 2. OreNodeBlockEntity의 write 메서드와 동일한 형식으로 모든 데이터를 NBT에 저장합니다.
+        // 2a. 특성(Quirks) 저장
+        if (!finalQuirks.isEmpty()) {
+            ListTag quirkListTag = new ListTag();
+            for (Quirk quirk : finalQuirks) {
+                CompoundTag quirkTag = new CompoundTag();
+                quirkTag.putString("id", quirk.name());
+                quirkListTag.add(quirkTag);
+            }
+            finalNbtForNewNode.put("Quirks", quirkListTag);
+        }
+
+        // 2b. 광물 구성(Composition) 저장
+        ListTag compositionList = new ListTag();
+        for (Map.Entry<Item, Float> entry : finalComposition.entrySet()) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putString("Item", BuiltInRegistries.ITEM.getKey(entry.getKey()).toString());
+            entryTag.putFloat("Ratio", entry.getValue());
+            compositionList.add(entryTag);
+        }
+        finalNbtForNewNode.put("Composition", compositionList);
+
+        // 2c. 아이템-블록 맵(ItemToBlockMap) 저장
+        ListTag itemToBlockList = new ListTag();
+        for (Map.Entry<Item, Block> entry : finalItemToBlockMap.entrySet()) {
+            CompoundTag entryTag = new CompoundTag();
+            entryTag.putString("Item", BuiltInRegistries.ITEM.getKey(entry.getKey()).toString());
+            entryTag.putString("Block", BuiltInRegistries.BLOCK.getKey(entry.getValue()).toString());
+            itemToBlockList.add(entryTag);
+        }
+        finalNbtForNewNode.put("ItemToBlockMap", itemToBlockList);
+
+        // 2d. 기본 속성들 저장
+        finalNbtForNewNode.putInt("MaxYield", finalMaxYield);
+        finalNbtForNewNode.putFloat("CurrentYield", finalMaxYield); // 처음엔 가득 찬 상태로
+        finalNbtForNewNode.putFloat("Hardness", finalHardness);
+        finalNbtForNewNode.putFloat("Richness", finalRichness);
+        finalNbtForNewNode.putFloat("Regeneration", finalRegeneration);
+
+        // 인공 노드는 유체가 없으므로 관련 정보는 저장하지 않습니다.
+
+        // 3. 블록을 인공 노드로 교체
+        level.setBlock(currentPos, MyAddonBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);
+        BlockEntity newBE = level.getBlockEntity(currentPos);
+
+        if (newBE instanceof ArtificialNodeBlockEntity artificialNode) {
+            // 4. 모든 정보가 담긴 NBT를 단 한 번만 로드합니다.
+            // 이 한 줄이 configure()와 이전 load()를 모두 대체합니다.
+            artificialNode.loadWithComponents(finalNbtForNewNode, level.registryAccess());
+
+            // 데이터가 모두 주입되었음을 확실히 하기 위해 변경사항을 알립니다.
+            artificialNode.setChanged();
+        }
+
+        // 5. 제작 완료 효과
         level.playSound(null, currentPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0f, 0.8f);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
@@ -376,6 +568,20 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         super.write(tag, registries, clientPacket);
         tag.put("Inventory", inventory.serializeNBT(registries));
         tag.putInt("Progress", progress);
+        if (clientPacket) {
+            // 클라이언트로 보낼 때만 후보군 정보를 NBT에 씁니다.
+            ListTag list = new ListTag();
+            if (clientQuirkCandidates != null) {
+                for (Map.Entry<Quirk, Float> entry : clientQuirkCandidates.entrySet()) {
+                    if (entry.getValue() <= 0) continue;
+                    CompoundTag compound = new CompoundTag();
+                    compound.putString("id", entry.getKey().name());
+                    compound.putFloat("w", entry.getValue()); // w for weight
+                    list.add(compound);
+                }
+            }
+            tag.put("QuirkCandidates", list);
+        }
     }
 
     @Override
@@ -383,6 +589,20 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         super.read(tag, registries, clientPacket);
         inventory.deserializeNBT(registries, tag.getCompound("Inventory"));
         progress = tag.getInt("Progress");
+        if (clientPacket) {
+            // 클라이언트에서 패킷을 받았을 때만 후보군 정보를 NBT에서 읽습니다.
+            clientQuirkCandidates.clear();
+            ListTag list = tag.getList("QuirkCandidates", 10);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag compound = list.getCompound(i);
+                try {
+                    Quirk q = Quirk.valueOf(compound.getString("id"));
+                    float w = compound.getFloat("w");
+                    clientQuirkCandidates.put(q, w);
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+
     }
 
 
@@ -432,12 +652,62 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         // 상세 내용물 (플레이어가 Sneaking 중일 때만 표시)
         if (isPlayerSneaking) {
             tooltip.add(Component.literal(""));
+
+            coreStack = inventory.getStackInSlot(CORE_SLOT);
             if (!coreStack.isEmpty()) {
                 tooltip.add(Component.literal(" ").append(Component.translatable("mycreateaddon.stabilizer_core.header").withStyle(ChatFormatting.GRAY)));
                 tooltip.add(Component.literal("  - ").append(coreStack.getHoverName()));
-                        }
+            }
+
+            // [추가] 촉매 정보 표시
+            ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
+            ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
+            if (!catalyst1.isEmpty() || !catalyst2.isEmpty()) {
+                tooltip.add(Component.literal(" ").append(Component.translatable("mycreateaddon.catalyst.header").withStyle(ChatFormatting.GRAY)));
+                if (!catalyst1.isEmpty()) {
+                    tooltip.add(Component.literal("  - ").append(catalyst1.getHoverName()));
+                }
+                if (!catalyst2.isEmpty()) {
+                    tooltip.add(Component.literal("  - ").append(catalyst2.getHoverName()));
+                }
+            }
+
+            dataItemCount = 0;
+            for (int i = DATA_SLOT_START; i < CORE_SLOT; i++) {
+                if (!inventory.getStackInSlot(i).isEmpty()) dataItemCount++;
+            }
             if (dataItemCount > 0) {
                 tooltip.add(Component.literal(" ").append(Component.translatable("mycreateaddon.node_data.header", dataItemCount).withStyle(ChatFormatting.GRAY)));
+            }
+            tooltip.add(Component.literal("")); // 구분선
+            tooltip.add(Component.translatable("mycreateaddon.quirk_candidates.header").withStyle(ChatFormatting.GOLD));
+
+            if (clientQuirkCandidates == null || clientQuirkCandidates.isEmpty()) {
+                tooltip.add(Component.literal("  - ").append(Component.translatable("goggle.mycreateaddon.node_frame.none").withStyle(ChatFormatting.DARK_GRAY)));
+            } else {
+                float totalWeight = clientQuirkCandidates.values().stream().reduce(0f, Float::sum);
+                if (totalWeight <= 0) {
+                    tooltip.add(Component.literal("  - ").append(Component.translatable("goggle.mycreateaddon.node_frame.none").withStyle(ChatFormatting.DARK_GRAY)));
+                } else {
+                    // 확률이 높은 순으로 정렬하여 상위 5개만 표시
+                    List<Map.Entry<Quirk, Float>> sortedList = clientQuirkCandidates.entrySet().stream()
+                            .filter(e -> e.getValue() > 0)
+                            .sorted(Map.Entry.<Quirk, Float>comparingByValue().reversed())
+                            .limit(5)
+                            .toList();
+
+                    for (Map.Entry<Quirk, Float> entry : sortedList) {
+                        float chance = (entry.getValue() / totalWeight) * 100f;
+                        ChatFormatting color = chance > 30f ? ChatFormatting.GREEN : (chance > 10f ? ChatFormatting.YELLOW : ChatFormatting.GRAY);
+
+                        MutableComponent line = Component.literal(String.format("  - %s: %.1f%%", entry.getKey().getDisplayName().getString(), chance))
+                                .withStyle(color);
+                        tooltip.add(line);
+                    }
+                    if (clientQuirkCandidates.values().stream().filter(v->v>0).count() > 5) {
+                        tooltip.add(Component.literal("  ...").withStyle(ChatFormatting.DARK_GRAY));
+                    }
+                }
             }
         } else {
             tooltip.add(Component.literal("").append(Component.translatable("goggle.mycreateaddon.sneak_for_details").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC)));

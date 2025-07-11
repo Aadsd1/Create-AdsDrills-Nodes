@@ -164,5 +164,38 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.node_frame.progress", "Progress");
         registrate.addRawLang("goggle.mycreateaddon.node_frame.speed_requirement", "Speed Requirement:");
         registrate.addRawLang("goggle.mycreateaddon.node_frame.none", "None");
+        // Quirk 이름
+        registrate.addRawLang("quirk.mycreateaddon.steady_hands", "Steady Hands");
+        registrate.addRawLang("quirk.mycreateaddon.static_charge", "Static Charge");
+        registrate.addRawLang("quirk.mycreateaddon.overload_discharge", "Overload Discharge");
+        registrate.addRawLang("quirk.mycreateaddon.bone_chill", "Bone Chill");
+        registrate.addRawLang("quirk.mycreateaddon.withering_echo", "Withering Echo");
+        registrate.addRawLang("quirk.mycreateaddon.bottled_knowledge", "Bottled Knowledge");
+        registrate.addRawLang("quirk.mycreateaddon.aura_of_vitality", "Aura of Vitality");
+        registrate.addRawLang("quirk.mycreateaddon.purifying_resonance", "Purifying Resonance");
+        registrate.addRawLang("quirk.mycreateaddon.polarity_positive", "Polarity: Positive (+)");
+        registrate.addRawLang("quirk.mycreateaddon.polarity_negative", "Polarity: Negative (-)");
+        registrate.addRawLang("quirk.mycreateaddon.signal_amplification", "Signal Amplification");
+        registrate.addRawLang("quirk.mycreateaddon.gemstone_facets", "Gemstone Facets");
+        registrate.addRawLang("quirk.mycreateaddon.chaotic_output", "Chaotic Output");
+        registrate.addRawLang("quirk.mycreateaddon.wild_magic", "Wild Magic");
+
+        // Quirk 설명
+        registrate.addRawLang("quirk.mycreateaddon.steady_hands.description", "§7Guarantees at least one item drop per cycle.");
+        registrate.addRawLang("quirk.mycreateaddon.static_charge.description", "§7Has a chance to double mining output during rain or snow.");
+        registrate.addRawLang("quirk.mycreateaddon.overload_discharge.description", "§7When the drill core overheats, may cause a lightning strike on it.");
+        registrate.addRawLang("quirk.mycreateaddon.bone_chill.description", "§7Has a chance to spawn a Skeleton nearby when mined.");
+        registrate.addRawLang("quirk.mycreateaddon.withering_echo.description", "§7When the drill core overheats, spawns a Wither Skeleton.");
+        registrate.addRawLang("quirk.mycreateaddon.bottled_knowledge.description", "§7Has a chance to drop a Bottle o' Enchanting alongside ores.");
+        registrate.addRawLang("quirk.mycreateaddon.aura_of_vitality.description", "§7Slightly increases the regeneration rate of nearby ore nodes.");
+        registrate.addRawLang("quirk.mycreateaddon.purifying_resonance.description", "§7Increases the drop chance of the most dominant ore.");
+        registrate.addRawLang("quirk.mycreateaddon.polarity_positive.description", "§7Increases mining yield if a Negative Polarity node is nearby.");
+        registrate.addRawLang("quirk.mycreateaddon.polarity_negative.description", "§7Increases mining yield if a Positive Polarity node is nearby.");
+        registrate.addRawLang("quirk.mycreateaddon.signal_amplification.description", "§7Increases mining yield by 10% while receiving a redstone signal.");
+        registrate.addRawLang("quirk.mycreateaddon.gemstone_facets.description", "§7Doubles the effectiveness of the Fortune enchantment on this node.");
+        registrate.addRawLang("quirk.mycreateaddon.chaotic_output.description", "§7Has a chance to yield a completely random type of ore.");
+        registrate.addRawLang("quirk.mycreateaddon.wild_magic.description", "§7Sometimes creates random, harmless visual and sound effects.");
+        registrate.addRawLang("mycreateaddon.quirk.header", "Quirks:");
+        registrate.addRawLang("mycreateaddon.quirk_candidates.header", "Quirk Candidates:");
     }
 }

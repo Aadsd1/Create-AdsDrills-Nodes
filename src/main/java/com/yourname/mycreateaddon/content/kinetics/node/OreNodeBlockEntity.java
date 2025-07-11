@@ -5,6 +5,7 @@ import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.yourname.mycreateaddon.crafting.NodeRecipe;
+import com.yourname.mycreateaddon.crafting.Quirk;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
@@ -55,6 +56,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private int maxFluidCapacity;
     private float currentFluidAmount; // 정밀한 양 조절을 위해 float 유지
 
+    private float temporaryRegenBoost = 0;
+    private boolean polarityBonusActive = false;
+    private int auraCheckCooldown = 0;
 
     private int miningProgress;
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
@@ -67,6 +71,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private float richness;
     private float regeneration;
 
+    private int quirkCheckOffset = -1;
     // [추가] 균열 상태 필드
     private boolean cracked = false;
     // [추가] 균열 상태가 지속될 시간을 틱 단위로 저장할 타이머
@@ -231,8 +236,20 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             return Collections.emptyList();
         }
 
-        float effectiveMiningAmount = miningAmount / getHardness();
-        this.miningProgress += (int) effectiveMiningAmount;
+        // [수정] 특수 효과 적용을 위해 fortuneLevel을 변수로 만듭니다.
+        int effectiveFortune = fortuneLevel;
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            if (artificialNode.hasQuirk(Quirk.GEMSTONE_FACETS)) {
+                effectiveFortune *= 2;
+            }
+        }
+
+        // [6. 수정] 양극성 보너스 적용
+        double effectiveMiningAmount = (int) (miningAmount / getHardness());
+        if (this.polarityBonusActive) {
+            effectiveMiningAmount *= 1.25; // 채굴량 25% 증가
+        }
+        this.miningProgress += (int)effectiveMiningAmount;
         int miningResistance = 1000;
 
         if (this.miningProgress >= miningResistance) {
@@ -255,14 +272,19 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 }
             }
 
-            // 조합 레시피가 발동되지 않았다면, 일반 채굴 진행
             this.currentYield--;
             setChanged();
             sendData();
 
-            // 균열 상태든 아니든, 일반 드롭 로직은 getNormalDrops가 처리
-            // (이전 답변의 균열 보너스 로직은 getNormalDrops 내부로 옮기거나 여기서 처리 가능)
-            return getNormalDrops(fortuneLevel, hasSilkTouch);
+            // [수정] effectiveFortune을 사용합니다.
+            List<ItemStack> drops = getNormalDrops(effectiveFortune, hasSilkTouch);
+
+            // [!!! 핵심: 특수 효과 발동 !!!]
+            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+                artificialNode.applyQuirkEffects(drops, serverLevel);
+            }
+
+            return drops;
         }
 
         return Collections.emptyList();
@@ -316,34 +338,50 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
      * @return 드롭될 아이템 스택의 리스트
      */
     private List<ItemStack> getNormalDrops(int fortuneLevel, boolean hasSilkTouch) {
-        // 레벨이 없거나, 노드 구성 정보가 비어있으면 아무것도 드롭하지 않음
         if (level == null || resourceComposition.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // --- 1. 드롭될 아이템 종류 결정 (가중치 기반 랜덤 선택) ---
-
-        // 맵의 순서를 보장하기 위해 아이템 ID를 기준으로 정렬된 리스트를 생성
-        List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
-        sortedComposition.sort(Comparator.comparing(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()).toString()));
-
         Item itemToDrop = null;
-        double randomValue = level.getRandom().nextDouble(); // 0.0 ~ 1.0 사이의 난수 생성
-        float cumulativeProbability = 0f;
 
-        // 정렬된 리스트를 순회하며 난수와 누적 확률을 비교하여 아이템 선택
-        for (Map.Entry<Item, Float> entry : sortedComposition) {
-            cumulativeProbability += entry.getValue();
-            if (randomValue < cumulativeProbability) {
-                itemToDrop = entry.getKey();
-                break;
+        // [7. 수정] 특수 효과에 따른 드롭 로직 변경
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            // 혼돈의 산물
+            if (artificialNode.hasQuirk(Quirk.CHAOTIC_OUTPUT) && level.getRandom().nextFloat() < 0.05f) { // 5% 확률
+                List<Item> allOres = resourceComposition.keySet().stream().toList();
+                itemToDrop = allOres.get(level.getRandom().nextInt(allOres.size()));
+            }
+            // 정화 공명
+            else if (artificialNode.hasQuirk(Quirk.PURIFYING_RESONANCE)) {
+                Item dominantOre = resourceComposition.entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .map(Map.Entry::getKey)
+                        .orElse(null);
+
+                if (dominantOre != null && level.getRandom().nextFloat() < 0.4f) { // 40% 확률로 주 광물 강제
+                    itemToDrop = dominantOre;
+                }
             }
         }
 
-        // 만약의 경우(부동소수점 오류 등) 아이템이 선택되지 않았다면, 리스트의 첫 번째 아이템을 기본값으로 사용
+        // 위에서 결정되지 않았다면, 기존의 가중치 기반 랜덤 선택
         if (itemToDrop == null) {
-            itemToDrop = sortedComposition.getFirst().getKey();
+            List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
+            sortedComposition.sort(Comparator.comparing(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()).toString()));
+            double randomValue = level.getRandom().nextDouble();
+            float cumulativeProbability = 0f;
+            for (Map.Entry<Item, Float> entry : sortedComposition) {
+                cumulativeProbability += entry.getValue();
+                if (randomValue < cumulativeProbability) {
+                    itemToDrop = entry.getKey();
+                    break;
+                }
+            }
+            if (itemToDrop == null) {
+                itemToDrop = sortedComposition.getFirst().getKey();
+            }
         }
+
 
         // --- 2. 실크터치 처리 ---
 
@@ -355,7 +393,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             ItemStack silkStack = new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId)));
 
             // 아이템 대신 블록을 리스트에 담아 반환
-            return Collections.singletonList(silkStack);
+            return new ArrayList<>(Collections.singletonList(silkStack));
         }
 
         // --- 3. 일반 드롭 (행운 및 풍부함 효과 적용) ---
@@ -384,10 +422,16 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
 
         // 최종 계산된 드롭량을 아이템 스택에 설정
-        finalDrop.setCount(dropCount);
+        if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.STEADY_HANDS)) {
+            finalDrop.setCount(Math.max(2, dropCount)); // 최소 2개 보장
+        } else {
+            finalDrop.setCount(dropCount);
+        }
 
         // 최종 아이템 스택을 리스트에 담아 반환
-        return Collections.singletonList(finalDrop);
+
+        return new ArrayList<>(Collections.singletonList(finalDrop));
+
     }
     // [참고] OreNodeFeature에 있던 getOreItem 헬퍼 메서드를 여기로 가져오거나,
 
@@ -397,9 +441,20 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         super.tick();
         if (level != null && !level.isClientSide) {
             // [핵심 수정] 재생력 로직 개선
+// [3. 추가] 오프셋이 설정되지 않았다면, 월드 시간 기준으로 랜덤한 오프셋을 설정합니다.
+            if (quirkCheckOffset == -1) {
+                quirkCheckOffset = (int) (level.getGameTime() % 40);
+            }
 
-            if (this.regeneration > 0) {
-                float baseRegenPerSecond = this.regeneration * 20;
+            // [4. 수정] 주기적 효과 처리 로직을 다시 tick() 안으로 가져옵니다.
+            // 40틱(2초)마다, 각자의 오프셋에 맞춰서 탐색을 수행합니다.
+            if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
+                applyPeriodicQuirkEffects();
+            }
+            // [2. 수정] 기존 재생력 로직에 '임시 부스트'를 추가
+            if (this.regeneration > 0 || this.temporaryRegenBoost > 0) {
+                float baseRegen = this.regeneration + this.temporaryRegenBoost; // 부스트 적용
+                float baseRegenPerSecond = baseRegen * 20;
                 float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
                 float finalRegenPerTick = (baseRegenPerSecond * finalRegenMultiplier) / 20f;
 
@@ -407,6 +462,12 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                     this.currentYield = Math.min(this.maxYield, this.currentYield + finalRegenPerTick);
                 }
             }
+
+            // 부스트는 매 틱 감소하여 점차 사라짐
+            if (this.temporaryRegenBoost > 0) {
+                this.temporaryRegenBoost = Math.max(0, this.temporaryRegenBoost - 0.0001f);
+            }
+
 
             // --- [핵심 수정] 유체 재생 로직 분리 ---
             if (this.maxFluidCapacity > 0 && this.currentFluidAmount < this.maxFluidCapacity) {
@@ -445,9 +506,55 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                     setCracked(false);
                 }
             }
+        }// [3. 추가] 주기적 특수 효과 처리 (2초에 한 번)
+        if (auraCheckCooldown > 0) {
+            auraCheckCooldown--;
+        } else {
+            auraCheckCooldown = 40; // 40틱 = 2초
+            applyPeriodicQuirkEffects();
+        }
+
+        assert level != null;
+        if(level.getGameTime() % 20 == 0) {
+            setChanged();
         }
     }
+    // [4. 추가] 주기적 효과를 처리하는 새 메서드
+    private void applyPeriodicQuirkEffects() {
+        if (!(this instanceof ArtificialNodeBlockEntity artificialNode) || !artificialNode.hasLevel()) return;
 
+        // 활력의 오라: 주변 노드에 재생력 부스트 부여
+        if (artificialNode.hasQuirk(Quirk.AURA_OF_VITALITY)) {
+            BlockPos.betweenClosedStream(worldPosition.offset(-4, -4, -4), worldPosition.offset(4, 4, 4))
+                    .forEach(pos -> {
+                        if (pos.equals(worldPosition)) return;
+                        assert level != null;
+                        if (level.getBlockEntity(pos) instanceof OreNodeBlockEntity otherNode) {
+                            otherNode.receiveRegenBoost();
+                        }
+                    });
+        }
+
+        // 양극성/음극성: 주변에 반대 극성이 있는지 확인
+        this.polarityBonusActive = false; // 매번 초기화
+        if (artificialNode.hasQuirk(Quirk.POLARITY_POSITIVE) || artificialNode.hasQuirk(Quirk.POLARITY_NEGATIVE)) {
+            Quirk oppositeQuirk = artificialNode.hasQuirk(Quirk.POLARITY_POSITIVE) ? Quirk.POLARITY_NEGATIVE : Quirk.POLARITY_POSITIVE;
+
+            for (BlockPos pos : BlockPos.betweenClosed(worldPosition.offset(-1, -1, -1), worldPosition.offset(1, 1, 1))) {
+                if (pos.equals(worldPosition)) continue;
+                assert level != null;
+                if (level.getBlockEntity(pos) instanceof ArtificialNodeBlockEntity otherNode && otherNode.hasQuirk(oppositeQuirk)) {
+                    this.polarityBonusActive = true;
+                    break; // 하나라도 찾으면 중단
+                }
+            }
+        }
+    }
+    // [5. 추가] 활력 오라 효과를 받기 위한 public 메서드
+    public void receiveRegenBoost() {
+        // 부스트 값을 최대치로 설정 (0.001은 초당 0.02개 추가 재생에 해당)
+        this.temporaryRegenBoost = Math.max(this.temporaryRegenBoost, 0.001f);
+    }
 
     // --- NBT 및 동기화 ---
     @Override
@@ -456,6 +563,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         tag.putInt("MiningProgress", this.miningProgress);
         tag.putString("BackgroundBlock", backgroundBlockId.toString());
         tag.putString("OreBlock", oreBlockId.toString());
+        tag.putBoolean("PolarityBonus", this.polarityBonusActive);
+        if (quirkCheckOffset != -1) {
+            tag.putInt("QuirkOffset", quirkCheckOffset);
+        }
 
         tag.putInt("MaxYield", this.maxYield);
         tag.putFloat("CurrentYield", this.currentYield);
@@ -505,6 +616,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         this.oreBlockId = ResourceLocation.tryParse(tag.getString("OreBlock"));
         if (this.oreBlockId == null) this.oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
 
+        this.polarityBonusActive = tag.getBoolean("PolarityBonus");
+        if (tag.contains("QuirkOffset")) {
+            this.quirkCheckOffset = tag.getInt("QuirkOffset");
+        }
         this.maxYield = tag.getInt("MaxYield");
         this.currentYield = tag.getFloat("CurrentYield");
         this.hardness = tag.getFloat("Hardness");

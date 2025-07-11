@@ -25,6 +25,7 @@ public class NodeFrameBlockEntityRenderer extends SmartBlockEntityRenderer<NodeF
 
         ItemRenderer itemRenderer = net.minecraft.client.Minecraft.getInstance().getItemRenderer();
         ItemStackHandler inventory = be.inventory;
+        float time = Objects.requireNonNull(be.getLevel()).getGameTime() + partialTicks;
 
         float[][] dataPositions = {
                 {0.25f, 0.2f, 0.25f}, {0.5f, 0.2f, 0.25f}, {0.75f, 0.2f, 0.25f},
@@ -32,9 +33,6 @@ public class NodeFrameBlockEntityRenderer extends SmartBlockEntityRenderer<NodeF
                 {0.25f, 0.2f, 0.75f}, {0.5f, 0.2f, 0.75f}, {0.75f, 0.2f, 0.75f}
         };
 
-        // [수정] AnimationTickHolder.getRenderTime() 대신 월드 시간을 사용합니다.
-        // partialTicks를 더해주어 프레임 사이의 움직임을 부드럽게 만듭니다.
-        float time = Objects.requireNonNull(be.getLevel()).getGameTime() + partialTicks;
 
         for (int i = 0; i < 9; i++) {
             ItemStack stack = inventory.getStackInSlot(i);
@@ -48,13 +46,35 @@ public class NodeFrameBlockEntityRenderer extends SmartBlockEntityRenderer<NodeF
             ms.popPose();
         }
 
-        ItemStack coreStack = inventory.getStackInSlot(9);
+        // 안정화 코어 렌더링
+        ItemStack coreStack = inventory.getStackInSlot(9); // 인덱스 9
         if (!coreStack.isEmpty()) {
             ms.pushPose();
             ms.translate(0.5f, 0.7f, 0.5f);
             ms.scale(0.5f, 0.5f, 0.5f);
             ms.mulPose(Axis.YP.rotationDegrees(time % 360));
             itemRenderer.renderStatic(coreStack, ItemDisplayContext.FIXED, light, overlay, ms, buffer, be.getLevel(), 0);
+            ms.popPose();
+        }
+
+        // [추가] 촉매 아이템 렌더링 (코어 양 옆에)
+        ItemStack catalyst1 = inventory.getStackInSlot(10); // 인덱스 10
+        if (!catalyst1.isEmpty()) {
+            ms.pushPose();
+            ms.translate(0.2f, 0.5f, 0.5f); // 왼쪽
+            ms.scale(0.3f, 0.3f, 0.3f);
+            ms.mulPose(Axis.YP.rotationDegrees((time * 1.2f) % 360));
+            itemRenderer.renderStatic(catalyst1, ItemDisplayContext.FIXED, light, overlay, ms, buffer, be.getLevel(), 0);
+            ms.popPose();
+        }
+
+        ItemStack catalyst2 = inventory.getStackInSlot(11); // 인덱스 11
+        if (!catalyst2.isEmpty()) {
+            ms.pushPose();
+            ms.translate(0.8f, 0.5f, 0.5f); // 오른쪽
+            ms.scale(0.3f, 0.3f, 0.3f);
+            ms.mulPose(Axis.YP.rotationDegrees((time * 1.2f) % 360));
+            itemRenderer.renderStatic(catalyst2, ItemDisplayContext.FIXED, light, overlay, ms, buffer, be.getLevel(), 0);
             ms.popPose();
         }
     }

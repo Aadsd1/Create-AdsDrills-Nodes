@@ -284,13 +284,19 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
                 if (level.getBlockEntity(targetPos) instanceof OreNodeBlockEntity nodeBE) {
                     // 1. 정보 추출
                     CompoundTag nodeData = new CompoundTag();
+                    // [핵심 수정] 전체 NBT를 저장하여 itemToBlockMap도 포함시킵니다.
                     nodeBE.saveAdditional(nodeData, level.registryAccess());
 
                     // 2. 아이템 생성 및 NBT 저장
                     ItemStack dataItem = new ItemStack(MyAddonItems.UNFINISHED_NODE_DATA.get());
                     CompoundTag itemNbt = new CompoundTag();
+
+                    // 필요한 데이터만 선별하여 아이템 NBT에 복사
                     if (nodeData.contains("Composition")) itemNbt.put("Composition", Objects.requireNonNull(nodeData.get("Composition")));
                     if (nodeData.contains("CurrentYield")) itemNbt.putFloat("Yield", nodeData.getFloat("CurrentYield"));
+                    // [!!! 신규 추가 !!!] 아이템-블록 매핑 정보도 복사합니다.
+                    if (nodeData.contains("ItemToBlockMap")) itemNbt.put("ItemToBlockMap", Objects.requireNonNull(nodeData.get("ItemToBlockMap")));
+
                     dataItem.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(itemNbt));
 
                     // 3. 노드 파괴 및 아이템 드롭

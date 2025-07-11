@@ -14,6 +14,8 @@ import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleRenderer;
 import com.yourname.mycreateaddon.content.kinetics.node.ArtificialNodeBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.NodeFrameBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.node.NodeFrameBlockEntityRenderer;
+
 
 public class MyAddonBlockEntity {
 
@@ -65,6 +67,7 @@ public class MyAddonBlockEntity {
     public static final BlockEntityEntry<NodeFrameBlockEntity> NODE_FRAME = REGISTRATE
             .blockEntity("node_frame", NodeFrameBlockEntity::new)
             .validBlocks(MyAddonBlocks.NODE_FRAME)
+            .renderer(() -> NodeFrameBlockEntityRenderer::new)
             .register();
     public static final BlockEntityEntry<ArtificialNodeBlockEntity> ARTIFICIAL_NODE = REGISTRATE
             .blockEntity("artificial_node", ArtificialNodeBlockEntity::new)

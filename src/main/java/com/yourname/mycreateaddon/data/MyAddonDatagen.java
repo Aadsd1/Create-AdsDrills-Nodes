@@ -159,5 +159,10 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.steel", "Steel Drill Core");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.tier.netherite", "Netherite Drill Core");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.valid", "Operational (%s / %s Modules)");
+        registrate.addRawLang("mycreateaddon.stabilizer_core.header", "Stabilizer Core:");
+        registrate.addRawLang("mycreateaddon.node_data.header", "%s Unfinished Node Data");
+        registrate.addRawLang("goggle.mycreateaddon.node_frame.progress", "Progress");
+        registrate.addRawLang("goggle.mycreateaddon.node_frame.speed_requirement", "Speed Requirement:");
+        registrate.addRawLang("goggle.mycreateaddon.node_frame.none", "None");
     }
 }

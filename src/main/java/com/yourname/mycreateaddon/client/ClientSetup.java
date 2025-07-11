@@ -124,7 +124,15 @@ public class ClientSetup {
                 return -1;
             }
             if (getter.getBlockEntity(pos) instanceof OreNodeBlockEntity be) {
-                // tintIndex가 1 또는 2일 때만 색상을 계산합니다.
+                // tintIndex 0: 배경 블록의 색상 (예: 잔디)
+                if (tintIndex == 0) {
+                    // [!!! 핵심 추가 !!!]
+                    // 배경 블록의 상태를 가져와, 해당 블록의 컬러 핸들러를 직접 호출하여 색상을 얻습니다.
+                    BlockState backgroundState = be.getBackgroundStateClient(); // BE에 이 메서드를 추가해야 합니다.
+                    // Minecraft.getInstance().getBlockColors()를 통해 바닐라/모드 컬러 핸들러에 접근
+                    return Minecraft.getInstance().getBlockColors().getColor(backgroundState, getter, pos, tintIndex);
+                }
+                // tintIndex 1 또는 2: 코어의 광물 색상
                 if (tintIndex == 1 || tintIndex == 2) {
                     ResourceLocation oreId = be.getRepresentativeOreItemId();
                     int baseColor = ORE_COLORS.getOrDefault(oreId, DEFAULT_COLOR);

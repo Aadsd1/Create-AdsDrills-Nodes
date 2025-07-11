@@ -779,14 +779,25 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         return true;
     }
+    /**
+     * 클라이언트 측에서 배경 블록의 BlockState를 안전하게 가져옵니다.
+     * 렌더링 및 색상 처리에 사용됩니다.
+     * @return 배경 블록의 BlockState, 실패 시 돌(Stone)의 기본 상태
+     */
+    public BlockState getBackgroundStateClient() {
+        Block backgroundBlock = BuiltInRegistries.BLOCK.get(getBackgroundBlockId());
+        if (backgroundBlock != Blocks.AIR) {
+            return backgroundBlock.defaultBlockState();
+        }
+        return Blocks.STONE.defaultBlockState();
+    }
+
     @Nonnull
     @Override
     public ModelData getModelData() {
-        // 이 로직은 이제 자연 광맥 노드에서만 실행됩니다.
-        ResourceLocation backgroundId = getBackgroundBlockId();
-        Block backgroundBlock = BuiltInRegistries.BLOCK.get(backgroundId);
-        BlockState backgroundState = (backgroundBlock != Blocks.AIR) ? backgroundBlock.defaultBlockState() : Blocks.STONE.defaultBlockState();
-
-        return ModelData.builder().with(BACKGROUND_STATE, backgroundState).build();
+        // [수정] 배경 블록의 '상태'를 ModelData에 직접 넣어줍니다.
+        return ModelData.builder()
+                .with(BACKGROUND_STATE, getBackgroundStateClient())
+                .build();
     }
 }

@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.HashMap;
@@ -30,10 +32,9 @@ import java.util.Map;
 
 public class NodeFrameBlockEntity extends SmartBlockEntity {
 
-    // 인벤토리: 데이터 9칸, 안정화 코어 1칸, 촉매 1칸 (현재는 미사용)
     protected ItemStackHandler inventory = createInventory();
     private int progress = 0;
-    private static final int REQUIRED_PROGRESS = 240000; // 목표 진행도 (밸런스 조절 필요)
+    private static final int REQUIRED_PROGRESS = 240000;
     private boolean isCompleting = false;
 
     public NodeFrameBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -52,41 +53,56 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
         };
     }
 
-    // 데이터 아이템 추가 로직 (boolean 반환)
     public boolean addData(ItemStack dataStack) {
         for (int i = 0; i < 9; i++) {
             if (inventory.getStackInSlot(i).isEmpty()) {
                 inventory.setStackInSlot(i, dataStack.split(1));
+                // [1단계 추가] 성공 효과음
                 assert level != null;
                 level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
-                return true; // 성공
+                return true;
             }
         }
-        // 모든 데이터 슬롯이 꽉 찼으면 실패
         assert level != null;
         level.playSound(null, worldPosition, SoundEvents.VILLAGER_NO, SoundSource.BLOCKS, 0.5f, 1.0f);
         return false;
     }
 
-    // 안정화 코어 추가 로직 (boolean 반환)
     public boolean addStabilizerCore(ItemStack coreStack) {
         if (inventory.getStackInSlot(9).isEmpty()) {
             inventory.setStackInSlot(9, coreStack.split(1));
+            // [1단계 추가] 성공 효과음
             assert level != null;
             level.playSound(null, worldPosition, SoundEvents.END_PORTAL_FRAME_FILL, SoundSource.BLOCKS, 1.0f, 1.2f);
-            return true; // 성공
+            return true;
         }
-        // 코어 슬롯이 이미 차있으면 실패
         assert level != null;
         level.playSound(null, worldPosition, SoundEvents.VILLAGER_NO, SoundSource.BLOCKS, 0.5f, 1.0f);
         return false;
     }
+
+    // [1단계 추가] 아이템 회수 로직
+    public void retrieveItem(Player player) {
+        // 코어 -> 데이터 순으로 맨 마지막에 넣은 아이템부터 회수
+        for (int i = 9; i >= 0; i--) {
+            ItemStack stackInSlot = inventory.getStackInSlot(i);
+            if (!stackInSlot.isEmpty()) {
+                ItemHandlerHelper.giveItemToPlayer(player, stackInSlot);
+                inventory.setStackInSlot(i, ItemStack.EMPTY);
+                assert level != null;
+                level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+                return;
+            }
+        }
+    }
+
     @Override
     public void tick() {
         super.tick();
         if (level == null || level.isClientSide) return;
+        assert level instanceof ServerLevel; // 서버 전용 로직임을 명시
 
-        // 1. 제작 준비가 되었는지 확인 (최소 1개의 데이터와 1개의 코어)
+        // 1. 제작 준비 확인
         ItemStack coreStack = inventory.getStackInSlot(9);
         boolean hasData = false;
         for (int i = 0; i < 9; i++) {
@@ -97,7 +113,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
         }
 
         if (coreStack.isEmpty() || !hasData) {
-            // 재료가 없으면 진행도 서서히 감소
             if (progress > 0) {
                 progress = Math.max(0, progress - 128);
                 setChanged();
@@ -105,45 +120,63 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
             return;
         }
 
-        Item coreItem = coreStack.getItem();
-
-        // 2. 코어 등급에 따른 요구 속도 및 페널티 설정
-        int requiredSpeed = 0;
+        // 2. 코어 등급에 따른 파라미터 설정
+        int requiredSpeed = Integer.MAX_VALUE; // 기본적으로 작동 안함
         boolean resetOnFail = false;
         int progressDecay = 128;
 
-        // [핵심 수정] instanceof로 확인하고, 등급을 가져와서 비교
-        if (coreItem instanceof StabilizerCoreItem stabilizer) {
-            StabilizerCoreItem.Tier tier = stabilizer.getTier();
-
-            if (tier == StabilizerCoreItem.Tier.BRASS) {
-                requiredSpeed = 512;
-                progressDecay = 64;
-            } else if (tier == StabilizerCoreItem.Tier.STEEL) {
-                requiredSpeed = 1024;
-                progressDecay = 256;
-            } else if (tier == StabilizerCoreItem.Tier.NETHERITE) {
-                requiredSpeed = 2048;
-                resetOnFail = true;
+        if (coreStack.getItem() instanceof StabilizerCoreItem stabilizer) {
+            switch (stabilizer.getTier()) {
+                case BRASS -> {
+                    requiredSpeed = 512;
+                    progressDecay = 64;
+                }
+                case STEEL -> {
+                    requiredSpeed = 1024;
+                    progressDecay = 256;
+                }
+                case NETHERITE -> {
+                    requiredSpeed = 2048;
+                    resetOnFail = true;
+                }
             }
         }
 
-        // 3. 드릴링 조건 확인 및 진행도 업데이트
+        // 3. 진행도 업데이트
         int currentDrillSpeed = getDrillSpeedAbove();
 
         if (currentDrillSpeed >= requiredSpeed) {
             progress += currentDrillSpeed;
+            // [1단계 추가] 제작 진행 피드백
+            if (level.getRandom().nextInt(20) == 0) {
+                ((ServerLevel) level).sendParticles(ParticleTypes.ENCHANT,
+                        worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5,
+                        2, 0.3, 0.1, 0.3, 0.1);
+                level.playSound(null, worldPosition, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, 0.2f, 1.5f);
+            }
         } else {
-            if (resetOnFail && progress > 0) {
-                progress = 0;
-                // 실패 효과음 및 파티클
-                level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 1.0f);
-            } else {
-                progress = Math.max(0, progress - progressDecay);
+            // 제작 실패
+            if (progress > 0) {
+                if (resetOnFail) {
+                    progress = 0;
+                    // [1단계 추가] 네더라이트 코어 실패 피드백 (강력함)
+                    ((ServerLevel) level).sendParticles(ParticleTypes.LAVA,
+                            worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5,
+                            10, 0.4, 0.2, 0.4, 0.0);
+                    level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
+                } else {
+                    progress = Math.max(0, progress - progressDecay);
+                    // [1단계 추가] 일반 실패 피드백 (약함)
+                    if (level.getRandom().nextInt(10) == 0) {
+                        ((ServerLevel) level).sendParticles(ParticleTypes.SMOKE,
+                                worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5,
+                                5, 0.4, 0.2, 0.4, 0.01);
+                    }
+                }
             }
         }
 
-        // 4. 진행도 완료 시 제작
+        // 4. 제작 완료 확인
         if (progress >= REQUIRED_PROGRESS) {
             completeCrafting();
         }
@@ -151,6 +184,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
         setChanged();
     }
 
+    // [1단계 수정] 메서드 완성
     private int getDrillSpeedAbove() {
         assert level != null;
         BlockEntity aboveBE = level.getBlockEntity(worldPosition.above());
@@ -158,6 +192,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
             // 네더라이트 드릴 헤드만 작동하도록 제한
             if (headBE.getBlockState().getBlock() == MyAddonBlocks.NETHERITE_ROTARY_DRILL_HEAD.get()) {
                 if (headBE.getCore() != null) {
+                    // 최종 속도의 절댓값을 정수로 반환
                     return (int) Math.abs(headBE.getCore().getFinalSpeed());
                 }
             }
@@ -168,23 +203,15 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
     private void completeCrafting() {
         if (level == null || level.isClientSide) return;
 
-        // --- 1. 최종 스탯 계산 (임시 로직) ---
-        // TODO: 인벤토리의 데이터들을 기반으로 실제 스탯을 계산하는 로직 구현 필요
-        // 지금은 임시로 하드코딩된 값을 사용합니다.
+        // --- TODO: 2단계에서 이 부분을 구체적인 로직으로 채웁니다 ---
         Map<Item, Float> finalComposition = new HashMap<>();
-        finalComposition.put(Items.RAW_IRON, 1.0f); // 임시 구성
+        finalComposition.put(Items.RAW_IRON, 1.0f);
 
         Map<Item, Block> finalItemToBlockMap = new HashMap<>();
-        finalItemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE); // 임시 맵
+        finalItemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
 
-        // 대표 아이템 찾기 (가장 비율이 높은 아이템)
-        Item representativeItem = finalComposition.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse(Items.RAW_IRON);
-
-        // 대표 아이템에 해당하는 블록 찾기
-        Block representativeBlock = finalItemToBlockMap.getOrDefault(representativeItem, Blocks.IRON_ORE);
+        Item representativeItem = Items.RAW_IRON;
+        Block representativeBlock = Blocks.IRON_ORE;
         int finalMaxYield = 5000;
         float finalHardness = 1.2f;
         float finalRichness = 1.1f;
@@ -194,15 +221,11 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
 
         this.isCompleting = true;
 
-        // --- 2. 블록 교체 ---
-        // 현재 블록 상태와 위치 정보를 저장
         BlockPos currentPos = this.worldPosition;
         level.setBlock(currentPos, MyAddonBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);
 
-        // --- 3. 새로 생성된 BE에 데이터 주입 ---
         BlockEntity newBE = level.getBlockEntity(currentPos);
         if (newBE instanceof ArtificialNodeBlockEntity artificialNode) {
-            // OreNodeBlockEntity로부터 상속받은 configure 메서드를 사용하여 데이터 주입
             artificialNode.configure(
                     finalComposition,
                     finalItemToBlockMap,
@@ -210,14 +233,13 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
                     finalHardness,
                     finalRichness,
                     finalRegeneration,
-                    MyAddonBlocks.ARTIFICIAL_NODE.get(), // 배경 블록은 Artificial BE가 알아서 처리하므로 아무거나 전달
-                    representativeBlock, // 임시 대표 블록
+                    MyAddonBlocks.ARTIFICIAL_NODE.get(),
+                    representativeBlock,
                     finalFluid,
                     finalFluidCapacity
             );
         }
 
-        // 성공 효과음 및 파티클
         level.playSound(null, currentPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0f, 0.8f);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
@@ -227,7 +249,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity {
     }
 
     public void onBroken() {
-        // 제작 완료 과정이 아니거나, 클라이언트 사이드일 때만 아이템을 드롭
         if (isCompleting || level == null || level.isClientSide) return;
 
         for (int i = 0; i < inventory.getSlots(); i++) {

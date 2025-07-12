@@ -3,15 +3,24 @@ package com.yourname.mycreateaddon.content.kinetics.module; // 또는 원하는 
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.equipment.wrench.WrenchItem;
 import com.simibubi.create.content.logistics.filter.FilterItem;
+import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
+import com.yourname.mycreateaddon.crafting.ModuleUpgrades;
+import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -80,34 +89,83 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             }
         }
     }
-    // [수정] useItemOn 메서드를 오버라이드하여 필터 상호작용 추가
+
     @Override
     protected @NotNull ItemInteractionResult useItemOn(ItemStack stack, @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
-        // [핵심 수정] 손에 든 아이템이 렌치일 경우, 이 메서드가 반응하지 않도록 함
+        // 렌치 사용 시에는 기존 로직을 따르도록 먼저 확인
         if (stack.getItem() instanceof WrenchItem) {
             return super.useItemOn(stack, state, level, pos, player, hand, hit);
         }
 
+        // --- [신규] 부싯돌로 다운그레이드하는 로직 ---
+        if (stack.getItem() == Items.FLINT) {
+            // 현재 모듈이 프레임이 아닐 경우에만 작동
+            if (getModuleType() != ModuleType.FRAME) {
+                if (!level.isClientSide) {
+                    // 블록을 교체하기 전에 내용물을 먼저 드롭
+                    if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity be) {
+                        be.dropContents();
+                    }
+
+                    // 프레임 모듈로 교체
+                    level.setBlock(pos, MyAddonBlocks.FRAME_MODULE.get().defaultBlockState(), 3);
+
+                    // 효과 재생 및 아이템 소모
+                    level.playSound(null, pos, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, 0.8f, 1.5f);
+                    if (level instanceof ServerLevel serverLevel) {
+                        serverLevel.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 30, 0.4, 0.4, 0.4, 0.1);
+                    }
+                    if (!player.getAbilities().instabuild) {
+                        stack.shrink(1);
+                    }
+                }
+                return ItemInteractionResult.SUCCESS;
+            }
+            // 이미 프레임이면 아무것도 하지 않음
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+
+
+        // --- 프레임 모듈을 업그레이드하는 로직 ---
+        if (getModuleType() == ModuleType.FRAME) {
+            BlockEntry<? extends GenericModuleBlock> targetModuleEntry = ModuleUpgrades.getUpgradeResult(stack.getItem());
+            if (targetModuleEntry != null) {
+                if (!level.isClientSide) {
+                    BlockState newState = targetModuleEntry.get().defaultBlockState();
+                    level.setBlock(pos, newState, 3);
+                    level.playSound(null, pos, SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 1.0f, 1.2f);
+                    if (level instanceof ServerLevel serverLevel) {
+                        serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 10, 0.5, 0.5, 0.5, 0.1);
+                    }
+                    if (!player.getAbilities().instabuild) {
+                        stack.shrink(1);
+                    }
+                }
+                return ItemInteractionResult.SUCCESS;
+            }
+        }
+
+        // --- 프레임이 아닌 모듈의 고유 상호작용 로직 ---
+        return handleNonFrameModuleInteraction(stack, state, level, pos, player, hand, hit);
+    }
+
+    // [수정] useItemOn 메서드를 오버라이드하여 필터 상호작용 추가
+    private ItemInteractionResult handleNonFrameModuleInteraction(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (getModuleType() == ModuleType.RESONATOR) {
             if (!level.isClientSide) {
                 withBlockEntityDo(level, pos, be -> be.setResonatorFilter(stack, player));
             }
             return ItemInteractionResult.SUCCESS;
         }
-        // 필터 모듈에 대해서만 필터 장착/해제 로직을 실행
         if (getModuleType() == ModuleType.FILTER) {
             if (!level.isClientSide) {
                 withBlockEntityDo(level, pos, be -> {
                     ItemStack filterInSlot = be.getFilter();
                     ItemStack heldItem = player.getItemInHand(hand);
-
-                    // 손에 필터를 들고 있고, 모듈의 필터 슬롯이 비어있을 때
                     if (heldItem.getItem() instanceof FilterItem && filterInSlot.isEmpty()) {
                         be.setFilter(heldItem.split(1));
                         player.getInventory().setChanged();
-                    }
-                    // 손이 비어있고(쉬프트 클릭), 모듈에 필터가 있을 때
-                    else if (heldItem.isEmpty() && player.isShiftKeyDown() && !filterInSlot.isEmpty()) {
+                    } else if (heldItem.isEmpty() && player.isShiftKeyDown() && !filterInSlot.isEmpty()) {
                         player.getInventory().placeItemBackInInventory(filterInSlot);
                         be.setFilter(ItemStack.EMPTY);
                     }
@@ -115,8 +173,6 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             }
             return ItemInteractionResult.SUCCESS;
         }
-
-
         return super.useItemOn(stack, state, level, pos, player, hand, hit);
     }
     // --- [수정] 데이터 보존을 위한 드롭 로직 ---

@@ -1,6 +1,7 @@
 package com.yourname.mycreateaddon;
 
 
+import com.yourname.mycreateaddon.crafting.ModuleUpgrades;
 import com.yourname.mycreateaddon.crafting.NodeRecipe; // NodeRecipe 클래스 import
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -18,9 +19,10 @@ public class ModEventBusEvents {
         event.enqueueWork(() -> {
             // 여기에 레시피 등록 메서드를 호출합니다.
             NodeRecipe.registerRecipes();
-
-            // 다른 모드와의 호환성 설정 등, 로딩 후반에 처리해야 할 작업들을 여기에 추가할 수 있습니다.
             MyCreateAddon.LOGGER.info("Node Combination Recipes have been registered.");
+
+            ModuleUpgrades.register();
+            MyCreateAddon.LOGGER.info("Module Upgrade Recipes have been registered.");
         });
     }
 }

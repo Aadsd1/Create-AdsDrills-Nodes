@@ -16,6 +16,7 @@ import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -324,7 +325,34 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     @Override public float calculateAddedStressCapacity() { return 0; }
     @Override public void attachKinetics() {}
 
+    /**
+     * 모듈이 다른 블록으로 교체되기 전에 내부의 모든 아이템을 월드에 드롭합니다.
+     */
+    public void dropContents() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
 
+        // 1. 아이템 핸들러(인벤토리)의 내용물을 드롭합니다.
+        // 필터 모듈의 필터 아이템도 이 로직으로 함께 드롭됩니다.
+        if (itemHandler != null) {
+            for (int i = 0; i < itemHandler.getSlots(); i++) {
+                ItemStack stackInSlot = itemHandler.getStackInSlot(i);
+                if (!stackInSlot.isEmpty()) {
+                    level.addFreshEntity(new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5, stackInSlot));
+                }
+            }
+        }
+
+        // 2. 공명기 모듈의 필터 아이템을 드롭합니다.
+        // 이 필터는 별도의 필드에 저장되므로 따로 처리해야 합니다.
+        if (resonatorFilter != null) {
+            level.addFreshEntity(new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5, new ItemStack(resonatorFilter)));
+        }
+
+        // 참고: 유체는 변환 시 소멸되는 것으로 처리합니다.
+        // 유체를 아이템화하는 것은 훨씬 복잡한 로직이 필요합니다.
+    }
 
     // NBT 처리
     @Override

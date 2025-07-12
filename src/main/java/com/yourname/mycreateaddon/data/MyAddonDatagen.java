@@ -43,16 +43,16 @@ public class MyAddonDatagen {
         generator.addProvider(
                 true,
                 new RegistrateDataProvider(REGISTRATE, MOD_ID, event)
-        );// --- 아래 내용을 추가해주세요 ---
+        );
         generator.addProvider(event.includeServer(), new DatapackBuiltinEntriesProvider(
                 packOutput, lookupProvider,
                 new RegistrySetBuilder()
                         .add(Registries.CONFIGURED_FEATURE, MyAddonFeatures::bootstrapConfiguredFeatures)
                         .add(Registries.PLACED_FEATURE, MyAddonFeatures::bootstrapPlacedFeatures)
-                        //.add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, MyAddonDatagen::bootstrapBiomeModifiers),
-                        .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, MyAddonDatagen::bootstrapBiomeModifiers),
+                         .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, MyAddonDatagen::bootstrapBiomeModifiers),
                 Set.of(MyCreateAddon.MOD_ID)
         ));
+
     }
 
     public static void bootstrapBiomeModifiers(BootstrapContext<BiomeModifier> context) {
@@ -66,17 +66,6 @@ public class MyAddonDatagen {
                 )
         );
     }
-//    // --- 아래 내용을 추가해주세요 ---
-//    public static void bootstrapBiomeModifiers(BootstrapContext<BiomeModifier> context) {
-//        context.register(
-//                ResourceKey.create(NeoForgeRegistries.Keys.BIOME_MODIFIERS, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "add_ore_node")),
-//                new BiomeModifiers.AddFeaturesBiomeModifier(
-//                        context.lookup(Registries.BIOME).getOrThrow(BiomeTags.IS_OVERWORLD),
-//                        HolderSet.direct(context.lookup(Registries.PLACED_FEATURE).getOrThrow(MyAddonFeatures.ORE_NODE_PLACED_FEATURE)),
-//                        GenerationStep.Decoration.UNDERGROUND_ORES
-//                )
-//        );
-//    }
 
 
     public static void addCustomLang(CreateRegistrate registrate) {

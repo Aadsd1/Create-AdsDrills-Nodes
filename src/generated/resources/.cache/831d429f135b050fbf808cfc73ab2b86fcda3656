@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-12T04:27:10.2636983	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-07-13T00:51:02.4803741	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 c2353b1d3b2e0466e6a976b235577fea4cc51ef6 assets/mycreateaddon/blockstates/artificial_node.json
 3222d8e1c2398f71dbf75105c17e7ce94ec8b8cb assets/mycreateaddon/blockstates/blast_furnace_module.json
 748c6e9125c39bd09b3d25986ff32052aeaad432 assets/mycreateaddon/blockstates/compactor_module.json
@@ -29,8 +29,8 @@ bc42c58476d973247dbfcdb359196a0ae3c2a399 assets/mycreateaddon/blockstates/pump_h
 8157d0bab3332c6618017925932724a9d97daed0 assets/mycreateaddon/blockstates/resonator_module.json
 292784f9c60bc3c7287ddbed78b38afb5b36a9e3 assets/mycreateaddon/blockstates/speed_module.json
 00134134b9edae22ba8c1c74d5ea78beed718101 assets/mycreateaddon/blockstates/washer_module.json
-175c26d03fa0e73c24f89bb9a577f95716e7a084 assets/mycreateaddon/lang/en_ud.json
-cee73dcbf75a67c7ca31cc27aa3d77f25966594b assets/mycreateaddon/lang/en_us.json
+d8a179b116a61304f396f81668e237901169c6e6 assets/mycreateaddon/lang/en_ud.json
+444e00675af14fdf307bd8fc00eef99461701987 assets/mycreateaddon/lang/en_us.json
 8d9feca0bf980f8964bfda9e3235ededfc738002 assets/mycreateaddon/models/item/artificial_node.json
 e379a4f0418a38a64db20578009bbc513aec2038 assets/mycreateaddon/models/item/blast_furnace_module.json
 b73abe710d8443fbf36f0fc591bb6fecaf72783a assets/mycreateaddon/models/item/brass_stabilizer_core.json

@@ -108,7 +108,7 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
         // 우리 코어 모델이 사용하는 CUTOUT 타입을 여기에 추가합니다.
         return ChunkRenderTypeSet.union(backgroundTypes, ChunkRenderTypeSet.of(RenderType.cutout()));
     }
-    // 파티클 아이콘은 배경 블록의 것을 사용합니다.
+
     @Override
     public @NotNull TextureAtlasSprite getParticleIcon(@Nonnull ModelData data) {
         BlockState backgroundState = data.get(OreNodeBlockEntity.BACKGROUND_STATE);
@@ -117,7 +117,8 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
         }
         return Minecraft.getInstance().getBlockRenderer().getBlockModel(backgroundState).getParticleIcon(data);
     }
-    // 나머지 메서드들은 이전과 동일하게 유지
+
+
     @Override
     public @NotNull TextureAtlasSprite getParticleIcon() {
         return getParticleIcon(ModelData.EMPTY);

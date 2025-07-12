@@ -55,13 +55,15 @@ public class LaserDrillHeadBlock extends DirectionalKineticBlock implements IDri
     }
 
     @Override
-    public Class<LaserDrillHeadBlockEntity> getBlockEntityClass() {
-        return LaserDrillHeadBlockEntity.class;
-    }
-    @Override
     public Direction.Axis getRotationAxis(BlockState state) {
         return state.getValue(FACING).getAxis();
     }
+
+    @Override
+    public Class<LaserDrillHeadBlockEntity> getBlockEntityClass() {
+        return LaserDrillHeadBlockEntity.class;
+    }
+
     @Override
     public BlockEntityType<? extends LaserDrillHeadBlockEntity> getBlockEntityType() {
         return MyAddonBlockEntity.LASER_DRILL_HEAD.get();

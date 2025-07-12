@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.*;
 
-public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHaveGoggleInformation {
+public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity implements IHaveGoggleInformation {
 
     public enum OperatingMode {
         WIDE_BEAM,
@@ -148,7 +148,7 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
         return true; // 툴팁을 추가했음을 알림
     }
 
-    // [헬퍼] 코어에 접근하는 메서드
+    @Override
     public DrillCoreBlockEntity getCore() {
         if (level == null) return null;
         if (getBlockState().getBlock() instanceof LaserDrillHeadBlock) {
@@ -184,18 +184,7 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
     }
 
 
-    // [신규] 코어가 호출하여 속도를 업데이트하는 메서드
-    public void updateVisualSpeed(float speed) {
-        if (this.visualSpeed == speed) return;
-        this.visualSpeed = speed;
-        setChanged();
-        sendData();
-    }
 
-    // [신규] Visual이 사용할 getter
-    public float getVisualSpeed() {
-        return visualSpeed;
-    }
     public OperatingMode getMode() {
         return this.currentMode;
     }
@@ -351,7 +340,6 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
         compound.put("DesignatedTargets", designatedList);
 
         if (forClient) {
-            compound.putFloat("VisualSpeed", visualSpeed);
             ListTag activeList = new ListTag();
             for (BlockPos pos : activeTargets) {
                 activeList.add(new IntArrayTag(new int[]{pos.getX(), pos.getY(), pos.getZ()}));
@@ -383,7 +371,6 @@ public class LaserDrillHeadBlockEntity extends KineticBlockEntity implements IHa
         }
 
         if (forClient) {
-            visualSpeed = compound.getFloat("VisualSpeed");
             activeTargets.clear();
             if (compound.contains("ActiveTargets", 9)) {
                 ListTag activeList = compound.getList("ActiveTargets", 11);

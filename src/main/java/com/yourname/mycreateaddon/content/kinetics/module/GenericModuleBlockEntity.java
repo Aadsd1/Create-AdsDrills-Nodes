@@ -41,8 +41,8 @@ import java.util.*;
 import java.util.function.Supplier;
 
 
-public class GenericModuleBlockEntity extends KineticBlockEntity implements IProcessingModule,IActiveSystemModule, IBulkProcessingModule, IHaveGoggleInformation {
 
+public class GenericModuleBlockEntity extends KineticBlockEntity implements IHaveGoggleInformation {
 
     // 렌더링 관련 필드
     private Set<Direction> visualConnections = new HashSet<>();
@@ -143,25 +143,15 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         }
 
         ModuleType type = block.getModuleType();
-        boolean hasPriority = (type.getRecipeTypeSupplier() != null || type == ModuleType.FILTER);
+        boolean hasPriority = (getModuleType().getBehavior().getRecipeType() != null || type == ModuleType.FILTER);
 
-        // 우선순위 기능이 있는 모듈일 경우에만 툴팁을 추가
         if (hasPriority) {
-            // Create의 기본 운동 정보(Stress 등)를 표시하지 않으려면 super 호출을 제거하거나 주석 처리할 수 있습니다.
-            // 여기서는 유지하여 운동 정보도 함께 보이도록 합니다.
-            // super.addToGoggleTooltip(tooltip, isPlayerSneaking); // KineticBlockEntity에는 이 메서드가 없으므로 호출 불가
-
-            // "Processing Priority" 헤더 추가
             tooltip.add(Component.literal("")); // 줄바꿈
             tooltip.add(Component.translatable("goggle.mycreateaddon.module.processing_priority").withStyle(ChatFormatting.GRAY));
-
-            // 현재 설정된 우선순위 값을 표시
             tooltip.add(Component.literal(" " + this.processingPriority).withStyle(ChatFormatting.AQUA));
-
-            return true; // 툴팁이 추가되었음을 알림
+            return true;
         }
-
-        return false; // 툴팁을 추가하지 않았음을 알림
+        return false;
     }
 
     // [추가] 우선순위를 순환시키는 메서드
@@ -222,80 +212,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
             this.energyInputBuffer = new DrillEnergyStorage(10000, 1000, 0, this::setChanged);
         }
     }
-    @Override
-    public List<ItemStack> processItem(ItemStack stack, DrillCoreBlockEntity core) {
 
-        // 1. 이 모듈이 "필터 모듈"일 경우의 로직
-        if (getModuleType() == ModuleType.FILTER) {
-            ItemStack filterStack = getFilter();
-            if (filterStack.isEmpty()) {
-                return Collections.singletonList(stack);
-            }
-
-            // 1. FilterItemStack.of()를 사용하여 필터 아이템의 모든 NBT 데이터를 포함한 객체를 생성합니다.
-            //    이 메서드는 아이템 타입에 따라 ListFilterItemStack 등을 알아서 반환해 줍니다.
-            FilterItemStack filter = FilterItemStack.of(filterStack);
-
-            // 2. 생성된 객체의 test 메서드를 호출합니다.
-            //    이 메서드는 허용/거부 모드를 포함한 모든 필터링 로직을 내부적으로 수행합니다.
-            //    test()가 true를 반환하면 "이 아이템은 통과해야 한다"는 최종 판정입니다.
-            if (filter.test(level, stack)) {
-                return Collections.singletonList(stack); // 통과
-            } else {
-                return Collections.emptyList(); // 거부 (파괴)
-            }
-        }
-        // 2. 이 모듈이 "필터가 아닌 다른 모든 처리 모듈"일 경우의 로직
-        else {
-            return IProcessingModule.super.processItem(stack, core);
-        }
-    }
-    /**
-     * [신규] IBulkProcessingModule 인터페이스의 구현 메서드
-     */
-    @Override
-    public boolean processBulk(IResourceAccessor coreResources) {
-        if (getModuleType() != ModuleType.COMPACTOR) {
-            return false;
-        }
-
-        assert level != null;
-        RecipeManager recipeManager = level.getRecipeManager();
-
-        for (CraftingRecipe recipe : recipeManager.getAllRecipesFor(RecipeType.CRAFTING).stream().map(RecipeHolder::value).toList()) {
-            if (recipe.getIngredients().size() == 9 && !recipe.getResultItem(level.registryAccess()).isEmpty()) {
-
-                Ingredient firstIngredient = recipe.getIngredients().getFirst();
-                // [수정] 첫 번째 재료의 아이템 목록이 비어있으면 이 레시피는 건너뜁니다.
-                if (firstIngredient.isEmpty() || firstIngredient.getItems().length == 0) continue;
-
-                boolean allSame = true;
-                for (int i = 1; i < 9; i++) {
-                    ItemStack[] items = recipe.getIngredients().get(i).getItems();
-                    // [수정] 다른 재료들의 아이템 목록도 비어있지 않은지 확인합니다.
-                    if (items.length == 0 || !firstIngredient.test(items[0])) {
-                        allSame = false;
-                        break;
-                    }
-                }
-
-                if (allSame) {
-                    ItemStack ingredientStack = firstIngredient.getItems()[0].copy();
-                    ingredientStack.setCount(9);
-
-                    if (coreResources.consumeItems(ingredientStack, true).isEmpty()) {
-                        coreResources.consumeItems(ingredientStack, false);
-                        ItemStack resultStack = recipe.getResultItem(level.registryAccess()).copy();
-                        ItemHandlerHelper.insertItem(coreResources.getInternalItemBuffer(), resultStack, false);
-                        playCompactingEffects();
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
 
     private void playCompactingEffects() {
         if (level != null && !level.isClientSide) {
@@ -308,154 +225,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
             }
         }
     }
-    @Override
-    public void playEffects(Level level, BlockPos modulePos) {
-        // 이 메서드는 서버에서만 호출되므로, ServerLevel로 캐스팅해도 안전합니다.
-        if (!(level instanceof ServerLevel serverLevel)) return;
 
-        switch (getModuleType()) {
-            case FURNACE,BLAST_FURNACE -> {
-                serverLevel.playSound(null, modulePos, SoundEvents.LAVA_POP, SoundSource.BLOCKS, 0.7F, 1.5F);
-
-                double px = modulePos.getX() + 0.5;
-                double py = modulePos.getY() + 1.0; // 블록 상단 표면 바로 위
-                double pz = modulePos.getZ() + 0.5;
-                serverLevel.sendParticles(ParticleTypes.LAVA, px, py, pz, 2, 0.1, 0.1, 0.1, 0.0); // 용암 파티클 5개
-            }
-            case CRUSHER -> {
-                serverLevel.playSound(null, modulePos, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, 0.7F, 1.5F);
-
-                // [위치 조정] 파티클이 블록 밖으로 잘 보이도록 생성 위치 조정
-                double px = modulePos.getX() + 0.5;
-                double py = modulePos.getY() + 0.5;
-                double pz = modulePos.getZ() + 0.5;
-                serverLevel.sendParticles(ParticleTypes.CRIT, px, py, pz, 7, 0.3, 0.3, 0.3, 0.1);
-            }
-            case WASHER -> {
-                serverLevel.playSound(null, modulePos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.0F, 1.2F);
-
-                // [위치 조정] 파티클이 블록 위에서 튀도록 조정
-                double px = modulePos.getX() + 0.5;
-                double py = modulePos.getY() + 1.1;
-                double pz = modulePos.getZ() + 0.5;
-                serverLevel.sendParticles(ParticleTypes.SPLASH, px, py, pz, 12, 0.3, 0.1, 0.3, 0.0);
-            }
-            default -> {}
-        }
-    }
-    @Override
-    public void onCoreTick(DrillCoreBlockEntity core) {
-        ModuleType type = getModuleType();
-
-        // 냉각 모듈 로직
-        if (type == ModuleType.COOLANT) {
-            if (core.getHeat() > COOLANT_ACTIVATION_HEAT) {
-                assert level != null;
-                FluidStack waterToConsume = new FluidStack(Fluids.WATER, WATER_CONSUMPTION_PER_TICK);
-                if (core.consumeFluid(waterToConsume, true).getAmount() == WATER_CONSUMPTION_PER_TICK) {
-                    core.consumeFluid(waterToConsume, false);
-                    core.addHeat(-HEAT_REDUCTION_PER_TICK);
-                    if (!level.isClientSide && level.getRandom().nextFloat() < 0.2f) {
-                        level.playSound(null, getBlockPos(), SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.3F, 1.5F + level.getRandom().nextFloat() * 0.5f);
-                        if (level instanceof ServerLevel serverLevel) {
-                            serverLevel.sendParticles(ParticleTypes.CLOUD, getBlockPos().getX() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8, getBlockPos().getY() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8, getBlockPos().getZ() + 0.5 + (level.getRandom().nextDouble() - 0.5) * 0.8, 1, 0, 0.1, 0, 0.0);
-                        }
-                    }
-                }
-            }
-        }
-
-        // [신규] 에너지 입력 모듈: 자신의 버퍼 에너지를 코어로 옮김
-        if (type == ModuleType.ENERGY_INPUT && energyInputBuffer != null) {
-            int energyToTransfer = energyInputBuffer.extractEnergy(1000, true);
-            if (energyToTransfer > 0) {
-                int accepted = core.getInternalEnergyBuffer().receiveEnergy(energyToTransfer, false);
-                energyInputBuffer.extractEnergy(accepted, false);
-            }
-        }
-
-        // [신규] 회전력 발전 모듈: 회전 속도에 비례하여 FE 생성
-        if (type == ModuleType.KINETIC_DYNAMO) {
-            float currentSpeed = Math.abs(getVisualSpeed()); // 코어에서 동기화된 속도 사용
-            if (currentSpeed > 0) {
-                int energyGenerated = (int) (currentSpeed / 4f); // 밸런스 조절 필요
-                core.getInternalEnergyBuffer().receiveEnergy(energyGenerated, false);
-            }
-        }
-    }
-    // --- [1단계 추가] IProcessingModule 구현 ---
-
-    @Override
-    public RecipeType<?> getRecipeType() {
-        // [수정] Supplier에서 실제 RecipeType 값을 가져옵니다.
-        ModuleType type = getModuleType();
-        if (type != null) {
-            Supplier<RecipeType<?>> supplier = type.getRecipeTypeSupplier();
-            if (supplier != null) {
-                return supplier.get(); // 실제 값이 필요한 이 시점에 .get() 호출!
-            }
-        }
-        return null;
-    }
-
-    @Override
-    public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
-
-        // 필터 모듈은 항상 작동 준비 완료 상태
-        if (getModuleType() == ModuleType.FILTER) {
-            return true;
-        }
-
-        // [핵심 수정] 모듈 타입에 따라 작동 조건을 실시간으로 확인
-        return switch (getModuleType()) {
-            case WASHER -> {
-                // 와셔 모듈은 작동 시점에 물 100mb를 소모할 수 있는지 직접 확인
-                FluidStack waterToSimulate = new FluidStack(Fluids.WATER, 100);
-                yield core.getInternalFluidBuffer().drain(waterToSimulate, IFluidHandler.FluidAction.SIMULATE).getAmount() >= 100;
-            }
-            case FURNACE ->
-                // 용광로 모듈은 코어의 열이 50 이상인지 직접 확인
-                    core.getHeat() >= 50f;
-            case BLAST_FURNACE ->
-                // 제련 용광로 모듈은 코어의 열이 90 이상인지 직접 확인
-                    core.getHeat() >= 90f;
-            case CRUSHER ->
-                // 분쇄기는 별도의 조건이 없음
-                    true;
-            default -> false;
-        };
-    }
-
-    @Override
-    public void consumeResources(DrillCoreBlockEntity core) {
-
-        // 필터 모듈은 별도의 자원을 소모하지 않음
-        if (getModuleType() == ModuleType.FILTER) {
-            return;
-        }
-        float efficiency = core.getHeatEfficiency();
-
-        switch (getModuleType()) {
-            case FURNACE: {
-                float heatToConsume = 10.1f / (efficiency + 0.1f);
-                core.addHeat(-heatToConsume);
-                break;
-            }
-            case BLAST_FURNACE: {
-                float heatToConsume = 20.1f / (efficiency + 0.1f);
-                core.addHeat(-heatToConsume);
-                break;
-            }
-            case WASHER: {
-                // [수정] 여기서도 고정된 값으로 물을 소모
-                int waterToConsume = 100;
-                FluidStack waterRequest = new FluidStack(Fluids.WATER, waterToConsume);
-                core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.EXECUTE);
-                break; // case 문에 break 추가
-            }
-            default: {}
-        }
-    }
     // --- [신규] Capability 등록 이벤트에서 사용할 Getter ---
     @Nullable
     public ItemStackHandler getItemHandler() {
@@ -475,16 +245,13 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         return null;
     }
 
-    // 자신의 모듈 타입을 반환하는 중요한 메서드
     public ModuleType getModuleType() {
         if (getBlockState().getBlock() instanceof GenericModuleBlock gmb) {
             return gmb.getModuleType();
         }
-        // 이 코드가 실행되면 뭔가 잘못된 것이므로, 기본값 FRAME을 반환하고 경고를 남깁니다.
         MyCreateAddon.LOGGER.warn("GenericModuleBlockEntity at {} is not of type GenericModuleBlock! Returning FRAME type as default.", getBlockPos());
         return ModuleType.FRAME;
     }
-
     public void updateVisualSpeed(float speed) {
         if (this.visualSpeed == speed) {
             return;
@@ -503,6 +270,34 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IPro
         this.visualConnections = connections;
         setChanged();
         sendData();
+    }
+
+    public List<ItemStack> processItem(ItemStack stack, DrillCoreBlockEntity core) {
+        return getModuleType().getBehavior().processItem(this, stack, core);
+    }
+
+    public boolean processBulk(IResourceAccessor coreResources) {
+        return getModuleType().getBehavior().processBulk(this, coreResources);
+    }
+
+    public void onCoreTick(DrillCoreBlockEntity core) {
+        getModuleType().getBehavior().onCoreTick(this, core);
+    }
+
+    public RecipeType<?> getRecipeType() {
+        return getModuleType().getBehavior().getRecipeType();
+    }
+
+    public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
+        return getModuleType().getBehavior().checkProcessingPreconditions(this, core);
+    }
+
+    public void consumeResources(DrillCoreBlockEntity core) {
+        getModuleType().getBehavior().consumeResources(this, core);
+    }
+
+    public void playEffects(Level level, BlockPos modulePos) {
+        getModuleType().getBehavior().playEffects(this, level, modulePos);
     }
 
     public void updateVisualState(Set<Direction> connections, float speed) {

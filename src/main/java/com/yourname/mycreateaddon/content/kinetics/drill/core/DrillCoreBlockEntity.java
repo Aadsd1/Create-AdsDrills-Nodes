@@ -32,6 +32,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import com.yourname.mycreateaddon.content.kinetics.base.DrillEnergyStorage; // [신규] 임포트
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -467,11 +468,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         boolean isDuplicate = false;
 
                         // [핵심 수정] 필터 모듈도 processingModuleChain에 추가되도록 로직 변경
-
+                        RecipeType<?> recipeType = type.getBehavior().getRecipeType();
                         // 1. 이 모듈이 "우선순위를 가진" 모듈인지 확인 (일반 처리 모듈 또는 필터 모듈)
-                        if (type.getRecipeTypeSupplier() != null || type == ModuleType.FILTER) {
+                        if (recipeType != null || type == ModuleType.FILTER) {
                             // 중복 검사용 키를 결정
-                            Object key = (type == ModuleType.FILTER) ? ModuleType.FILTER : type.getRecipeTypeSupplier().get();
+                            Object key = (type == ModuleType.FILTER) ? ModuleType.FILTER : recipeType;
 
                             if (!foundProcessingKeys.add(key)) {
                                 isDuplicate = true;
@@ -915,21 +916,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
     }
-//    private void updateProcessingConditions() {
-//        // 와셔 모듈 조건
-//        FluidStack waterToSimulate = new FluidStack(Fluids.WATER, 100);
-//        this.canWasherWork = getInternalFluidBuffer().drain(waterToSimulate, IFluidHandler.FluidAction.SIMULATE).getAmount() >= 100;
-//        // 히터 모듈 조건
-//        this.canHeaterWork = getHeat() >= 50f;
-//        // 블래스트 히터 모듈 조건
-//        this.canBlastHeaterWork = getHeat() >= 90f;
-//    }
-
-
-    // 모듈이 사용할 getter들
-    //public boolean canWasherWork() { return this.canWasherWork; }
-  //  public boolean canHeaterWork() { return this.canHeaterWork; }
-//    public boolean canBlastHeaterWork() { return this.canBlastHeaterWork; }
 
     public void serverTick() {
         // 기존 tick() 메서드에 있던 모든 서버 로직을 여기로 옮깁니다.
@@ -944,7 +930,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
 
         for (BlockPos modulePos : activeSystemModules) {
-            if (level.getBlockEntity(modulePos) instanceof IActiveSystemModule module) {
+            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity module) {
                 module.onCoreTick(this);
             }
         }
@@ -1119,7 +1105,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         nextStacks.addAll(moduleBE.processItem(currentStack, this));
                     }
                     // 2. 이 모듈이 "일반 처리 모듈"이라면, 아이템 가공을 수행
-                    else if (type.getRecipeTypeSupplier() != null) {
+                    else if (type.getBehavior().getRecipeType() != null) {
                         // processItem은 가공된 결과물(들)을 리스트로 반환
                         nextStacks.addAll(moduleBE.processItem(currentStack, this));
                     }
@@ -1150,15 +1136,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         do {
             successfulBulkProcess = false;
             for (BlockPos modulePos : bulkProcessingModules) {
-                if (level.getBlockEntity(modulePos) instanceof IBulkProcessingModule bulkProcessor) {
-                    // processBulk가 true를 반환하면 내용물에 변화가 있었다는 의미이므로,
-                    // 다른 압축 모듈이 이어서 작업할 수 있도록 루프를 다시 시작
+                if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity bulkProcessor) {
                     if (bulkProcessor.processBulk(this)) {
                         successfulBulkProcess = true;
                     }
                 }
             }
-        } while (successfulBulkProcess); // 내용물 변화가 없을 때까지 반복
+        } while (successfulBulkProcess);
     }
     public int getTickCounter() {
         return this.tickCounter;

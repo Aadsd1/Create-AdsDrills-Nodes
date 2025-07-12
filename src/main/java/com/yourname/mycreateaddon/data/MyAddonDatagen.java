@@ -198,5 +198,6 @@ public class MyAddonDatagen {
         registrate.addRawLang("mycreateaddon.quirk.header", "Quirks:");
         registrate.addRawLang("mycreateaddon.quirk_candidates.header", "Quirk Candidates:");
         registrate.addRawLang("mycreateaddon.fluid_content.header", "Fluid Content");
+        registrate.addRawLang("mycreateaddon.catalyst.head","Catalyst");
     }
 }

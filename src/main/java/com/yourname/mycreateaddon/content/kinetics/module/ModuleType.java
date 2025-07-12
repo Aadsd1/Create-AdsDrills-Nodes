@@ -1,15 +1,9 @@
 package com.yourname.mycreateaddon.content.kinetics.module;
 
 
-import java.util.function.Supplier; // [수정] Supplier 임포트
 import com.simibubi.create.AllRecipeTypes;
 import net.minecraft.world.item.crafting.RecipeType;
 
-import javax.annotation.Nullable;
-import com.simibubi.create.AllRecipeTypes;
-import net.minecraft.world.item.crafting.RecipeType;
-import javax.annotation.Nullable;
-import java.util.function.Supplier;
 
 public enum ModuleType {
     // 기본 프레임

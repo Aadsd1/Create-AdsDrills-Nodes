@@ -1,10 +1,6 @@
 package com.yourname.mycreateaddon.etc;
 
-// import com.simibubi.create.foundation.utility.Lang;
-// import net.minecraft.resources.ResourceLocation;
-// import com.simibubi.create.AllPartialModels; // 나중에 필요할 수 있음
-// import dev.engine_room.flywheel.lib.model.baked.PartialModel; // PartialModel 임포트 경로 확인 필요
-// import com.yourname.mycreateaddon.MyCreateAddon;
+
 
 
 import com.simibubi.create.AllPartialModels;

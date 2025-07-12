@@ -3,7 +3,6 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.item.StabilizerCoreItem;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.crafting.Quirk;
@@ -23,8 +22,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -65,8 +62,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     private static final int INVENTORY_SIZE = DATA_SLOT_COUNT + 1 + 2; // 데이터 + 코어 + 촉매
 
     private transient Map<Quirk, Float> clientQuirkCandidates = new HashMap<>();
-    public static final TagKey<Item> CATALYST_TAG = ItemTags.create(ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "catalysts"));
-
 
     public NodeFrameBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -319,7 +314,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         Map<Item, Float> weightedComposition = new HashMap<>();
         Map<Item, Block> finalItemToBlockMap = new HashMap<>();
         float totalInputYield = 0;
-        int dataItemCount = 0;
 
         for (int i = DATA_SLOT_START; i < CORE_SLOT; i++) {
             ItemStack dataStack = inventory.getStackInSlot(i);
@@ -331,7 +325,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
             float yield = nbt.getFloat("Yield");
             totalInputYield += yield;
-            dataItemCount++;
 
             ListTag compositionList = nbt.getList("Composition", 10);
             for (int j = 0; j < compositionList.size(); j++) {
@@ -420,12 +413,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             }
             default -> throw new IllegalStateException("Unexpected value: " + tier);
         }
-
-        // 2d. 대표 블록 찾기
-        Block representativeBlock = finalComposition.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(entry -> finalItemToBlockMap.getOrDefault(entry.getKey(), Blocks.IRON_ORE))
-                .orElse(Blocks.IRON_ORE);
 
         // 2e. 특수 효과(Quirk) 결정 (랜덤성 강화 버전)
         Map<Quirk, Float> weightedQuirks = new HashMap<>();

@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity.Tier;
+import org.jetbrains.annotations.NotNull;
 
 public class DrillCoreItem extends BlockItem {
     public DrillCoreItem(Block block, Properties properties) {
@@ -17,7 +18,7 @@ public class DrillCoreItem extends BlockItem {
     }
 
     @Override
-    protected BlockState getPlacementState(BlockPlaceContext context) {
+    protected BlockState getPlacementState(@NotNull BlockPlaceContext context) {
         BlockState stateToPlace = super.getPlacementState(context);
         if (stateToPlace == null) return null;
 

@@ -7,7 +7,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.yourname.mycreateaddon.crafting.NodeRecipe;
 import com.yourname.mycreateaddon.crafting.Quirk;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -38,9 +37,6 @@ import java.util.function.Supplier;
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
     // [핵심] 렌더링에 필요한 데이터를 담을 ModelProperty를 정의합니다.
-    public static final ModelProperty<BakedModel> BACKGROUND_MODEL = new ModelProperty<>();
-    public static final ModelProperty<Integer> TINT_1_COLOR = new ModelProperty<>();
-    public static final ModelProperty<Integer> TINT_2_COLOR = new ModelProperty<>();
     public static final ModelProperty<BlockState> BACKGROUND_STATE = new ModelProperty<>();
 
 
@@ -78,7 +74,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private int crackTimer = 0;
     private static final int CRACK_DURATION_TICKS = 100; // 30초 (20틱 * 30초)
 
-    public static final ModelProperty<OreNodeBlockEntity> MODEL_DATA_PROPERTY = new ModelProperty<>();
 
     public OreNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -167,10 +162,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return backgroundBlockId;
     }
 
-    public ResourceLocation getOreBlockId() {
-        return oreBlockId;
-    }
-
     // --- [신규] 유체 관련 Getter/Setter ---
     public FluidStack getFluid() {
         if (fluidContent.isEmpty() || currentFluidAmount <= 0) {
@@ -180,9 +171,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return new FluidStack(fluidContent.getFluid(), (int) currentFluidAmount);
     }
 
-    public int getMaxFluidCapacity() {
-        return maxFluidCapacity;
-    }
     /**
      * 외부(펌프 헤드)에서 유체를 추출하는 메서드
      * @param amountToDrain 추출할 양

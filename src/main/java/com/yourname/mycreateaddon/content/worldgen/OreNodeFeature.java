@@ -27,34 +27,20 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
-import net.minecraft.world.level.levelgen.VerticalAnchor;
-import net.minecraft.world.level.levelgen.WorldGenerationContext;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.LakeFeature;
 import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.SpringConfiguration;
-import net.minecraft.world.level.levelgen.placement.HeightRangePlacement;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
-import net.minecraft.world.level.levelgen.placement.PlacementModifier;
-
-import net.minecraft.world.level.levelgen.heightproviders.UniformHeight;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
-
-import java.lang.reflect.Field;
 import java.util.*;
 
 
 public class OreNodeFeature extends Feature<OreNodeConfiguration> {
-
-    private static Field heightRange_heightField;
-    private static Field uniformHeight_minInclusiveField;
-    private static Field uniformHeight_maxInclusiveField;
-    private static final float MAX_BONUS_MULTIPLIER = 3.0f;
-    private static final int EFFECTIVE_DISTANCE = 10;
     // [신규] 비율 프리셋을 정의하는 내부 record
     private record RatioPreset(String name, List<Float> ratios) {}
 
@@ -155,13 +141,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     }
 
 
-    // [수정] 대표 블록을 찾는 로직이 매우 간단해집니다.
-    private Block findRepresentativeOreBlock(Map<Block, Float> composition) {
-        return composition.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse(Blocks.IRON_ORE); // 실패 시 기본값
-    }
+
 
     // [수정] 대표 블록을 찾는 로직
     private Block findRepresentativeOreBlock(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap) {

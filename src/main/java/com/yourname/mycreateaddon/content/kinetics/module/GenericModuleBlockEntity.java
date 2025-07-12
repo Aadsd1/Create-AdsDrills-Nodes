@@ -23,23 +23,17 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-import com.simibubi.create.content.logistics.filter.FilterItemStack;
-import net.neoforged.neoforge.fluids.FluidStack; // 추가
 import net.minecraft.core.particles.ParticleTypes; // 추가
 import net.minecraft.sounds.SoundEvents; // 추가
 import net.minecraft.sounds.SoundSource; // 추가
 import net.minecraft.world.level.Level; // 추가
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.function.Supplier;
 
 
 
@@ -55,10 +49,6 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     protected @Nullable DrillEnergyStorage energyInputBuffer; // [핵심 수정] 타입 변경
 
     private Item resonatorFilter = null; // [신규] 공명 필터 아이템 저장
-    // [신규] 냉각 로직 관련 상수
-    private static final float COOLANT_ACTIVATION_HEAT = 5.0f; // 5도 이상일 때 작동
-    private static final int WATER_CONSUMPTION_PER_TICK = 5; // 틱당 물 5mb 소모 (초당 100mb)
-    private static final float HEAT_REDUCTION_PER_TICK = 0.4f; // 틱당 열 0.4 감소
     // [추가] 우선순위 필드. 기본값은 99 (가장 낮음)
     private int processingPriority = 99;
     private static final int MAX_PRIORITY = 10;

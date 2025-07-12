@@ -8,8 +8,6 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
-import java.util.function.Function;
-
 public class MyAddonTags {
 
     // [!!! 핵심 수정: TagKey.create를 직접 사용합니다 !!!]

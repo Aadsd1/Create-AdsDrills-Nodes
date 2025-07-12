@@ -150,19 +150,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return this.heat;
     }
 
-    // [추가] isOverheated 필드에 대한 public getter (향후 렌더러 등에서 사용 가능)
-    public boolean isOverheated() {
-        return this.isOverheated;
-    }
+
     public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 
         super(type, pos, state);
 
     }
 
-    public boolean isStructureValid() {
-        return this.structureValid;
-    }
 
     public boolean tryUpgrade(Item upgradeMaterial) {
         if (level == null || level.isClientSide) return false;
@@ -664,9 +658,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {}
 
-    private boolean isValidStructureBlock(Block block) {
-        return block instanceof DrillCoreBlock || block instanceof GenericModuleBlock;
-    }
+
 
 
     public boolean isModuleConnectedAt(Direction absoluteDirection) {
@@ -1386,7 +1378,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             tooltip.add(Component.literal(" ")
                     .append(laserBE.getMode().getDisplayName().copy().withStyle(ChatFormatting.RED)));
 
-            int energyCost = 0;
+            int energyCost;
             if (laserBE.getMode() == LaserDrillHeadBlockEntity.OperatingMode.DECOMPOSITION) {
                 energyCost = 500; // 분해 모드 에너지 소모량 (하드코딩, 나중에 BE 필드에서 가져올 수 있음)
             } else {
@@ -1404,7 +1396,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         int totalItemSlots = 0;
         int nonEmptyItemSlots = 0;
         int totalItems = 0;
-        FluidStack containedFluid = FluidStack.EMPTY;
 
         // [핵심 수정] 유체 정보를 담을 새로운 변수들
         int totalFluidCapacity = 0;

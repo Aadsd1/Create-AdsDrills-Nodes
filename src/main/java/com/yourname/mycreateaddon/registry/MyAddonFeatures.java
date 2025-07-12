@@ -33,7 +33,7 @@ public class MyAddonFeatures {
 
     public static void bootstrapConfiguredFeatures(BootstrapContext<ConfiguredFeature<?, ?>> context) {
         // Feature<OreNodeConfiguration>으로 정확하게 캐스팅
-        Feature<OreNodeConfiguration> feature = (Feature<OreNodeConfiguration>) ORE_NODE_FEATURE_ENTRY.get();
+        Feature<OreNodeConfiguration> feature = ORE_NODE_FEATURE_ENTRY.get();
 
         context.register(ORE_NODE_CONFIGURED_FEATURE,
                 new ConfiguredFeature<>(feature,

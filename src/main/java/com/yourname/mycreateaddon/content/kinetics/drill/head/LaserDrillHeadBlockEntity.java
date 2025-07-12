@@ -3,7 +3,6 @@ package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
 
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.yourname.mycreateaddon.client.LaserBeamRenderer;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
@@ -57,7 +56,6 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
             LaserBeamRenderer.removeLaser(getBlockPos());
         }
     }
-    private float visualSpeed = 0f; // [신규] 시각적 회전 속도
     private OperatingMode currentMode = OperatingMode.WIDE_BEAM;
     private int decompositionProgress = 0;
     private static final int DECOMPOSITION_TIME_TICKS = 200; // 10초

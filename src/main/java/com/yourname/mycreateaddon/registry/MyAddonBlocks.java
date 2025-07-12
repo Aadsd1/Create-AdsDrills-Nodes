@@ -17,9 +17,7 @@ import com.yourname.mycreateaddon.content.kinetics.node.NodeFrameBlock;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockModel;
 import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.neoforged.neoforge.client.model.generators.BlockModelBuilder;
 import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
-import net.neoforged.neoforge.client.model.generators.ModelFile;
 import com.yourname.mycreateaddon.content.item.DrillCoreItem;
 
 public class MyAddonBlocks {
@@ -35,15 +33,13 @@ public class MyAddonBlocks {
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .loot(RegistrateBlockLootTables::dropSelf)
-            .blockstate((ctx, prov) -> {
-                prov.directionalBlock(ctx.get(), state -> {
-                    DrillCoreBlockEntity.Tier tier = state.getValue(DrillCoreBlock.TIER);
+            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.get(), state -> {
+                DrillCoreBlockEntity.Tier tier = state.getValue(DrillCoreBlock.TIER);
 
-                    return prov.models().getExistingFile(
-                            prov.modLoc("block/drill_core/" + tier.name().toLowerCase())
-                    );
-                });
-            })
+                return prov.models().getExistingFile(
+                        prov.modLoc("block/drill_core/" + tier.name().toLowerCase())
+                );
+            }))
             .item(DrillCoreItem::new)
             .model((ctx, prov) -> {
                 ItemModelBuilder builder = prov.withExistingParent(ctx.getName(), prov.modLoc("block/drill_core/brass"));

@@ -23,10 +23,6 @@ public class MyAddonCapabilities {
                     if (moduleBE.getModuleType() == ModuleType.ITEM_BUFFER) {
                         return moduleBE.getItemHandler();
                     }
-                    // I/O 모듈을 나중에 추가한다면 여기에 로직 추가
-                    // if (moduleBE.getModuleType() == ModuleType.ITEM_INPUT || moduleBE.getModuleType() == ModuleType.ITEM_OUTPUT) {
-                    //     // 코어의 가상 핸들러를 반환하는 로직
-                    // }
                     return null; // 그 외 타입은 노출 안 함
                 }
         );

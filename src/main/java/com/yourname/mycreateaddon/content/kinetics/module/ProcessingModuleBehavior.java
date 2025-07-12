@@ -72,19 +72,18 @@ public class ProcessingModuleBehavior implements IModuleBehavior {
         return Collections.singletonList(stack);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     private Optional<RecipeHolder<?>> findRecipe(ItemStack stack, Level level) {
         RecipeType<?> type = getRecipeType();
         if (type == null) return Optional.empty();
 
-        Object cacheKey = "my_addon_drill_processing_" + type.toString();
+        Object cacheKey = "my_addon_drill_processing_" + type;
         List<RecipeHolder<?>> allRecipesOfType = RecipeFinder.get(cacheKey, level, holder -> holder.value().getType() == type);
 
         for (RecipeHolder<?> recipeHolder : allRecipesOfType) {
             Recipe<?> recipe = recipeHolder.value();
             for (Ingredient ingredient : recipe.getIngredients()) {
                 if (ingredient.test(stack)) {
-                    return (Optional) Optional.of(recipeHolder);
+                    return Optional.of(recipeHolder);
                 }
             }
         }

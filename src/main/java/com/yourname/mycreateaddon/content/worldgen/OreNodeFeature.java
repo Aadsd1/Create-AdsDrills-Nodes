@@ -177,7 +177,6 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     // [수정] 스캔 로직을 두 개의 맵을 반환하도록 변경
     private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource, BlockState originalState) {
         WorldGenLevel level = context.level();
-        int nodeYLevel = pos.getY();
 
         Holder<Biome> biomeHolder = level.getBiome(pos);
         BiomeGenerationSettings generationSettings = biomeHolder.value().getGenerationSettings();
@@ -185,8 +184,6 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         Map<Item, Float> weightedSelection = new HashMap<>();
         Map<Item, Block> itemToBlockMap = new HashMap<>(); // 아이템-블록 매핑 맵
-
-        WorldGenerationContext worldGenContext = new WorldGenerationContext(context.chunkGenerator(), level);
 
         var registryAccess = context.level().registryAccess();
         var blockRegistry = registryAccess.registryOrThrow(Registries.BLOCK);
@@ -214,19 +211,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                         TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
                         float baseWeight = blockRegistry.wrapAsHolder(oreBlock).is(oresTag) ? 10.0f : 0.5f;
 
-                        // ... (가중치 계산 로직은 동일) ...
-                        int averageOreY = getAverageOreDepth(placedFeature, worldGenContext);
-                        float depthMultiplier = 1.0f;
-                        if (averageOreY != Integer.MIN_VALUE) {
-                            int distance = Math.abs(nodeYLevel - averageOreY);
-                            if (distance < EFFECTIVE_DISTANCE) {
-                                float closeness = 1.0f - ((float) distance / EFFECTIVE_DISTANCE);
-                                depthMultiplier = ((MAX_BONUS_MULTIPLIER - 1.0f) * closeness) + 1.0f;
-                            }
-                        }
-                        float finalWeight = baseWeight * depthMultiplier;
-
-                        weightedSelection.put(oreItem, finalWeight);
+                        weightedSelection.put(oreItem, baseWeight);
                         itemToBlockMap.put(oreItem, oreBlock); // 매핑 정보 추가
                     }
                 }
@@ -387,43 +372,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         return FluidStack.EMPTY;
     }
-    private int getAverageOreDepth(PlacedFeature feature, WorldGenerationContext context) {
-        for (PlacementModifier modifier : feature.placement()) {
-            if (modifier instanceof HeightRangePlacement heightRange) {
-                try {
-                    if (heightRange_heightField == null) {
-                        heightRange_heightField = HeightRangePlacement.class.getDeclaredField("height");
-                        heightRange_heightField.setAccessible(true);
-                    }
-                    Object heightProvider = heightRange_heightField.get(heightRange);
 
-                    if (heightProvider instanceof UniformHeight uniformHeight) {
-                        if (uniformHeight_minInclusiveField == null) {
-                            uniformHeight_minInclusiveField = UniformHeight.class.getDeclaredField("minInclusive");
-                            uniformHeight_minInclusiveField.setAccessible(true);
-                        }
-                        if (uniformHeight_maxInclusiveField == null) {
-                            uniformHeight_maxInclusiveField = UniformHeight.class.getDeclaredField("maxInclusive");
-                            uniformHeight_maxInclusiveField.setAccessible(true);
-                        }
-
-                        VerticalAnchor minAnchor = (VerticalAnchor) uniformHeight_minInclusiveField.get(uniformHeight);
-                        VerticalAnchor maxAnchor = (VerticalAnchor) uniformHeight_maxInclusiveField.get(uniformHeight);
-
-                        int minY = minAnchor.resolveY(context);
-                        int maxY = maxAnchor.resolveY(context);
-
-                        return (minY + maxY) / 2;
-                    }
-
-                } catch (NoSuchFieldException | IllegalAccessException e) {
-                    //e.printStackTrace();
-                    return Integer.MIN_VALUE;
-                }
-            }
-        }
-        return Integer.MIN_VALUE;
-    }
     private Item getOreItem(Block oreBlock, WorldGenLevel level) {
         Item oreBlockItem = oreBlock.asItem();
         if (oreBlockItem == Items.AIR) {

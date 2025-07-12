@@ -2,6 +2,8 @@ package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
+import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity; // BE 레지스트리 임포트
 import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.core.BlockPos;
@@ -152,9 +154,10 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     protected void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         if (!level.isClientSide()) {
-            withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
-            // [FIXED] 클라이언트에 즉시 블록 업데이트를 보내 시각적 피드백 지연을 없앱니다.
-            level.sendBlockUpdated(pos, state, state, 3);
+            // 변경을 유발한 블록(block)이 우리 모드의 모듈이거나 또 다른 코어일 때만 재검사를 예약합니다.
+            if (block instanceof GenericModuleBlock || block instanceof DrillCoreBlock|| block instanceof IDrillHead) {
+                withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
+            }level.sendBlockUpdated(pos, state, state, 3);
         }
     }
     // [신규] 업그레이드를 위한 상호작용 로직

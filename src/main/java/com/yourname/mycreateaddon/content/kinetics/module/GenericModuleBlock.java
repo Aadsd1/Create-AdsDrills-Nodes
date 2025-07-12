@@ -4,7 +4,9 @@ import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.equipment.wrench.WrenchItem;
 import com.simibubi.create.content.logistics.filter.FilterItem;
 import com.tterrag.registrate.util.entry.BlockEntry;
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.crafting.ModuleUpgrades;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import net.minecraft.core.BlockPos;
@@ -200,8 +202,9 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         if (level.isClientSide()) {
             return;
         }
-        // 코어에 구조 재검사를 알림
-        findAndNotifyCore(level, pos);
+        if (block instanceof GenericModuleBlock || block instanceof DrillCoreBlock|| block instanceof IDrillHead) {
+            findAndNotifyCore(level, pos);
+        }
 
         // [신규] 자신의 BE에 에너지 연결 상태를 업데이트하도록 알림
         withBlockEntityDo(level, pos, GenericModuleBlockEntity::updateEnergyConnections);

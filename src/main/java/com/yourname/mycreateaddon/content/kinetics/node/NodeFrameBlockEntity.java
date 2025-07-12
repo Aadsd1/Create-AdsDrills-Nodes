@@ -298,17 +298,14 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
     }
 
-    // [1단계 수정] 메서드 완성
     private int getDrillSpeedAbove() {
         assert level != null;
         BlockEntity aboveBE = level.getBlockEntity(worldPosition.above());
+
         if (aboveBE instanceof RotaryDrillHeadBlockEntity headBE) {
-            // 네더라이트 드릴 헤드만 작동하도록 제한
-            if (headBE.getBlockState().getBlock() == MyAddonBlocks.NETHERITE_ROTARY_DRILL_HEAD.get()) {
-                if (headBE.getCore() != null) {
-                    // 최종 속도의 절댓값을 정수로 반환
-                    return (int) Math.abs(headBE.getCore().getFinalSpeed());
-                }
+
+            if (headBE.getCore() != null) {
+                return (int) Math.abs(headBE.getCore().getFinalSpeed());
             }
         }
         return 0;

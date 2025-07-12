@@ -1,11 +1,14 @@
 package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
 
+import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
@@ -16,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
  * 모든 기계식 드릴 헤드 Block의 공통 로직을 담는 추상 클래스입니다.
  * IBE 인터페이스를 구현하지 않으며, 순수하게 공통 '동작'만 정의합니다.
  */
-public abstract class AbstractDrillHeadBlock extends DirectionalKineticBlock implements IDrillHead, IRotate {
+public abstract class AbstractDrillHeadBlock extends DirectionalKineticBlock implements IDrillHead, IRotate{
 
     public AbstractDrillHeadBlock(Properties properties) {
         super(properties);

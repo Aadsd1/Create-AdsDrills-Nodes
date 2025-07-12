@@ -34,6 +34,7 @@ import com.yourname.mycreateaddon.content.kinetics.base.DrillEnergyStorage; // [
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
@@ -356,8 +357,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private void scanAndValidateStructure() {
         if (level == null || level.isClientSide()) return;
 
-        Set<BlockPos> oldStructureCache = new HashSet<>(this.structureCache);
-
+        Set<BlockPos> oldStructure = new HashSet<>(this.structureCache);
+        if (this.cachedHeadPos != null) {
+            oldStructure.add(this.cachedHeadPos);
+        }
         // --- 1. 상태 초기화 ---
         this.structureCache.clear();
         this.processingModuleChain.clear();
@@ -543,16 +546,29 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             this.bulkProcessingModules.clear();
         }
 
-        // --- 5. [복원] 시각적 연결 정보 동기화 ---
-        // 이전 구조에 있었지만 새 구조에는 없는 모듈들의 연결을 초기화
-        Set<BlockPos> detachedModules = new HashSet<>(oldStructureCache);
-        detachedModules.removeAll(this.structureCache);
-        for (BlockPos detachedPos : detachedModules) {
-            if (level.getBlockEntity(detachedPos) instanceof GenericModuleBlockEntity moduleBE) {
+        Set<BlockPos> currentStructure = new HashSet<>(this.structureCache);
+        if (this.cachedHeadPos != null) {
+            currentStructure.add(this.cachedHeadPos);
+        }
+
+        // 이전 구조에는 있었지만 현재 구조에는 없는 부품(연결 해제된 부품)을 찾습니다.
+        Set<BlockPos> detachedParts = new HashSet<>(oldStructure);
+        detachedParts.removeAll(currentStructure);
+
+        // 연결 해제된 부품들의 상태를 강제로 초기화합니다.
+        for (BlockPos detachedPos : detachedParts) {
+            BlockEntity be = level.getBlockEntity(detachedPos);
+            if (be instanceof AbstractDrillHeadBlockEntity headBE) {
+                // 코어 연결을 끊고, 속도를 0으로 만듭니다.
+                headBE.setCore(null);
+            } else if (be instanceof GenericModuleBlockEntity moduleBE) {
+                // 모듈의 시각적 연결과 속도를 모두 초기화합니다.
                 moduleBE.updateVisualConnections(new HashSet<>());
+                moduleBE.updateVisualSpeed(0);
             }
         }
-        // 새 구조에 포함된 모든 모듈들의 연결을 업데이트
+
+        // 현재 구조에 포함된 모듈들의 연결 상태를 업데이트합니다.
         for (BlockPos modulePos : this.structureCache) {
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                 moduleBE.updateVisualConnections(moduleConnections.getOrDefault(modulePos, new HashSet<>()));

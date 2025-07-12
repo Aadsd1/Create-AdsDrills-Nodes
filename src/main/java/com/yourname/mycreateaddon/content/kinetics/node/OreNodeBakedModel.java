@@ -17,8 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class OreNodeBakedModel implements IDynamicBakedModel {
 
@@ -26,6 +25,8 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
     private final BakedModel coreBaseModel;
     private final BakedModel coreHighlightModel;
     private final ItemOverrides overrides;
+    private final Map<Direction, List<BakedQuad>> itemCache = new EnumMap<>(Direction.class);
+    private List<BakedQuad> itemQuadsCache = null; // side가 null인 경우를 위한 캐시
 
     public OreNodeBakedModel(BakedModel defaultBackground, BakedModel coreBase, BakedModel coreHighlight, ItemOverrides overrides) {
         this.defaultBackgroundModel = defaultBackground;
@@ -34,28 +35,26 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
         this.overrides = overrides;
     }
 
+
     @Nonnull
     @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand, @Nonnull ModelData extraData, @Nullable RenderType renderType) {
 
-        // --- [!!! 핵심 수정: 아이템 렌더링 경로 분기 !!!] ---
-        // renderType이 null이면, 인벤토리에서 아이템으로 렌더링되는 상황입니다.
+        // --- 아이템 렌더링 경로 (renderType == null) ---
         if (renderType == null) {
-            // 아이템일 경우, 기본 모습(돌 배경 + 기본 코어)만 보여줍니다.
-            // ModelData는 비워두어 기본값을 사용하게 합니다.
-
-            // 배경 모델의 모든 쿼드를 가져옵니다.
-            List<BakedQuad> itemQuads = new ArrayList<>(this.defaultBackgroundModel.getQuads(state, side, rand, ModelData.EMPTY, null));
-
-            // 코어 모델의 모든 쿼드에 기본 틴트(1, 2)를 적용하여 가져옵니다.
-            // 아이템 렌더링 시에는 ClientSetup의 ItemColor 핸들러가 이 틴트 인덱스를 사용합니다.
-            for (BakedQuad quad : this.coreBaseModel.getQuads(state, side, rand, ModelData.EMPTY, null)) {
-                itemQuads.add(new BakedQuad(quad.getVertices(), 1, quad.getDirection(), quad.getSprite(), quad.isShade()));
+            // [!!! 2. 캐싱 로직을 적용합니다. !!!]
+            if (side == null) {
+                // side가 null인 경우의 캐시 확인
+                if (itemQuadsCache == null) {
+                    // 캐시가 비어있으면, 계산하고 저장합니다.
+                    itemQuadsCache = bakeItemQuads(state, null, rand);
+                }
+                return itemQuadsCache;
+            } else {
+                // 특정 방향(side)에 대한 캐시 확인
+                // computeIfAbsent는 맵에 키가 없으면, 제공된 함수를 실행하여 값을 만들고 맵에 넣은 뒤 반환합니다.
+                return itemCache.computeIfAbsent(side, s -> bakeItemQuads(state, s, rand));
             }
-            for (BakedQuad quad : this.coreHighlightModel.getQuads(state, side, rand, ModelData.EMPTY, null)) {
-                itemQuads.add(new BakedQuad(quad.getVertices(), 2, quad.getDirection(), quad.getSprite(), quad.isShade()));
-            }
-            return itemQuads;
         }
 
         // --- 아래부터는 기존의 월드 내 블록 렌더링 로직입니다 ---
@@ -92,7 +91,23 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
 
         return finalQuads;
     }
+    private List<BakedQuad> bakeItemQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand) {
+        // 이 메서드는 캐시가 비어있을 때만 호출됩니다.
 
+        // 배경 모델의 쿼드를 추가합니다.
+        List<BakedQuad> quads = new ArrayList<>(this.defaultBackgroundModel.getQuads(state, side, rand, ModelData.EMPTY, null));
+
+        // 코어 모델의 쿼드에 틴트 인덱스를 적용하여 추가합니다.
+        for (BakedQuad quad : this.coreBaseModel.getQuads(state, side, rand, ModelData.EMPTY, null)) {
+            quads.add(new BakedQuad(quad.getVertices(), 1, quad.getDirection(), quad.getSprite(), quad.isShade()));
+        }
+        for (BakedQuad quad : this.coreHighlightModel.getQuads(state, side, rand, ModelData.EMPTY, null)) {
+            quads.add(new BakedQuad(quad.getVertices(), 2, quad.getDirection(), quad.getSprite(), quad.isShade()));
+        }
+
+        // 불변 리스트로 만들어 반환하는 것이 더 안전합니다.
+        return Collections.unmodifiableList(quads);
+    }
     @Override
     public @NotNull ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
         // [!!! 핵심 수정: 배경 블록의 렌더 타입 + 우리 코어의 렌더 타입을 모두 합쳐서 반환 !!!]

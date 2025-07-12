@@ -168,7 +168,7 @@ public class MyAddonDatagen {
         registrate.addRawLang("quirk.mycreateaddon.wild_magic", "Wild Magic");
 
         // Quirk 설명
-        registrate.addRawLang("quirk.mycreateaddon.steady_hands.description", "§7Guarantees at least one item drop per cycle.");
+        registrate.addRawLang("quirk.mycreateaddon.steady_hands.description", "§7Guarantees at least two item drop per cycle.");
         registrate.addRawLang("quirk.mycreateaddon.static_charge.description", "§7Has a chance to double mining output during rain or snow.");
         registrate.addRawLang("quirk.mycreateaddon.overload_discharge.description", "§7When the drill core overheats, may cause a lightning strike on it.");
         registrate.addRawLang("quirk.mycreateaddon.bone_chill.description", "§7Has a chance to spawn a Skeleton nearby when mined.");

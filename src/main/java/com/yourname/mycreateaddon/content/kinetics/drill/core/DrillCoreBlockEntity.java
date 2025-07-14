@@ -173,9 +173,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (level == null || level.isClientSide) return false;
 
         Tier nextTier = null;
-        if (upgradeMaterial == MyAddonItems.DRILL_CORE_UPGRADE_STEEL.get() && this.coreTier == Tier.BRASS) {
+        if (upgradeMaterial == MyAddonItems.DRILL_CORE_STEEL_UPGRADE.get() && this.coreTier == Tier.BRASS) {
             nextTier = Tier.STEEL;
-        } else if (upgradeMaterial == MyAddonItems.DRILL_CORE_UPGRADE_NETHERITE.get() && this.coreTier == Tier.STEEL) {
+        } else if (upgradeMaterial == MyAddonItems.DRILL_CORE_NETHERITE_UPGRADE.get() && this.coreTier == Tier.STEEL) {
             nextTier = Tier.NETHERITE;
         }
 

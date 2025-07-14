@@ -229,7 +229,6 @@ public class MyAddonBlocks {
             .build()
             .register();
 
-    // [신규] 펌프 헤드 등록
     public static final BlockEntry<PumpHeadBlock> PUMP_HEAD = REGISTRATE
             .block("pump_head", p -> new PumpHeadBlock(p, 250, 4.0f)) // pumpRate: 250mb/t, stressImpact: 4.0 SU
             .initialProperties(SharedProperties::stone)
@@ -244,7 +243,6 @@ public class MyAddonBlocks {
 
 
 
-    // [추가] 폭발형 헤드 등록
     public static final BlockEntry<ExplosiveDrillHeadBlock> EXPLOSIVE_DRILL_HEAD = REGISTRATE
             .block("explosive_drill_head", ExplosiveDrillHeadBlock::new)
             .initialProperties(SharedProperties::stone)
@@ -273,7 +271,6 @@ public class MyAddonBlocks {
             .register();
 
 
-    // [2단계 추가] 신규 모듈 블록 등록
     public static final BlockEntry<GenericModuleBlock> BLAST_FURNACE_MODULE = REGISTRATE
             .block("blast_furnace_module", p -> new GenericModuleBlock(p, ModuleType.BLAST_FURNACE))
             .initialProperties(SharedProperties::stone)
@@ -366,7 +363,6 @@ public class MyAddonBlocks {
                             provider.modLoc("block/" + context.getId().getPath() + "/block")))
             .build()
             .register();
-    // [신규] 에너지 관련 모듈 등록
     public static final BlockEntry<GenericModuleBlock> ENERGY_INPUT_MODULE = REGISTRATE
             .block("energy_input_module", p -> new GenericModuleBlock(p, ModuleType.ENERGY_INPUT))
             .initialProperties(SharedProperties::stone)
@@ -393,7 +389,7 @@ public class MyAddonBlocks {
             .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item().model((c, p) -> p.withExistingParent(c.getId().getPath(), p.modLoc("block/" + c.getId().getPath() + "/block"))).build()
             .register();
-    // [신규]
+
     public static final BlockEntry<GenericModuleBlock> RESONATOR_MODULE = REGISTRATE
             .block("resonator_module", p -> new GenericModuleBlock(p, ModuleType.RESONATOR))
             .initialProperties(SharedProperties::stone)

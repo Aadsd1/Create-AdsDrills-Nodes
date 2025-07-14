@@ -5,8 +5,10 @@ import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.tterrag.registrate.providers.RegistrateDataProvider;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.worldgen.ConditionalFeatureAdditionModifier;
+import com.yourname.mycreateaddon.data.recipe.AnyCraftRecipeGen;
+import com.yourname.mycreateaddon.data.recipe.MixRecipeGen;
+import com.yourname.mycreateaddon.data.recipe.SequencialRecipeGen;
 import com.yourname.mycreateaddon.registry.MyAddonFeatures;
-import com.yourname.mycreateaddon.registry.MyAddonRecipeProvider;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistrySetBuilder;
 import net.minecraft.core.registries.Registries;
@@ -43,6 +45,10 @@ public class MyAddonDatagen {
                 true,
                 new RegistrateDataProvider(REGISTRATE, MOD_ID, event)
         );
+        generator.addProvider(event.includeServer(), new AnyCraftRecipeGen(packOutput, lookupProvider));
+        generator.addProvider(event.includeServer(), new MixRecipeGen(packOutput, lookupProvider));
+        generator.addProvider(event.includeServer(), new SequencialRecipeGen(packOutput, lookupProvider));
+
         generator.addProvider(event.includeServer(), new DatapackBuiltinEntriesProvider(
                 packOutput, lookupProvider,
                 new RegistrySetBuilder()
@@ -51,12 +57,6 @@ public class MyAddonDatagen {
                          .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, MyAddonDatagen::bootstrapBiomeModifiers),
                 Set.of(MyCreateAddon.MOD_ID)
         ));
-
-        generator.addProvider(
-                event.includeServer(),
-                new MyAddonRecipeProvider(packOutput, lookupProvider)
-        );
-
     }
 
     public static void bootstrapBiomeModifiers(BootstrapContext<BiomeModifier> context) {

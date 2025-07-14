@@ -27,7 +27,6 @@ public class NeutralizerItem extends Item {
 
         if (level.getBlockState(pos).getBlock() instanceof OreNodeBlock) {
             if (!level.isClientSide) {
-                // TODO: 더 멋진 효과 추가 가능
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
                 level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 1.0f, 1.0f);
 

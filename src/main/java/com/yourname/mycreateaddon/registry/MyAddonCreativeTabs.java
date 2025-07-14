@@ -64,7 +64,7 @@ public class MyAddonCreativeTabs {
                         pOutput.accept(MyAddonItems.BRASS_STABILIZER_CORE);
                         pOutput.accept(MyAddonItems.STEEL_STABILIZER_CORE);
                         pOutput.accept(MyAddonItems.NETHERITE_STABILIZER_CORE);
-                        pOutput.accept(MyAddonItems.NEUTRALIZER);
+                        pOutput.accept(MyAddonItems.ORE_NODE_NEUTRALIZER);
                         pOutput.accept(MyAddonItems.UNFINISHED_NODE_DATA);
                         pOutput.accept(MyAddonItems.NODE_DESIGNATOR);
                     })

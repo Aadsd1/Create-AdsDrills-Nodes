@@ -6,6 +6,7 @@ import com.tterrag.registrate.providers.RegistrateDataProvider;
 import com.yourname.mycreateaddon.MyCreateAddon;
 import com.yourname.mycreateaddon.content.worldgen.ConditionalFeatureAdditionModifier;
 import com.yourname.mycreateaddon.registry.MyAddonFeatures;
+import com.yourname.mycreateaddon.registry.MyAddonRecipeProvider;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistrySetBuilder;
 import net.minecraft.core.registries.Registries;
@@ -51,6 +52,11 @@ public class MyAddonDatagen {
                 Set.of(MyCreateAddon.MOD_ID)
         ));
 
+        generator.addProvider(
+                event.includeServer(),
+                new MyAddonRecipeProvider(packOutput, lookupProvider)
+        );
+
     }
 
     public static void bootstrapBiomeModifiers(BootstrapContext<BiomeModifier> context) {
@@ -58,7 +64,6 @@ public class MyAddonDatagen {
 
         context.register(
                 ResourceKey.create(NeoForgeRegistries.Keys.BIOME_MODIFIERS, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "add_ore_node_conditionally")),
-                // [핵심 수정] HolderSet 관련 로직을 모두 제거하고, feature만 인자로 전달
                 new ConditionalFeatureAdditionModifier(
                         placedFeatures.getOrThrow(MyAddonFeatures.ORE_NODE_PLACED_FEATURE)
                 )
@@ -186,5 +191,6 @@ public class MyAddonDatagen {
         registrate.addRawLang("mycreateaddon.quirk_candidates.header", "Quirk Candidates:");
         registrate.addRawLang("mycreateaddon.fluid_content.header", "Fluid Content");
         registrate.addRawLang("mycreateaddon.catalyst.head","Catalyst");
+        registrate.addRawLang("creativetab.mycreateaddon.base_tab", "My Create Addon");
     }
 }

@@ -6,6 +6,7 @@ import com.simibubi.create.AllItems;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
@@ -26,30 +27,30 @@ public class ModuleUpgrades {
      */
     public static void register() {
         // 성능 모듈
-        addUpgrade(Items.COPPER_INGOT, MyAddonBlocks.SPEED_MODULE);
-        addUpgrade(AllItems.PROPELLER.get(), MyAddonBlocks.EFFICIENCY_MODULE);
-        addUpgrade(Items.IRON_BLOCK, MyAddonBlocks.REINFORCEMENT_MODULE);
+        addUpgrade(MyAddonItems.MODULE_SPEED_UPGRADE.get(), MyAddonBlocks.SPEED_MODULE);
+        addUpgrade(MyAddonItems.MODULE_EFFI_UPGRADE.get(), MyAddonBlocks.EFFICIENCY_MODULE);
+        addUpgrade(MyAddonItems.MODULE_REIN_UPGRADE.get(), MyAddonBlocks.REINFORCEMENT_MODULE);
 
         // 처리 모듈
-        addUpgrade(Items.FURNACE, MyAddonBlocks.FURNACE_MODULE);
-        addUpgrade(Items.BLAST_FURNACE, MyAddonBlocks.BLAST_FURNACE_MODULE);
-        addUpgrade(AllBlocks.CRUSHING_WHEEL.asItem(), MyAddonBlocks.CRUSHER_MODULE);
-        addUpgrade(Items.WATER_BUCKET, MyAddonBlocks.WASHER_MODULE);
-        addUpgrade(Items.PISTON, MyAddonBlocks.COMPACTOR_MODULE);
+        addUpgrade(MyAddonItems.MODULE_FURNACE_UPGRADE.get(), MyAddonBlocks.FURNACE_MODULE);
+        addUpgrade(MyAddonItems.MODULE_BF_UPGRADE.get(), MyAddonBlocks.BLAST_FURNACE_MODULE);
+        addUpgrade(MyAddonItems.MODULE_CRUSH_UPGRADE.get(), MyAddonBlocks.CRUSHER_MODULE);
+        addUpgrade(MyAddonItems.MODULE_WASH_UPGRADE.get(), MyAddonBlocks.WASHER_MODULE);
+        addUpgrade(MyAddonItems.MODULE_COMP_UPGRADE.get(), MyAddonBlocks.COMPACTOR_MODULE);
 
         // 유틸리티 및 시스템 모듈
-        addUpgrade(Items.ICE, MyAddonBlocks.HEATSINK_MODULE);
-        addUpgrade(Items.BLUE_ICE, MyAddonBlocks.COOLANT_MODULE);
-        addUpgrade(AllItems.FILTER.get(), MyAddonBlocks.FILTER_MODULE);
-        addUpgrade(Items.ECHO_SHARD, MyAddonBlocks.RESONATOR_MODULE);
-        addUpgrade(Items.LEVER, MyAddonBlocks.REDSTONE_BRAKE_MODULE);
-        addUpgrade(AllItems.ELECTRON_TUBE.get(), MyAddonBlocks.KINETIC_DYNAMO_MODULE);
+        addUpgrade(MyAddonItems.MODULE_HEATSINK_UPGRADE.get(), MyAddonBlocks.HEATSINK_MODULE);
+        addUpgrade(MyAddonItems.MODULE_COOL_UPGRADE.get(), MyAddonBlocks.COOLANT_MODULE);
+        addUpgrade(MyAddonItems.MODULE_FILTER_UPGRADE.get(), MyAddonBlocks.FILTER_MODULE);
+        addUpgrade(MyAddonItems.MODULE_RESO_UPGRADE.get(), MyAddonBlocks.RESONATOR_MODULE);
+        addUpgrade(MyAddonItems.MODULE_R_BRAKE_UPGRADE.get(), MyAddonBlocks.REDSTONE_BRAKE_MODULE);
+        addUpgrade(MyAddonItems.MODULE_E_GEN_UPGRADE.get(), MyAddonBlocks.KINETIC_DYNAMO_MODULE);
 
         // 버퍼 및 에너지 모듈
-        addUpgrade(Items.CHEST, MyAddonBlocks.ITEM_BUFFER_MODULE);
-        addUpgrade(Items.BUCKET, MyAddonBlocks.FLUID_BUFFER_MODULE);
-        addUpgrade(AllItems.ELECTRON_TUBE.get(), MyAddonBlocks.ENERGY_INPUT_MODULE);
-        addUpgrade(AllBlocks.BRASS_CASING.asItem(), MyAddonBlocks.ENERGY_BUFFER_MODULE); // 예시
+        addUpgrade(MyAddonItems.MODULE_I_BUFFER_UPGRADE.get(), MyAddonBlocks.ITEM_BUFFER_MODULE);
+        addUpgrade(MyAddonItems.MODULE_F_BUFFER_UPGRADE.get(), MyAddonBlocks.FLUID_BUFFER_MODULE);
+        addUpgrade(MyAddonItems.MODULE_E_INPUT_UPGRADE.get(), MyAddonBlocks.ENERGY_INPUT_MODULE);
+        addUpgrade(MyAddonItems.MODULE_E_BUFFER_UPGRADE.get(), MyAddonBlocks.ENERGY_BUFFER_MODULE); // 예시
     }
 
     /**

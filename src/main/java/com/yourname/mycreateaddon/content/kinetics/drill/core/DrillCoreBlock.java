@@ -57,7 +57,6 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
 
     public DrillCoreBlock(Properties properties) {
         super(properties);
-        // 기본 상태에 TIER 프로퍼티의 기본값(BRASS)을 설정
         registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.SOUTH).setValue(TIER, Tier.BRASS));
     }
 
@@ -155,9 +154,8 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         if (!level.isClientSide()) {
             // 변경을 유발한 블록(block)이 우리 모드의 모듈이거나 또 다른 코어일 때만 재검사를 예약합니다.
-            if (block instanceof GenericModuleBlock || block instanceof DrillCoreBlock|| block instanceof IDrillHead) {
-                withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
-            }level.sendBlockUpdated(pos, state, state, 3);
+            withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
+            level.sendBlockUpdated(pos, state, state, 3);
         }
     }
     // [신규] 업그레이드를 위한 상호작용 로직

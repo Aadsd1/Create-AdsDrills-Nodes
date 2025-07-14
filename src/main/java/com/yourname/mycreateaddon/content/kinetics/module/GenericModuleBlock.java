@@ -9,6 +9,7 @@ import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEnti
 import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
 import com.yourname.mycreateaddon.crafting.ModuleUpgrades;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -99,8 +100,7 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             return super.useItemOn(stack, state, level, pos, player, hand, hit);
         }
 
-        // --- [신규] 부싯돌로 다운그레이드하는 로직 ---
-        if (stack.getItem() == Items.FLINT) {
+        if (stack.getItem() == MyAddonItems.MODULE_UPGRADE_REMOVER.get()) {
             // 현재 모듈이 프레임이 아닐 경우에만 작동
             if (getModuleType() != ModuleType.FRAME) {
                 if (!level.isClientSide) {
@@ -202,9 +202,8 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         if (level.isClientSide()) {
             return;
         }
-        if (block instanceof GenericModuleBlock || block instanceof DrillCoreBlock|| block instanceof IDrillHead) {
-            findAndNotifyCore(level, pos);
-        }
+
+        findAndNotifyCore(level, pos);
 
         // [신규] 자신의 BE에 에너지 연결 상태를 업데이트하도록 알림
         withBlockEntityDo(level, pos, GenericModuleBlockEntity::updateEnergyConnections);

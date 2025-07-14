@@ -36,21 +36,16 @@ import java.util.function.Supplier;
 
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
-    // [핵심] 렌더링에 필요한 데이터를 담을 ModelProperty를 정의합니다.
     public static final ModelProperty<BlockState> BACKGROUND_STATE = new ModelProperty<>();
 
 
     // --- 데이터 필드 ---
-    // --- 데이터 필드 ---
-    // [핵심 수정] 저장 타입을 Map<Item, Float>에서 Map<Block, Float>으로 변경
-    // [유지] 아이템 기반의 성분 맵
     private Map<Item, Float> resourceComposition = new HashMap<>();
-    // [추가] 아이템-블록 매핑 맵
     private Map<Item, Block> itemToBlockMap = new HashMap<>();
 
     private FluidStack fluidContent = FluidStack.EMPTY;
     private int maxFluidCapacity;
-    private float currentFluidAmount; // 정밀한 양 조절을 위해 float 유지
+    private float currentFluidAmount;
 
     private float temporaryRegenBoost = 0;
     private boolean polarityBonusActive = false;
@@ -68,22 +63,19 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private float regeneration;
 
     private int quirkCheckOffset = -1;
-    // [추가] 균열 상태 필드
     private boolean cracked = false;
-    // [추가] 균열 상태가 지속될 시간을 틱 단위로 저장할 타이머
     private int crackTimer = 0;
-    private static final int CRACK_DURATION_TICKS = 100; // 30초 (20틱 * 30초)
+    private static final int CRACK_DURATION_TICKS = 100;
 
 
     public OreNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
 
-    // [신규] 수압 헤드 등이 노드의 전체 구성을 알 수 있도록 public getter를 추가합니다.
     public Map<Item, Float> getResourceComposition() {
         return this.resourceComposition;
     }
-    // [신규] 특정 아이템만 채굴하는 메서드
+
     public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
             return Collections.emptyList();
@@ -127,7 +119,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+
     }
+
     // [추가] 균열 상태 getter
     public boolean isCracked() {
         return cracked;
@@ -199,23 +193,39 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
     // --- 초기화 메서드 ---
     // [수정] 파라미터 타입을 Map<Block, Float>으로 변경
+    public void configureFromFeature(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock, FluidStack fluid, int fluidCapacity) {
+        this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(backgroundBlock);
+        this.oreBlockId = BuiltInRegistries.BLOCK.getKey(representativeOreBlock);
+        // 새로운 범용 설정 메서드를 호출합니다.
+        configureNode(composition, itemToBlockMap, maxYield, hardness, richness, regeneration, fluid, fluidCapacity);
+    }
 
-    public void configure(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock, FluidStack fluid, int fluidCapacity) {        this.resourceComposition = composition;
-        this.itemToBlockMap = itemToBlockMap; // 새 맵 저장
+    /**
+     * [!!! 신규 !!!]
+     * 모든 노드 타입(자연산, 인공)의 기본 속성을 설정하는 범용 메서드.
+     */
+    public void configureNode(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, FluidStack fluid, int fluidCapacity) {
+        this.resourceComposition = composition;
+        this.itemToBlockMap = itemToBlockMap;
         this.maxYield = maxYield;
         this.currentYield = maxYield;
         this.hardness = hardness;
         this.richness = richness;
         this.regeneration = regeneration;
-        this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(backgroundBlock);
-        this.oreBlockId = BuiltInRegistries.BLOCK.getKey(representativeOreBlock);
-        this.fluidContent = fluid.copy();
-        this.maxFluidCapacity = fluidCapacity;
-        this.currentFluidAmount = fluidCapacity; // 처음엔 가득 차 있도록 설정
+
+        if (fluid != null && !fluid.isEmpty() && fluidCapacity > 0) {
+            this.fluidContent = fluid.copy();
+            this.maxFluidCapacity = fluidCapacity;
+            this.currentFluidAmount = fluidCapacity;
+        } else {
+            this.fluidContent = FluidStack.EMPTY;
+            this.maxFluidCapacity = 0;
+            this.currentFluidAmount = 0;
+        }
+
         setChanged();
         sendData();
     }
-    // --- 핵심 로직 ---
 
 
 

@@ -130,9 +130,9 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
             }
 
             // [핵심 수정 3] configure 메서드에는 원래 블록을 전달합니다.
-            nodeBE.configure(scanResult.composition(), scanResult.itemToBlockMap(),
+            nodeBE.configureFromFeature(scanResult.composition(), scanResult.itemToBlockMap(),
                     maxYield, hardness, richness, regeneration,
-                    backgroundBlock, representativeOreBlock, // 여기는 backgroundBlock 변수를 그대로 사용
+                    backgroundBlock, representativeOreBlock,
                     fluidToPlace, fluidCapacity);
             return true;
         }

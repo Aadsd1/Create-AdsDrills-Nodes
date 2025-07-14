@@ -18,13 +18,17 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Skeleton;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 // OreNodeBlockEntity를 상속받습니다.
 public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
@@ -38,6 +42,30 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
     public ArtificialNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
+
+
+    public void configureFromCrafting(
+            List<Quirk> quirks,
+            Map<Item, Float> composition,
+            Map<Item, Block> itemToBlockMap,
+            int maxYield,
+            float hardness,
+            float richness,
+            float regeneration,
+            FluidStack fluid,
+            int fluidCapacity
+    ) {
+        // 1. 부모 클래스의 설정 메서드를 호출하여 기본 노드 속성을 설정합니다.
+        super.configureNode(composition, itemToBlockMap, maxYield, hardness, richness, regeneration, fluid, fluidCapacity);
+
+        // 2. 이 클래스 고유의 데이터(특성)를 설정합니다.
+        this.quirks.clear();
+        this.quirks.addAll(quirks);
+
+        // 3. 변경사항을 저장하고 클라이언트에 동기화합니다.
+        // 부모의 configureNode에서 이미 setChanged를 호출하므로 여기서 또 호출할 필요는 없습니다.
+    }
+
     // [1. 추가] 외부에서 이 노드가 특정 특수 효과를 가졌는지 확인할 수 있는 public 메서드
     public boolean hasQuirk(Quirk quirk) {
         return this.quirks.contains(quirk);
@@ -103,7 +131,6 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
         return true;
     }
 
-
     public void applyQuirkEffects(List<ItemStack> drops, ServerLevel level) {
         if (quirks.isEmpty() || drops.isEmpty()) return;
 
@@ -150,7 +177,7 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
                     }
                     break;
                 case WILD_MAGIC:
-                    if (random.nextFloat() < 0.03f) { // 3% 확률
+                    if (random.nextFloat() < 0.05f) { // 3% 확률
                         level.playSound(null, worldPosition, SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.BLOCKS, 1.0f, random.nextFloat() * 2.0f);
                         level.sendParticles(ParticleTypes.NOTE, worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5, 5, 0.5, 0.5, 0.5, 0);
                     }

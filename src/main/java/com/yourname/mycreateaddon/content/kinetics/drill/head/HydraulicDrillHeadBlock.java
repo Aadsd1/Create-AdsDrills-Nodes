@@ -1,6 +1,6 @@
 package com.yourname.mycreateaddon.content.kinetics.drill.head;
-// [핵심] 부모 클래스 변경
-import com.simibubi.create.foundation.block.IBE;
+
+
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
@@ -23,8 +23,7 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import java.util.List;
 import java.util.Map;
 
-// [핵심] 부모 클래스 변경
-public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock implements IBE<HydraulicDrillHeadBlockEntity> {
+public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
 
     private static final int WATER_CONSUMPTION = 50;
     private static final float STRESS_IMPACT = 6.0f;
@@ -35,7 +34,6 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock implements I
         super(properties);
     }
 
-    // --- 고유 로직 (onDrillTick 등)은 그대로 유지 ---
 
     @Override
     public void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core) {
@@ -91,13 +89,9 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock implements I
     @Override public float getCoolingRate() { return 0.2f; }
     @Override public float getStressImpact() { return STRESS_IMPACT; }
 
-    @Override
-    public Class<HydraulicDrillHeadBlockEntity> getBlockEntityClass() {
-        return HydraulicDrillHeadBlockEntity.class;
-    }
 
     @Override
-    public BlockEntityType<? extends HydraulicDrillHeadBlockEntity> getBlockEntityType() {
+    public BlockEntityType<? extends AbstractDrillHeadBlockEntity> getBlockEntityType() {
         return MyAddonBlockEntity.HYDRAULIC_DRILL_HEAD.get();
     }
 }

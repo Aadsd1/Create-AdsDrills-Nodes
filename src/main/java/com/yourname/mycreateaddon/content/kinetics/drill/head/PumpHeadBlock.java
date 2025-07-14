@@ -1,6 +1,5 @@
 package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
-import com.simibubi.create.foundation.block.IBE;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -12,7 +11,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
 
-public class PumpHeadBlock extends AbstractDrillHeadBlock implements IBE<PumpHeadBlockEntity> {
+public class PumpHeadBlock extends AbstractDrillHeadBlock {
 
     private final int pumpRate;
     private final float stressImpact;
@@ -49,13 +48,10 @@ public class PumpHeadBlock extends AbstractDrillHeadBlock implements IBE<PumpHea
     @Override
     public float getStressImpact() { return this.stressImpact; }
 
-    @Override
-    public Class<PumpHeadBlockEntity> getBlockEntityClass() {
-        return PumpHeadBlockEntity.class;
-    }
+
 
     @Override
-    public BlockEntityType<? extends PumpHeadBlockEntity> getBlockEntityType() {
+    public BlockEntityType<? extends AbstractDrillHeadBlockEntity> getBlockEntityType() {
         return MyAddonBlockEntity.PUMP_HEAD.get();
     }
 }

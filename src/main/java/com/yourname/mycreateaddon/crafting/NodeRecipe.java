@@ -81,18 +81,18 @@ public record NodeRecipe(
         ));
 
         RECIPES.add(new NodeRecipe(
-                List.of(()->Items.QUARTZ, ()->Items.DIAMOND),
+                List.of(()->Items.RAW_GOLD, ()->Items.DIAMOND),
                 null,
-                Map.of(()->Items.QUARTZ, 0.1f, ()->Items.DIAMOND, 0.1f),
+                Map.of(()->Items.RAW_GOLD, 0.1f, ()->Items.DIAMOND, 0.1f),
                 new ItemStack(MyAddonItems.IVORY_CRYSTAL.get()),
                 0.05f,
                 2.0f
         ));
 
         RECIPES.add(new NodeRecipe(
-                List.of(()->Items.REDSTONE, ()->Items.QUARTZ),
+                List.of(()->Items.REDSTONE, ()->Items.COAL),
                 Fluids.LAVA,
-                Map.of(()->Items.REDSTONE, 0.1f, ()->Items.QUARTZ, 0.1f),
+                Map.of(()->Items.REDSTONE, 0.1f, ()->Items.COAL, 0.1f),
                 new ItemStack(MyAddonItems.CINNABAR.get()),
                 0.05f,
                 2.0f

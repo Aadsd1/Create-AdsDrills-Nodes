@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-13T00:51:02.4803741	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-07-13T13:43:52.7159578	Registrate Provider for mycreateaddon [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 c2353b1d3b2e0466e6a976b235577fea4cc51ef6 assets/mycreateaddon/blockstates/artificial_node.json
 3222d8e1c2398f71dbf75105c17e7ce94ec8b8cb assets/mycreateaddon/blockstates/blast_furnace_module.json
 748c6e9125c39bd09b3d25986ff32052aeaad432 assets/mycreateaddon/blockstates/compactor_module.json
@@ -29,8 +29,8 @@ bc42c58476d973247dbfcdb359196a0ae3c2a399 assets/mycreateaddon/blockstates/pump_h
 8157d0bab3332c6618017925932724a9d97daed0 assets/mycreateaddon/blockstates/resonator_module.json
 292784f9c60bc3c7287ddbed78b38afb5b36a9e3 assets/mycreateaddon/blockstates/speed_module.json
 00134134b9edae22ba8c1c74d5ea78beed718101 assets/mycreateaddon/blockstates/washer_module.json
-d8a179b116a61304f396f81668e237901169c6e6 assets/mycreateaddon/lang/en_ud.json
-444e00675af14fdf307bd8fc00eef99461701987 assets/mycreateaddon/lang/en_us.json
+56c539abdbf19bba988fe174f11149aa673ffdbb assets/mycreateaddon/lang/en_ud.json
+be7f8c8b97df18b71bf9fae7dee8a7ec9fdd4e5d assets/mycreateaddon/lang/en_us.json
 8d9feca0bf980f8964bfda9e3235ededfc738002 assets/mycreateaddon/models/item/artificial_node.json
 e379a4f0418a38a64db20578009bbc513aec2038 assets/mycreateaddon/models/item/blast_furnace_module.json
 b73abe710d8443fbf36f0fc591bb6fecaf72783a assets/mycreateaddon/models/item/brass_stabilizer_core.json
@@ -62,7 +62,6 @@ bfc4146fcc03935aec2af110aeaa5201bf478885 assets/mycreateaddon/models/item/nether
 6d9a04de37e78ea5f1757eb8de1d02e94b42551a assets/mycreateaddon/models/item/neutralizer.json
 b1f9fc7c838fc520ab24b223c378921e24d21b67 assets/mycreateaddon/models/item/node_designator.json
 3499017af4bbc23653f8e2af7d0be4dd7fe1ed95 assets/mycreateaddon/models/item/node_frame.json
-e9b1dd5748afe42adc4568efe8278b0a53d06cf6 assets/mycreateaddon/models/item/ore_node.json
 4e6ccd2c8074ff14a2dfa0de6a9a59c0c4dbf454 assets/mycreateaddon/models/item/pump_head.json
 43aa2a638ddf6a7ee2a25fa15391e3e50eae017a assets/mycreateaddon/models/item/raw_rose_gold_chunk.json
 68447fd6c66818200cd4b47905331da87e5f34b8 assets/mycreateaddon/models/item/raw_steel_chunk.json
@@ -102,7 +101,7 @@ b965fc19f254a5d495a897c0abb5ca081ac8897f data/mycreateaddon/loot_table/blocks/ki
 5bf172560b543ce705c586191a92f22ef9546e07 data/mycreateaddon/loot_table/blocks/laser_drill_head.json
 25249435a3e74824b693257597d4b3cf28f12206 data/mycreateaddon/loot_table/blocks/netherite_rotary_drill_head.json
 3cbb83cb8168e284e06042ab530d177447d48552 data/mycreateaddon/loot_table/blocks/node_frame.json
-947aaef299551c1cf122618df3973029d99ff3e6 data/mycreateaddon/loot_table/blocks/ore_node.json
+7bba95224baa15bbcb1d1d6c2756413d7152d047 data/mycreateaddon/loot_table/blocks/ore_node.json
 dcc559798f23f75d130bfe5fde1c1b327d53b1e9 data/mycreateaddon/loot_table/blocks/pump_head.json
 d32bbedcef10dba4ffbca2eda92bf96da87fb0c6 data/mycreateaddon/loot_table/blocks/redstone_brake_module.json
 2b8185dd46d73e362e7cad292871c7e52d3900fe data/mycreateaddon/loot_table/blocks/reinforcement_module.json

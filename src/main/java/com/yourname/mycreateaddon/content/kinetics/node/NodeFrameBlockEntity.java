@@ -3,6 +3,7 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.yourname.mycreateaddon.config.MyAddonConfigs;
 import com.yourname.mycreateaddon.content.item.StabilizerCoreItem;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.RotaryDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.crafting.Quirk;
@@ -47,7 +48,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     // [1] 인벤토리 크기를 11에서 13으로 늘립니다. (데이터 9 + 코어 1 + 촉매 2)
     protected ItemStackHandler inventory = createInventory();
     private int progress = 0;
-    private static final int REQUIRED_PROGRESS = 240000;
+    private static final int REQUIRED_PROGRESS = MyAddonConfigs.SERVER.nodeFrameRequiredProgress.get();
     private boolean isCompleting = false;
 
 
@@ -307,10 +308,13 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
 
+
     private void completeCrafting() {
         if (level == null || level.isClientSide) return;
 
-        // --- 1. 재료 분석 및 데이터 집계 ---
+        // [!!! 리팩토링 시작 !!!]
+
+        // --- 1. 최종 속성 계산 (이전과 동일) ---
         Map<Item, Float> weightedComposition = new HashMap<>();
         Map<Item, Block> finalItemToBlockMap = new HashMap<>();
         float totalInputYield = 0;
@@ -368,9 +372,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             }
         }
 
-        // --- 2. 최종 결과물 속성 결정 ---
-
-        // 2a. 최종 성분 정규화
         Map<Item, Float> finalComposition = new HashMap<>();
         float totalWeight = weightedComposition.values().stream().reduce(0f, Float::sum);
         if (totalWeight > 0) {
@@ -384,7 +385,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
         StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
 
-        // 2b. 최종 매장량 계산
         float yieldMultiplier = switch (tier) {
             case BRASS -> 0.8f;
             case STEEL -> 1.0f;
@@ -392,7 +392,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         };
         int finalMaxYield = (int) (totalInputYield * yieldMultiplier);
 
-        // 2c. 최종 특성 결정
         RandomSource random = level.getRandom();
         float finalHardness, finalRichness, finalRegeneration;
         switch (tier) {
@@ -414,7 +413,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             default -> throw new IllegalStateException("Unexpected value: " + tier);
         }
 
-        // 2e. 특수 효과(Quirk) 결정 (랜덤성 강화 버전)
         Map<Quirk, Float> weightedQuirks = new HashMap<>();
         for (Quirk quirk : Quirk.values()) {
             weightedQuirks.put(quirk, 3.0f);
@@ -487,88 +485,42 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         int finalFluidCapacity = 0;
 
         if (!fluidCapacities.isEmpty()) {
-            // 가장 용량이 많은 액체를 최종 액체로 선택
             Fluid dominantFluid = fluidCapacities.entrySet().stream()
                     .max(Map.Entry.comparingByValue())
                     .map(Map.Entry::getKey)
                     .orElse(null);
 
             if (dominantFluid != null) {
-                // 모든 용량을 합산
                 int totalCapacity = fluidCapacities.values().stream().mapToInt(Integer::intValue).sum();
-                // 코어 효율 보정 적용
-                finalFluidCapacity = (int) (totalCapacity * yieldMultiplier); // 광물 매장량과 동일한 보정 적용
-                finalFluid = new FluidStack(dominantFluid, 1); // 양은 중요하지 않으므로 1로 설정
+                finalFluidCapacity = (int) (totalCapacity * yieldMultiplier);
+                finalFluid = new FluidStack(dominantFluid, 1);
             }
         }
 
-
-        // --- [!!! 핵심 수정: 인공 노드 생성 및 데이터 주입 방식 변경 !!!] ---
+        // --- 2. 블록 교체 및 데이터 주입 ---
         this.isCompleting = true;
         BlockPos currentPos = this.worldPosition;
 
-        // 1. 생성될 ArtificialNodeBlockEntity에 주입할 모든 데이터를 담을 NBT 태그를 준비합니다.
-        CompoundTag finalNbtForNewNode = new CompoundTag();
-
-        // 2. OreNodeBlockEntity의 write 메서드와 동일한 형식으로 모든 데이터를 NBT에 저장합니다.
-        // 2a. 특성(Quirks) 저장
-        if (!finalQuirks.isEmpty()) {
-            ListTag quirkListTag = new ListTag();
-            for (Quirk quirk : finalQuirks) {
-                CompoundTag quirkTag = new CompoundTag();
-                quirkTag.putString("id", quirk.name());
-                quirkListTag.add(quirkTag);
-            }
-            finalNbtForNewNode.put("Quirks", quirkListTag);
-        }
-
-        // 2b. 광물 구성(Composition) 저장
-        ListTag compositionList = new ListTag();
-        for (Map.Entry<Item, Float> entry : finalComposition.entrySet()) {
-            CompoundTag entryTag = new CompoundTag();
-            entryTag.putString("Item", BuiltInRegistries.ITEM.getKey(entry.getKey()).toString());
-            entryTag.putFloat("Ratio", entry.getValue());
-            compositionList.add(entryTag);
-        }
-        finalNbtForNewNode.put("Composition", compositionList);
-
-        // 2c. 아이템-블록 맵(ItemToBlockMap) 저장
-        ListTag itemToBlockList = new ListTag();
-        for (Map.Entry<Item, Block> entry : finalItemToBlockMap.entrySet()) {
-            CompoundTag entryTag = new CompoundTag();
-            entryTag.putString("Item", BuiltInRegistries.ITEM.getKey(entry.getKey()).toString());
-            entryTag.putString("Block", BuiltInRegistries.BLOCK.getKey(entry.getValue()).toString());
-            itemToBlockList.add(entryTag);
-        }
-        finalNbtForNewNode.put("ItemToBlockMap", itemToBlockList);
-
-        // 2d. 기본 속성들 저장
-        finalNbtForNewNode.putInt("MaxYield", finalMaxYield);
-        finalNbtForNewNode.putFloat("CurrentYield", finalMaxYield); // 처음엔 가득 찬 상태로
-        finalNbtForNewNode.putFloat("Hardness", finalHardness);
-        finalNbtForNewNode.putFloat("Richness", finalRichness);
-        finalNbtForNewNode.putFloat("Regeneration", finalRegeneration);
-
-        if (!finalFluid.isEmpty() && finalFluidCapacity > 0) {
-            finalNbtForNewNode.put("FluidContent", finalFluid.save(level.registryAccess()));
-            finalNbtForNewNode.putInt("MaxFluidCapacity", finalFluidCapacity);
-            finalNbtForNewNode.putFloat("CurrentFluidAmount", finalFluidCapacity); // 처음엔 가득 차도록
-        }
-
-        // 3. 블록을 인공 노드로 교체
+        // 2a. 블록을 인공 노드로 교체
         level.setBlock(currentPos, MyAddonBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);
         BlockEntity newBE = level.getBlockEntity(currentPos);
 
+        // 2b. 새로 생성된 BE가 맞는지 확인하고, 계산된 모든 데이터를 직접 주입
         if (newBE instanceof ArtificialNodeBlockEntity artificialNode) {
-            // 4. 모든 정보가 담긴 NBT를 단 한 번만 로드합니다.
-            // 이 한 줄이 configure()와 이전 load()를 모두 대체합니다.
-            artificialNode.loadWithComponents(finalNbtForNewNode, level.registryAccess());
-
-            // 데이터가 모두 주입되었음을 확실히 하기 위해 변경사항을 알립니다.
-            artificialNode.setChanged();
+            artificialNode.configureFromCrafting(
+                    finalQuirks,
+                    finalComposition,
+                    finalItemToBlockMap,
+                    finalMaxYield,
+                    finalHardness,
+                    finalRichness,
+                    finalRegeneration,
+                    finalFluid,
+                    finalFluidCapacity
+            );
         }
 
-        // 5. 제작 완료 효과
+        // --- 3. 제작 완료 효과 (이전과 동일) ---
         level.playSound(null, currentPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0f, 0.8f);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,

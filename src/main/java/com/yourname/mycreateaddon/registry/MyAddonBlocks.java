@@ -35,7 +35,6 @@ public class MyAddonBlocks {
             .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.get(), state -> {
                 DrillCoreBlockEntity.Tier tier = state.getValue(DrillCoreBlock.TIER);
-
                 return prov.models().getExistingFile(
                         prov.modLoc("block/drill_core/" + tier.name().toLowerCase())
                 );
@@ -43,7 +42,6 @@ public class MyAddonBlocks {
             .item(DrillCoreItem::new)
             .model((ctx, prov) -> {
                 ItemModelBuilder builder = prov.withExistingParent(ctx.getName(), prov.modLoc("block/drill_core/brass"));
-                // [수정] .getBuilder(...)를 .getExistingFile(...)로 변경하여 중복 생성을 방지합니다.
                 builder.override()
                         .predicate(prov.modLoc("tier"), 1.0f)
                         .model(prov.getExistingFile(prov.modLoc("block/drill_core/steel")));
@@ -145,11 +143,6 @@ public class MyAddonBlocks {
             .blockstate((c, p) ->
                     p.simpleBlock(c.get(),
                             AssetLookup.partialBaseModel(c, p)))
-            .item()
-            .model((context, provider) ->
-                    provider.withExistingParent(context.getId().getPath(),
-                            provider.modLoc("block/" + context.getId().getPath() + "/block")))
-            .build()
             .register();
 
     public static final BlockEntry<NodeFrameBlock> NODE_FRAME = REGISTRATE

@@ -3,21 +3,21 @@ package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.IRotate;
+import com.simibubi.create.foundation.block.IBE;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * 모든 기계식 드릴 헤드 Block의 공통 로직을 담는 추상 클래스입니다.
- * IBE 인터페이스를 구현하지 않으며, 순수하게 공통 '동작'만 정의합니다.
  */
-public abstract class AbstractDrillHeadBlock extends DirectionalKineticBlock implements IDrillHead, IRotate{
-
+public abstract class AbstractDrillHeadBlock extends DirectionalKineticBlock implements IDrillHead, IRotate, IBE<AbstractDrillHeadBlockEntity> {
     public AbstractDrillHeadBlock(Properties properties) {
         super(properties);
     }
@@ -57,5 +57,14 @@ public abstract class AbstractDrillHeadBlock extends DirectionalKineticBlock imp
     @Override
     public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
         return face == state.getValue(FACING).getOpposite();
+    }
+    // [!!! 신규 !!!] 자식 클래스가 자신의 BE 타입을 반환하도록 강제하는 추상 메서드
+    @Override
+    public abstract BlockEntityType<? extends AbstractDrillHeadBlockEntity> getBlockEntityType();
+
+    // [!!! 신규 !!!] 공통 클래스 타입을 반환
+    @Override
+    public Class<AbstractDrillHeadBlockEntity> getBlockEntityClass() {
+        return AbstractDrillHeadBlockEntity.class;
     }
 }

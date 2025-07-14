@@ -15,12 +15,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -28,10 +26,6 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-import net.minecraft.core.particles.ParticleTypes; // 추가
-import net.minecraft.sounds.SoundEvents; // 추가
-import net.minecraft.sounds.SoundSource; // 추가
-import net.minecraft.world.level.Level; // 추가
 import javax.annotation.Nullable;
 import java.util.*;
 
@@ -152,10 +146,6 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
             processingPriority = 1;
         }
 
-        // 기본값(99)에서 처음 변경될 때도 1로 설정
-        if (processingPriority == 100) {
-            processingPriority = 1;
-        }
 
         // 플레이어에게 변경된 우선순위를 알림
         player.displayClientMessage(Component.translatable("mycreateaddon.priority_changed", processingPriority), true); // true: 액션바에 표시
@@ -205,17 +195,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     }
 
 
-    private void playCompactingEffects() {
-        if (level != null && !level.isClientSide) {
-            level.playSound(null, getBlockPos(), SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 0.5F, 1.2f);
-            if (level instanceof ServerLevel serverLevel) {
-                double px = getBlockPos().getX() + 0.5;
-                double py = getBlockPos().getY() + 0.5;
-                double pz = getBlockPos().getZ() + 0.5;
-                serverLevel.sendParticles(ParticleTypes.CRIT, px, py, pz, 15, 0.4, 0.4, 0.4, 0.1);
-            }
-        }
-    }
+
 
     // --- [신규] Capability 등록 이벤트에서 사용할 Getter ---
     @Nullable
@@ -275,31 +255,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         getModuleType().getBehavior().onCoreTick(this, core);
     }
 
-    public RecipeType<?> getRecipeType() {
-        return getModuleType().getBehavior().getRecipeType();
-    }
 
-    public boolean checkProcessingPreconditions(DrillCoreBlockEntity core) {
-        return getModuleType().getBehavior().checkProcessingPreconditions(this, core);
-    }
-
-    public void consumeResources(DrillCoreBlockEntity core) {
-        getModuleType().getBehavior().consumeResources(this, core);
-    }
-
-    public void playEffects(Level level, BlockPos modulePos) {
-        getModuleType().getBehavior().playEffects(this, level, modulePos);
-    }
-
-    public void updateVisualState(Set<Direction> connections, float speed) {
-        if (this.visualConnections.equals(connections) && this.visualSpeed == speed) {
-            return; // 변경 사항이 없으면 아무것도 하지 않음
-        }
-        this.visualConnections = connections;
-        this.visualSpeed = speed;
-        setChanged();
-        sendData();
-    }
     // Visual이 사용할 getter
     public Set<Direction> getVisualConnections() {
         return visualConnections;

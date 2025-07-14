@@ -38,6 +38,7 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
 
     @Nonnull
     @Override
+    @SuppressWarnings("deprecation")
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand, @Nonnull ModelData extraData, @Nullable RenderType renderType) {
 
         // --- 아이템 렌더링 경로 (renderType == null) ---
@@ -135,6 +136,7 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
 
 
     @Override
+    @SuppressWarnings("deprecation")
     public @NotNull TextureAtlasSprite getParticleIcon() {
         return getParticleIcon(ModelData.EMPTY);
     }

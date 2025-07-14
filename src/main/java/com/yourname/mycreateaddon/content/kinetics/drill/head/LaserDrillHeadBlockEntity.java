@@ -4,6 +4,7 @@ package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.yourname.mycreateaddon.client.LaserBeamRenderer;
+import com.yourname.mycreateaddon.config.MyAddonConfigs;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
@@ -57,12 +58,14 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         }
     }
     private OperatingMode currentMode = OperatingMode.WIDE_BEAM;
-    private int decompositionProgress = 0;
-    private static final int DECOMPOSITION_TIME_TICKS = 200; // 10초
-    private static final int ENERGY_PER_DECOMPOSITION_TICK = 500; // 분해 모드 에너지 소모량
-    private static final int ENERGY_PER_MINING_TICK = 100; // 채굴 모드 에너지 소모량
 
-    // 렌더링을 위한 타겟 위치 리스트 (클라이언트로 동기화 필요)
+    private int decompositionProgress = 0;
+
+    private static final int DECOMPOSITION_TIME_TICKS = MyAddonConfigs.SERVER.laserDecompositionTime.get();
+    private static final int ENERGY_PER_DECOMPOSITION_TICK = MyAddonConfigs.SERVER.laserEnergyPerDecompositionTick.get();
+    private static final int ENERGY_PER_MINING_TICK = MyAddonConfigs.SERVER.laserEnergyPerMiningTick.get();
+
+
     public List<BlockPos> activeTargets = new ArrayList<>();
     private final List<BlockPos> designatedTargets = new ArrayList<>(); // [신규] 플레이어가 지정한 타겟
 
@@ -209,9 +212,10 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
 
     private void handleWideBeamMode(DrillCoreBlockEntity core, ServerLevel serverLevel) {
         for (BlockPos targetPos : activeTargets) {
-            if (core.consumeEnergy(ENERGY_PER_MINING_TICK, false) == ENERGY_PER_MINING_TICK) {
+            int energyCost = MyAddonConfigs.SERVER.laserEnergyPerMiningTick.get();
+            if (core.consumeEnergy(energyCost, false) == energyCost) {
                 if (serverLevel.getBlockEntity(targetPos) instanceof OreNodeBlockEntity nodeBE) {
-                    List<ItemStack> drops = core.mineNode(nodeBE, 20);
+                    List<ItemStack> drops = core.mineNode(nodeBE, 20, 0, false);
                     drops.forEach(core::processMinedItem);
                 }
             }

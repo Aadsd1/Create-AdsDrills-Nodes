@@ -1,12 +1,12 @@
 package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -22,7 +22,6 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
         super(type, pos, state);
     }
 
-    // 고유한 메서드들은 그대로 유지
     public int getFortuneLevel() { return fortuneLevel; }
     public boolean hasSilkTouch() { return hasSilkTouch; }
     public float getClientHeat() { return this.clientHeat; }
@@ -30,7 +29,7 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
     public void applyUpgrade(Player player, Item upgradeItem) {
         if (level == null || level.isClientSide) return;
 
-        if (upgradeItem == Items.EMERALD) {
+        if (upgradeItem == MyAddonItems.SILKY_JEWEL.get()) {
             if (hasSilkTouch) {
                 player.displayClientMessage(Component.translatable("mycreateaddon.upgrade_fail.already_applied"), true);
                 return;
@@ -41,7 +40,7 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
             }
             hasSilkTouch = true;
             player.displayClientMessage(Component.translatable("mycreateaddon.upgrade_success.silktouch"), true);
-        } else if (upgradeItem == Items.GOLD_INGOT) {
+        } else if (upgradeItem == MyAddonItems.ROSE_GOLD.get()) {
             if (hasSilkTouch) {
                 player.displayClientMessage(Component.translatable("mycreateaddon.upgrade_fail.conflict"), true);
                 return;

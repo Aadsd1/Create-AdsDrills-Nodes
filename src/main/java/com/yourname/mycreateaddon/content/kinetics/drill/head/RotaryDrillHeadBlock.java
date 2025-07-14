@@ -14,15 +14,13 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import com.simibubi.create.foundation.block.IBE;
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-
-public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock implements IBE<RotaryDrillHeadBlockEntity> {
+public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock {
 
     private final float heatGeneration;
     private final float coolingRate;
@@ -75,9 +73,11 @@ public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock implements IBE<
             if (!player.isShiftKeyDown()) {
                 if (!level.isClientSide) {
                     withBlockEntityDo(level, pos, be -> {
-                        be.applyUpgrade(player, itemInHand);
-                        if (!player.getAbilities().instabuild) {
-                            stack.shrink(1);
+                        if (be instanceof RotaryDrillHeadBlockEntity rotaryBE) {
+                            rotaryBE.applyUpgrade(player, itemInHand);
+                            if (!player.getAbilities().instabuild) {
+                                stack.shrink(1);
+                            }
                         }
                     });
                 }
@@ -94,13 +94,10 @@ public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock implements IBE<
     @Override
     public float getStressImpact() { return this.stressImpact; }
 
-    @Override
-    public Class<RotaryDrillHeadBlockEntity> getBlockEntityClass() {
-        return RotaryDrillHeadBlockEntity.class;
-    }
+
 
     @Override
-    public BlockEntityType<? extends RotaryDrillHeadBlockEntity> getBlockEntityType() {
+    public BlockEntityType<? extends AbstractDrillHeadBlockEntity> getBlockEntityType() {
         return MyAddonBlockEntity.ROTARY_DRILL_HEAD.get();
     }
 }

@@ -36,6 +36,8 @@ public class MyCreateAddon {
         MyAddonFeatures.register();
         MyAddonBiomeModifiers.register(modEventBus);
 
+        modEventBus.addListener(MyAddonConfigs::onConfigLoad);
+        modEventBus.addListener(MyAddonConfigs::onConfigReload);
     }
 
     public static CreateRegistrate registrate() {

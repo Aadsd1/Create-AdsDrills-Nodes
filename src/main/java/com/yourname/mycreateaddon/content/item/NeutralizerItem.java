@@ -1,6 +1,7 @@
 package com.yourname.mycreateaddon.content.item;
 
 
+import com.yourname.mycreateaddon.content.kinetics.node.ArtificialNodeBlock;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -24,7 +25,9 @@ public class NeutralizerItem extends Item {
     public @NotNull InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
-
+        if (level.getBlockState(pos).getBlock() instanceof ArtificialNodeBlock) {
+            return InteractionResult.FAIL;
+        }
         if (level.getBlockState(pos).getBlock() instanceof OreNodeBlock) {
             if (!level.isClientSide) {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);

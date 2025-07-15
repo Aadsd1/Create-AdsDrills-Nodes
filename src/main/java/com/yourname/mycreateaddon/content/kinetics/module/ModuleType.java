@@ -11,10 +11,10 @@ public enum ModuleType {
 
     // 성능 강화 모듈
     SPEED(0.25f, 0.08f, 0.05f, 0, 0, 0, new FrameBehavior()),
-    EFFICIENCY(0.0f, 0.0f, -0.2f, 0, 0, 0, new FrameBehavior()),
     REINFORCEMENT(-0.1f, 0.0f, 0.0f, 0, 0, 0, new FrameBehavior()),
+    EFFICIENCY(-0.15f, 0.01f, -0.2f, 0, 0, 0, new FrameBehavior()),
 
-    // 처리 모듈 (각자 고유한 행동을 가짐)
+    // 처리 모듈
     FURNACE(0.1f, 0.0f, 0.0f, 0, 0, 0, new ProcessingModuleBehavior(() -> RecipeType.SMELTING)),
     BLAST_FURNACE(0.2f, 0.0f, 0.0f, 0, 0, 0, new ProcessingModuleBehavior(() -> RecipeType.BLASTING)),
     CRUSHER(0.4f, 0.0f, 0.0f, 0, 0, 0, new ProcessingModuleBehavior(AllRecipeTypes.CRUSHING::getType)),
@@ -25,7 +25,7 @@ public enum ModuleType {
     COOLANT(0.05f, 0.0f, 0.0f, 0, 0, 0, new CoolantModuleBehavior()),
     HEATSINK(0.0f, 0.0f, -0.15f, 0, 0, 0, new FrameBehavior()),
     FILTER(0.0f, 0.0f, 0.0f, 1, 0, 0, new FilterModuleBehavior()),
-    RESONATOR(0.0f, 0.0f, 0.0f, 0, 0, 0, new FrameBehavior()), // 공명기는 BE에서 직접 처리
+    RESONATOR(0.0f, 0.0f, 0.0f, 0, 0, 0, new FrameBehavior()),
     REDSTONE_BRAKE(0.05f, 0.0f, 0.0f, 0, 0, 0, new FrameBehavior()),
 
     // 버퍼 모듈
@@ -37,16 +37,15 @@ public enum ModuleType {
     ENERGY_BUFFER(0.01f, 0.0f, 0.0f, 0, 0, 100000, new FrameBehavior()),
     KINETIC_DYNAMO(2.0f, 0.0f, 0.1f, 0, 0, 0, new KineticDynamoModuleBehavior());
 
-    // --- 필드 ---
     private final float stressImpact;
     private final float speedBonus;
     private final float heatModifier;
     private final int itemCapacity;
     private final int fluidCapacity;
     private final int energyCapacity;
-    private final IModuleBehavior behavior; // [핵심] 행동 객체 필드
+    private final IModuleBehavior behavior;
 
-    // [핵심] 생성자 수정
+
     ModuleType(float stressImpact, float speedBonus, float heatModifier, int itemCapacity, int fluidCapacity, int energyCapacity, IModuleBehavior behavior) {
         this.stressImpact = stressImpact;
         this.speedBonus = speedBonus;
@@ -64,6 +63,6 @@ public enum ModuleType {
     public int getItemCapacity() { return itemCapacity; }
     public int getFluidCapacity() { return fluidCapacity; }
     public int getEnergyCapacity() { return energyCapacity; }
-    public IModuleBehavior getBehavior() { return behavior; } // [핵심] 행동 객체 Getter
+    public IModuleBehavior getBehavior() { return behavior; }
 
 }

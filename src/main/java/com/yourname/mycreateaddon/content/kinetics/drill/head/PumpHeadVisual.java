@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 
 public class PumpHeadVisual extends KineticBlockEntityVisual<PumpHeadBlockEntity> {
 
-    // 회전하는 톱니(cog) 부분을 위한 인스턴스
+
     protected RotatingInstance cog;
 
     public PumpHeadVisual(VisualizationContext context, PumpHeadBlockEntity blockEntity, float partialTick) {

@@ -23,7 +23,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -34,8 +33,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootParams;
 import java.util.*;
 
-import com.simibubi.create.foundation.block.IBE; // IBE 임포트
-import com.yourname.mycreateaddon.registry.MyAddonBlockEntity; // BE 레지스트리 임포트
+import com.simibubi.create.foundation.block.IBE;
+import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
@@ -58,7 +57,6 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         BlockPos pos = context.getClickedPos();
         ModuleType type = getModuleType();
 
-        // [핵심 수정] 조건을 확장하여, 일반 처리 모듈 또는 필터 모듈일 경우에 우선순위 변경 기능이 작동하도록 함
         if (type.getBehavior().getRecipeType() != null || type == ModuleType.FILTER) {
             if (!level.isClientSide) {
                 withBlockEntityDo(level, pos, be -> be.cyclePriority(context.getPlayer()));
@@ -66,15 +64,12 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             return InteractionResult.SUCCESS;
         }
 
-        // 위 조건에 해당하지 않는 모듈은 블록을 회전시키는 기본 동작을 수행
         return IWrenchable.super.onWrenched(state, context);
     }
     @Override
     public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
-        // 쉬프트 클릭 시에는 항상 블록을 분해(아이템화)하는 기본 동작을 수행
         return IWrenchable.super.onSneakWrenched(state, context);
     }
-    // --- [수정] 데이터 복원을 위한 설치 로직 (오류 해결) ---
     @Override
     public void setPlacedBy(@NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState state, @Nullable LivingEntity placer, @NotNull ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
@@ -82,10 +77,8 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
             return;
 
         if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity be) {
-            // 1. 아이템 스택에서 BLOCK_ENTITY_DATA 컴포넌트를 직접 가져옵니다. (반환 타입: CustomData 또는 null)
             CustomData blockEntityData = stack.get(DataComponents.BLOCK_ENTITY_DATA);
 
-            // 2. null이 아닌지 확인합니다.
             if (blockEntityData != null) {
                 // 3. CustomData에서 실제 CompoundTag를 추출하여 BE에 로드합니다.
                 be.loadWithComponents(blockEntityData.copyTag(), level.registryAccess());

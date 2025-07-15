@@ -10,10 +10,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
-// [핵심] 부모 클래스 변경
 public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
 
-    // 고유한 데이터 필드는 그대로 유지
     private int fortuneLevel = 0;
     private boolean hasSilkTouch = false;
     private float clientHeat = 0f;
@@ -66,7 +64,7 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
 
     @Override
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
-        super.write(compound, registries, clientPacket); // 부모 로직 호출
+        super.write(compound, registries, clientPacket);
         if (fortuneLevel > 0) {
             compound.putInt("Fortune", fortuneLevel);
         }
@@ -80,7 +78,7 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
 
     @Override
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
-        super.read(compound, registries, clientPacket); // 부모 로직 호출
+        super.read(compound, registries, clientPacket);
         fortuneLevel = compound.getInt("Fortune");
         hasSilkTouch = compound.getBoolean("SilkTouch");
         if (clientPacket) {

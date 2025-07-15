@@ -142,7 +142,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     private final List<BlockPos> processingModuleChain = new ArrayList<>();
 
-    // --- 구조 관련 필드 ---
     private BlockPos cachedHeadPos = null;
     private Set<BlockPos> structureCache = new HashSet<>();
     private boolean structureValid = false;

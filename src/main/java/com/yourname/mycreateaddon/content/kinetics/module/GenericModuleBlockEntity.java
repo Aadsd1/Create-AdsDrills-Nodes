@@ -111,15 +111,15 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         if (!this.energyConnections.equals(newConnections)) {
             this.energyConnections = newConnections;
             setChanged();
-            sendData(); // 클라이언트에 변경사항 전송
+            sendData();
         }
     }
 
-    // [신규] Visual이 사용할 getter
+    // Visual이 사용할 getter
     public Set<Direction> getEnergyConnections() {
         return energyConnections;
     }
-    // [신규] addToGoggleTooltip 메서드 추가
+
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
         // 이 BE의 블록이 GenericModuleBlock인지 확인
@@ -131,7 +131,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         boolean hasPriority = (getModuleType().getBehavior().getRecipeType() != null || type == ModuleType.FILTER);
 
         if (hasPriority) {
-            tooltip.add(Component.literal("")); // 줄바꿈
+            tooltip.add(Component.literal(""));
             tooltip.add(Component.translatable("goggle.mycreateaddon.module.processing_priority").withStyle(ChatFormatting.GRAY));
             tooltip.add(Component.literal(" " + this.processingPriority).withStyle(ChatFormatting.AQUA));
             return true;
@@ -139,7 +139,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         return false;
     }
 
-    // [추가] 우선순위를 순환시키는 메서드
+
     public void cyclePriority(Player player) {
         processingPriority++;
         if (processingPriority > MAX_PRIORITY) {
@@ -147,13 +147,11 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         }
 
 
-        // 플레이어에게 변경된 우선순위를 알림
         player.displayClientMessage(Component.translatable("mycreateaddon.priority_changed", processingPriority), true); // true: 액션바에 표시
 
         setChanged();
         sendData();
 
-        // 코어에 재검사를 요청하여 정렬 순서를 즉시 업데이트
         GenericModuleBlock.findAndNotifyCore(getLevel(), getBlockPos());
     }
     public GenericModuleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -162,12 +160,10 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
 
         ModuleType moduleType = getModuleType();
 
-        // [핵심 수정] 공명기 모듈도 필터처럼 1칸짜리 인벤토리를 갖도록 함
         if (moduleType == ModuleType.FILTER || moduleType == ModuleType.RESONATOR) {
             this.itemHandler = new FilterModuleItemStackHandler(1, this);
         }
         else if (moduleType.getItemCapacity() > 0) {
-            // 다른 아이템 버퍼 모듈일 경우, 기존의 일반 핸들러를 사용
             this.itemHandler = new ItemStackHandler(moduleType.getItemCapacity()) {
                 @Override
                 protected void onContentsChanged(int slot) {
@@ -186,9 +182,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
                 }
             };
         }
-        // [신규] 에너지 입력 모듈일 경우, 자체 버퍼 생성
 
-        // [핵심 수정] 새로운 DrillEnergyStorage 사용
         if (moduleType == ModuleType.ENERGY_INPUT) {
             this.energyInputBuffer = new DrillEnergyStorage(10000, 1000, 0, this::setChanged);
         }
@@ -197,7 +191,6 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
 
 
 
-    // --- [신규] Capability 등록 이벤트에서 사용할 Getter ---
     @Nullable
     public ItemStackHandler getItemHandler() {
         return itemHandler;
@@ -207,7 +200,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     public FluidTank getFluidHandler() {
         return fluidHandler;
     }
-    // [신규] 외부에서 에너지 Capability를 요청할 때, 에너지 입력 버퍼를 반환
+
     @Nullable
     public IEnergyStorage getEnergyHandler() {
         if (getModuleType() == ModuleType.ENERGY_INPUT) {
@@ -231,8 +224,6 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         setChanged();
         sendData();
     }
-
-    // 코어가 이 메서드를 호출하여 렌더링 상태를 업데이트합니다.
 
     public void updateVisualConnections(Set<Direction> connections) {
         if (this.visualConnections.equals(connections)) {
@@ -296,16 +287,13 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
             level.addFreshEntity(new ItemEntity(level, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5, new ItemStack(resonatorFilter)));
         }
 
-        // 참고: 유체는 변환 시 소멸되는 것으로 처리합니다.
-        // 유체를 아이템화하는 것은 훨씬 복잡한 로직이 필요합니다.
     }
 
     // NBT 처리
     @Override
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(compound, registries, clientPacket);
-        // [핵심 수정] if (clientPacket) 조건을 인벤토리/탱크 저장 로직 밖으로 옮겨서,
-        // 클라이언트 패킷에도 내용물이 포함되도록 합니다.
+
         if (itemHandler != null) {
             compound.put("Inventory", itemHandler.serializeNBT(registries));
         }
@@ -314,9 +302,9 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         }
 
         if (energyInputBuffer != null && energyInputBuffer.getEnergyStored() > 0)
-            compound.put("EnergyInputBuffer", energyInputBuffer.serializeNBT(registries)); // [신규]
+            compound.put("EnergyInputBuffer", energyInputBuffer.serializeNBT(registries));
 
-        if (resonatorFilter != null) { // [신규]
+        if (resonatorFilter != null) {
             compound.putString("ResonatorFilter", BuiltInRegistries.ITEM.getKey(resonatorFilter).toString());
         }
         if (!energyConnections.isEmpty()) {
@@ -337,7 +325,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     @Override
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
-        // [핵심 수정] write와 마찬가지로, 클라이언트 패킷에서도 내용물을 읽도록 합니다.
+
         if (itemHandler != null && compound.contains("Inventory")) {
             itemHandler.deserializeNBT(registries, compound.getCompound("Inventory"));
         }
@@ -345,12 +333,11 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
             fluidHandler.readFromNBT(registries, compound.getCompound("Tank"));
         }
         if (energyInputBuffer != null && compound.contains("EnergyInputBuffer")) {
-            // [핵심 수정] deserializeNBT 대신, 직접 값을 읽어와 setEnergy를 호출
             if (compound.get("EnergyInputBuffer") instanceof net.minecraft.nbt.IntTag intTag) {
                 energyInputBuffer.setEnergy(intTag.getAsInt());
             }
         }
-        if (compound.contains("ResonatorFilter")) { // [신규]
+        if (compound.contains("ResonatorFilter")) {
             this.resonatorFilter = BuiltInRegistries.ITEM.get(ResourceLocation.parse(compound.getString("ResonatorFilter")));
         } else {
             this.resonatorFilter = null;
@@ -363,11 +350,11 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
                 }
             }
         }
-        // [추가] 우선순위 값 로드
+
         if (compound.contains("ProcessingPriority")) {
             processingPriority = compound.getInt("ProcessingPriority");
         } else {
-            processingPriority = 99; // 이전 버전 호환
+            processingPriority = 99;
         }
         if (clientPacket) {
             visualConnections.clear();

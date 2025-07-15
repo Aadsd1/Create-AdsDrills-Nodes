@@ -17,14 +17,14 @@ public class FilterModuleBehavior implements IModuleBehavior {
     public List<ItemStack> processItem(GenericModuleBlockEntity moduleBE, ItemStack stack, DrillCoreBlockEntity core) {
         ItemStack filterStack = moduleBE.getFilter();
         if (filterStack.isEmpty()) {
-            return Collections.singletonList(stack); // 필터가 없으면 모든 아이템 통과
+            return Collections.singletonList(stack);
         }
 
         FilterItemStack filter = FilterItemStack.of(filterStack);
         if (filter.test(core.getLevel(), stack)) {
-            return Collections.singletonList(stack); // 필터 조건 통과
+            return Collections.singletonList(stack);
         } else {
-            return Collections.emptyList(); // 필터 조건 불만족 (아이템 파괴)
+            return Collections.emptyList();
         }
     }
 }

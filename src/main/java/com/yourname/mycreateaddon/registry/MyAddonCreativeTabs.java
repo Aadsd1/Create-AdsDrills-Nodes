@@ -49,6 +49,29 @@ public class MyAddonCreativeTabs {
                         pOutput.accept(MyAddonBlocks.KINETIC_DYNAMO_MODULE.get());
                         pOutput.accept(MyAddonBlocks.RESONATOR_MODULE.get());
 
+                        pOutput.accept(MyAddonItems.DRILL_CORE_NETHERITE_UPGRADE);
+                        pOutput.accept(MyAddonItems.DRILL_CORE_STEEL_UPGRADE);
+
+                        pOutput.accept(MyAddonItems.MODULE_UPGRADE_REMOVER);
+                        pOutput.accept(MyAddonItems.MODULE_R_BRAKE_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_SPEED_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_REIN_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_HEATSINK_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_EFFI_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_COOL_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_RESO_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_COMP_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_FURNACE_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_BF_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_CRUSH_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_WASH_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_FILTER_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_F_BUFFER_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_I_BUFFER_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_E_BUFFER_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_E_GEN_UPGRADE);
+                        pOutput.accept(MyAddonItems.MODULE_E_INPUT_UPGRADE);
+
                         pOutput.accept(MyAddonItems.CINNABAR);
                         pOutput.accept(MyAddonItems.THE_FOSSIL);
                         pOutput.accept(MyAddonItems.IVORY_CRYSTAL);

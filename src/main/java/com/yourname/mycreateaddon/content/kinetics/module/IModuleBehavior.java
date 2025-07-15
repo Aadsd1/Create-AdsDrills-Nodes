@@ -26,7 +26,7 @@ public interface IModuleBehavior {
      * @return 처리 결과 아이템 리스트
      */
     default List<ItemStack> processItem(GenericModuleBlockEntity moduleBE, ItemStack stack, DrillCoreBlockEntity core) {
-        return Collections.singletonList(stack); // 기본적으로는 아이템을 그대로 반환
+        return Collections.singletonList(stack);
     }
 
     /**
@@ -36,7 +36,7 @@ public interface IModuleBehavior {
      * @return 작업 성공 여부
      */
     default boolean processBulk(GenericModuleBlockEntity moduleBE, IResourceAccessor coreResources) {
-        return false; // 기본적으로는 아무것도 하지 않음
+        return false;
     }
 
     /**
@@ -45,7 +45,6 @@ public interface IModuleBehavior {
      * @param core 드릴 코어 인스턴스
      */
     default void onCoreTick(GenericModuleBlockEntity moduleBE, DrillCoreBlockEntity core) {
-        // 기본적으로는 아무것도 하지 않음
     }
 
     /**
@@ -64,7 +63,7 @@ public interface IModuleBehavior {
      * @return 조건 충족 여부
      */
     default boolean checkProcessingPreconditions(GenericModuleBlockEntity moduleBE, DrillCoreBlockEntity core) {
-        return true; // 기본적으로는 항상 통과
+        return true;
     }
 
     /**
@@ -73,7 +72,6 @@ public interface IModuleBehavior {
      * @param core 드릴 코어 인스턴스
      */
     default void consumeResources(GenericModuleBlockEntity moduleBE, DrillCoreBlockEntity core) {
-        // 기본적으로는 아무것도 하지 않음
     }
 
     /**
@@ -83,6 +81,5 @@ public interface IModuleBehavior {
      * @param modulePos 모듈 위치
      */
     default void playEffects(GenericModuleBlockEntity moduleBE, Level level, BlockPos modulePos) {
-        // 기본적으로는 아무것도 하지 않음
     }
 }

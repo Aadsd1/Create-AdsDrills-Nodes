@@ -27,10 +27,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
-import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.levelgen.feature.LakeFeature;
+import net.minecraft.world.level.levelgen.feature.*;
 import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.SpringConfiguration;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
@@ -175,7 +172,8 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
             PlacedFeature placedFeature = placedFeatureOpt.get();
             ConfiguredFeature<?, ?> configuredFeature = placedFeature.feature().value();
 
-            if (configuredFeature.feature() == Feature.ORE && configuredFeature.config() instanceof OreConfiguration oreConfig) {
+
+            if (configuredFeature.config() instanceof OreConfiguration oreConfig) {
                 for (OreConfiguration.TargetBlockState target : oreConfig.targetStates) {
 
                     Block oreBlock = target.state.getBlock();
@@ -189,10 +187,11 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
                     if (oreItem != Items.AIR) {
                         TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
-                        float baseWeight = blockRegistry.wrapAsHolder(oreBlock).is(oresTag) ? 10.0f : 0.5f;
 
-                        weightedSelection.put(oreItem, baseWeight);
-                        itemToBlockMap.put(oreItem, oreBlock); // 매핑 정보 추가
+                        float weight = blockRegistry.wrapAsHolder(oreBlock).is(oresTag) ? oreConfig.size : 0.5f;
+
+                        weightedSelection.merge(oreItem, weight, Float::sum);
+                        itemToBlockMap.putIfAbsent(oreItem, oreBlock);
                     }
                 }
             }

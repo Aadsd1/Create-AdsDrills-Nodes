@@ -45,9 +45,9 @@ public record NodeRecipe(
         ));
 
         RECIPES.add(new NodeRecipe(
-                List.of(()->Items.QUARTZ, ()->Items.COAL),
+                List.of(()->Items.GRANITE, ()->Items.COAL),
                 null,
-                Map.of(()->Items.QUARTZ, 0.1f,()-> Items.COAL, 0.1f),
+                Map.of(()->Items.GRANITE, 0.1f,()-> Items.COAL, 0.1f),
                 new ItemStack(MyAddonItems.THE_FOSSIL.get()),
                 0.05f,
                 2.0f
@@ -81,9 +81,9 @@ public record NodeRecipe(
         ));
 
         RECIPES.add(new NodeRecipe(
-                List.of(()->Items.RAW_GOLD, ()->Items.DIAMOND),
+                List.of(()->Items.ANDESITE, ()->Items.DIAMOND),
                 null,
-                Map.of(()->Items.RAW_GOLD, 0.1f, ()->Items.DIAMOND, 0.1f),
+                Map.of(()->Items.ANDESITE, 0.1f, ()->Items.DIAMOND, 0.1f),
                 new ItemStack(MyAddonItems.IVORY_CRYSTAL.get()),
                 0.05f,
                 2.0f

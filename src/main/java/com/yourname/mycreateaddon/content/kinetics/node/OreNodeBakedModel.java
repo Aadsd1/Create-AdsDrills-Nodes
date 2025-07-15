@@ -41,25 +41,17 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
     @SuppressWarnings("deprecation")
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @Nonnull RandomSource rand, @Nonnull ModelData extraData, @Nullable RenderType renderType) {
 
-        // --- 아이템 렌더링 경로 (renderType == null) ---
         if (renderType == null) {
-            // [!!! 2. 캐싱 로직을 적용합니다. !!!]
             if (side == null) {
-                // side가 null인 경우의 캐시 확인
                 if (itemQuadsCache == null) {
-                    // 캐시가 비어있으면, 계산하고 저장합니다.
                     itemQuadsCache = bakeItemQuads(state, null, rand);
                 }
                 return itemQuadsCache;
             } else {
-                // 특정 방향(side)에 대한 캐시 확인
                 // computeIfAbsent는 맵에 키가 없으면, 제공된 함수를 실행하여 값을 만들고 맵에 넣은 뒤 반환합니다.
                 return itemCache.computeIfAbsent(side, s -> bakeItemQuads(state, s, rand));
             }
         }
-
-        // --- 아래부터는 기존의 월드 내 블록 렌더링 로직입니다 ---
-
         // 1. 배경 블록 상태를 먼저 가져옵니다.
         BlockState backgroundState = extraData.get(OreNodeBlockEntity.BACKGROUND_STATE);
         if (backgroundState == null) {
@@ -69,13 +61,16 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
 
         List<BakedQuad> finalQuads = new ArrayList<>();
 
-        // 2. 배경 블록이 현재 요청된 렌더 타입을 지원하는 경우에만 해당 쿼드를 가져와 처리합니다.
-        if (backgroundModel.getRenderTypes(backgroundState, rand, extraData).contains(renderType)) {
-            for (BakedQuad quad : backgroundModel.getQuads(backgroundState, side, rand, extraData, renderType)) {
-                if (quad.isTinted()) {
-                    finalQuads.add(new BakedQuad(quad.getVertices(), 0, quad.getDirection(), quad.getSprite(), quad.isShade()));
-                } else {
-                    finalQuads.add(quad);
+// 배경 모델이 OreNodeBakedModel 자기 자신인 경우, 배경 쿼드를 가져오지 않고 건너뛰어 재귀를 방지합니다.
+        if (!(backgroundModel instanceof OreNodeBakedModel)) {
+// 2. 배경 블록이 현재 요청된 렌더 타입을 지원하는 경우에만 해당 쿼드를 가져와 처리합니다.
+            if (backgroundModel.getRenderTypes(backgroundState, rand, extraData).contains(renderType)) {
+                for (BakedQuad quad : backgroundModel.getQuads(backgroundState, side, rand, extraData, renderType)) {
+                    if (quad.isTinted()) {
+                        finalQuads.add(new BakedQuad(quad.getVertices(), 0, quad.getDirection(), quad.getSprite(), quad.isShade()));
+                    } else {
+                        finalQuads.add(quad);
+                    }
                 }
             }
         }
@@ -118,6 +113,9 @@ public class OreNodeBakedModel implements IDynamicBakedModel {
         }
         BakedModel backgroundModel = Minecraft.getInstance().getBlockRenderer().getBlockModel(backgroundState);
 
+        if (backgroundModel instanceof OreNodeBakedModel) {
+            return ChunkRenderTypeSet.of(RenderType.cutout());
+        }
         // 배경 모델이 사용하는 모든 렌더 타입(예: SOLID, CUTOUT)을 가져옵니다.
         ChunkRenderTypeSet backgroundTypes = backgroundModel.getRenderTypes(backgroundState, rand, data);
 

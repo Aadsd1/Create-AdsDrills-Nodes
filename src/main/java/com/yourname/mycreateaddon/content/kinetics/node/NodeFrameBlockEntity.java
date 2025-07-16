@@ -44,17 +44,12 @@ import java.util.*;
 
 public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
-
-    // [1] 인벤토리 크기를 11에서 13으로 늘립니다. (데이터 9 + 코어 1 + 촉매 2)
     protected ItemStackHandler inventory = createInventory();
     private int progress = 0;
     private static final int REQUIRED_PROGRESS = MyAddonConfigs.SERVER.nodeFrameRequiredProgress.get();
     private boolean isCompleting = false;
 
-
-    // 슬롯 인덱스를 상수로 정의하여 가독성을 높입니다.
-
-    // 인벤토리 슬롯 상수 정의 (이 부분은 이전 답변과 동일)
+    // 인벤토리 슬롯 상수 정의
     private static final int DATA_SLOT_START = 0;
     private static final int DATA_SLOT_COUNT = 9;
     private static final int CORE_SLOT = 9;
@@ -72,7 +67,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
 
     private ItemStackHandler createInventory() {
-        return new ItemStackHandler(INVENTORY_SIZE) { // 올바른 인벤토리 크기 사용
+        return new ItemStackHandler(INVENTORY_SIZE) {
             @Override
             protected void onContentsChanged(int slot) {
                 if (level != null && !level.isClientSide) {
@@ -83,14 +78,10 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             }
         };
     }
-    // [3. 추가] 특수 효과 후보군과 가중치를 계산하는 메서드
+    // 특수 효과 후보군과 가중치를 계산하는 메서드
     private void updateQuirkCandidates() {
-        if (level == null) return; // 월드가 없으면 계산 불가
+        if (level == null) return;
 
-        // 이 메서드는 서버/클라이언트 양쪽에서 호출될 수 있으나,
-        // 실제 동기화는 서버 -> 클라이언트로만 이루어집니다.
-
-        // --- `completeCrafting`에 있던 로직을 그대로 가져옵니다 ---
         Map<Quirk, Float> candidates = new HashMap<>();
         for (Quirk quirk : Quirk.values()) {
             candidates.put(quirk, 3.0f);
@@ -312,9 +303,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     private void completeCrafting() {
         if (level == null || level.isClientSide) return;
 
-        // [!!! 리팩토링 시작 !!!]
-
-        // --- 1. 최종 속성 계산 (이전과 동일) ---
+        //  1. 최종 속성 계산
         Map<Item, Float> weightedComposition = new HashMap<>();
         Map<Item, Block> finalItemToBlockMap = new HashMap<>();
         float totalInputYield = 0;
@@ -520,7 +509,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             );
         }
 
-        // --- 3. 제작 완료 효과 (이전과 동일) ---
+        //3. 제작 완료 효과
         level.playSound(null, currentPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0f, 0.8f);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,

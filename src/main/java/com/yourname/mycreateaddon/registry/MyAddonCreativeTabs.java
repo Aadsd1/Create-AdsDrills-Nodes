@@ -90,6 +90,8 @@ public class MyAddonCreativeTabs {
                         pOutput.accept(MyAddonItems.ORE_NODE_NEUTRALIZER);
                         pOutput.accept(MyAddonItems.UNFINISHED_NODE_DATA);
                         pOutput.accept(MyAddonItems.NODE_DESIGNATOR);
+                        pOutput.accept(MyAddonItems.NODE_DEBUGGER);
+
                     })
                     .build());
 

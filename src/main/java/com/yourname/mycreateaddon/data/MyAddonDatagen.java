@@ -156,6 +156,7 @@ public class MyAddonDatagen {
         registrate.addRawLang("goggle.mycreateaddon.node_frame.progress", "Progress");
         registrate.addRawLang("goggle.mycreateaddon.node_frame.speed_requirement", "Speed Requirement:");
         registrate.addRawLang("goggle.mycreateaddon.node_frame.none", "None");
+
         // Quirk 이름
         registrate.addRawLang("quirk.mycreateaddon.steady_hands", "Steady Hands");
         registrate.addRawLang("quirk.mycreateaddon.static_charge", "Static Charge");
@@ -171,6 +172,11 @@ public class MyAddonDatagen {
         registrate.addRawLang("quirk.mycreateaddon.gemstone_facets", "Gemstone Facets");
         registrate.addRawLang("quirk.mycreateaddon.chaotic_output", "Chaotic Output");
         registrate.addRawLang("quirk.mycreateaddon.wild_magic", "Wild Magic");
+        registrate.addRawLang("quirk.mycreateaddon.petrified_heart", "Petrified Heart");
+        registrate.addRawLang("quirk.mycreateaddon.aquifer", "Aquifer");
+        registrate.addRawLang("quirk.mycreateaddon.trace_minerals", "Trace Minerals");
+        registrate.addRawLang("quirk.mycreateaddon.buried_treasure", "Buried Treasure");
+        registrate.addRawLang("quirk.mycreateaddon.volatile_fissures", "Volatile Fissures");
 
         // Quirk 설명
         registrate.addRawLang("quirk.mycreateaddon.steady_hands.description", "§7Guarantees at least two item drop per cycle.");
@@ -185,14 +191,19 @@ public class MyAddonDatagen {
         registrate.addRawLang("quirk.mycreateaddon.polarity_negative.description", "§7Increases mining yield if a Positive Polarity node is nearby.");
         registrate.addRawLang("quirk.mycreateaddon.signal_amplification.description", "§7Increases mining yield by 10% while receiving a redstone signal.");
         registrate.addRawLang("quirk.mycreateaddon.gemstone_facets.description", "§7Doubles the effectiveness of the Fortune enchantment on this node.");
-        registrate.addRawLang("quirk.mycreateaddon.chaotic_output.description", "§7Has a chance to yield a completely random type of ore.");
+        registrate.addRawLang("quirk.mycreateaddon.chaotic_output.description", "§7Has a 5% chance to yield a random ore from this node's composition, ignoring normal ratios.");
         registrate.addRawLang("quirk.mycreateaddon.wild_magic.description", "§7Sometimes creates random, harmless visual and sound effects.");
+        registrate.addRawLang("quirk.mycreateaddon.petrified_heart.description", "§7This node's Regeneration is boosted based on its Hardness.");
+        registrate.addRawLang("quirk.mycreateaddon.aquifer.description", "§7Reduces node Hardness while the internal fluid level is between 60% and 70% of its capacity.");
+        registrate.addRawLang("quirk.mycreateaddon.trace_minerals.description", "§7Has a small chance to yield Iron Nuggets as a byproduct.");
+        registrate.addRawLang("quirk.mycreateaddon.buried_treasure.description", "§7Has a 5% chance to yield a random item from ancient structures.");
+        registrate.addRawLang("quirk.mycreateaddon.volatile_fissures.description", "§7Causes a small explosion for every 10 yield consumed, damaging nearby entities and briefly becoming Cracked.");
+
         registrate.addRawLang("mycreateaddon.quirk.header", "Quirks:");
         registrate.addRawLang("mycreateaddon.quirk_candidates.header", "Quirk Candidates:");
         registrate.addRawLang("mycreateaddon.fluid_content.header", "Fluid Content");
         registrate.addRawLang("mycreateaddon.catalyst.head","Catalyst");
         registrate.addRawLang("creativetab.mycreateaddon.base_tab", "My Create Addon");
-
         // 툴팁
         registrate.addRawLang("tooltip.mycreateaddon.node_locator.tier", "Tier: %s");
         registrate.addRawLang("tooltip.mycreateaddon.node_locator.tier.brass", "Brass");

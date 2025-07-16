@@ -279,11 +279,14 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     }
 
     private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource, BlockState originalState) {
+
+        final TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
         WorldGenLevel level = context.level();
         BiomeGenerationSettings generationSettings = level.getBiome(pos).value().getGenerationSettings();
         HolderSet<PlacedFeature> oreFeatures = generationSettings.features().get(GenerationStep.Decoration.UNDERGROUND_ORES.ordinal());
 
-        Map<Item, Float> weightedSelection = new HashMap<>();
+        // 각 광물 아이템별로 발견된 모든 size 값을 리스트로 저장합니다.
+        Map<Item, List<Float>> allFoundWeights = new HashMap<>();
         Map<Item, Block> itemToBlockMap = new HashMap<>();
 
         var registryAccess = context.level().registryAccess();
@@ -300,20 +303,45 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
                                 Item oreItem = getOreItem(oreBlock, level);
                                 if (oreItem != Items.AIR) {
-                                    TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
                                     float weight = blockRegistry.wrapAsHolder(oreBlock).is(oresTag) ? oreConfig.size : 0.5f;
-                                    weightedSelection.merge(oreItem, weight, Float::sum);
+
+                                    // 해당 아이템의 리스트에 현재 size 값을 추가합니다.
+                                    allFoundWeights.computeIfAbsent(oreItem, k -> new ArrayList<>()).add(weight);
                                     itemToBlockMap.putIfAbsent(oreItem, oreBlock);
                                 }
                             }
                         }
                     });
         }
-        return new OreScanResult(weightedSelection, itemToBlockMap);
+
+        Map<Item, Float> finalWeightedSelection = new HashMap<>();
+        for (Map.Entry<Item, List<Float>> entry : allFoundWeights.entrySet()) {
+            List<Float> weights = entry.getValue();
+            if (weights.isEmpty()) continue;
+
+            // 리스트를 정렬합니다.
+            Collections.sort(weights);
+
+            // 중앙값을 계산합니다.
+            float median;
+            int size = weights.size();
+            if (size % 2 == 0) {
+                // 개수가 짝수이면, 가운데 두 값의 평균을 사용합니다.
+                median = (weights.get(size / 2 - 1) + weights.get(size / 2)) / 2.0f;
+            } else {
+                // 개수가 홀수이면, 가운데 값을 그대로 사용합니다.
+                median = weights.get(size / 2);
+            }
+
+            // 계산된 중앙값을 최종 가중치로 설정합니다.
+            finalWeightedSelection.put(entry.getKey(), median);
+        }
+
+        return new OreScanResult(finalWeightedSelection, itemToBlockMap);
     }
 
     /**
-     * [업그레이드] 바이옴 특성과 피처를 스캔하여 노드에 할당할 유체를 결정하는 메서드
+     * 바이옴 특성과 피처를 스캔하여 노드에 할당할 유체를 결정하는 메서드
      * 이제 LakeFeature와 SpringFeature를 모두 탐색합니다.
      */@SuppressWarnings("deprecation")
     private FluidStack scanForBiomeFluid(FeaturePlaceContext<OreNodeConfiguration> context, RandomSource random) {

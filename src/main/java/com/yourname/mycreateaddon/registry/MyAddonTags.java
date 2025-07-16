@@ -10,7 +10,6 @@ import net.minecraft.world.level.block.Block;
 
 public class MyAddonTags {
 
-    // [!!! 핵심 수정: TagKey.create를 직접 사용합니다 !!!]
 
     /**
      * 아이템 태그를 생성하는 헬퍼 메서드
@@ -30,11 +29,9 @@ public class MyAddonTags {
         return TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, name));
     }
 
-    // 이제 우리 모드의 태그를 여기에 정의합니다.
     public static final TagKey<Item> CATALYSTS = itemTag("catalysts");
 
     // 클래스가 로드될 때 모든 태그가 초기화되도록 하는 메서드
     public static void init() {
-        // 이 메서드는 클래스 로딩을 위해 존재하며, 내용은 비어있어도 됩니다.
     }
 }

@@ -14,6 +14,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
@@ -24,6 +25,12 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -57,7 +64,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     // --- 노드 특성 필드 ---
     private int maxYield;
-    private float currentYield; // float으로 변경하여 재생력의 미세한 증가를 반영
+    private float currentYield;
     private float hardness;
     private float richness;
     private float regeneration;
@@ -124,7 +131,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     }
 
-    // [추가] 균열 상태 getter
     public boolean isCracked() {
         return cracked;
     }
@@ -142,23 +148,32 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             this.crackTimer = 0;
         }
 
-        // [핵심 수정] sendData()와 함께, 블록 업데이트를 요청하여
+        // sendData()와 함께, 블록 업데이트를 요청하여
         // 클라이언트 렌더링 및 상태를 확실하게 갱신합니다.
         if (level != null && !level.isClientSide) {
             setChanged();
             level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
         }
     }
-    // --- 특성 Getter ---
     public float getHardness() {
-        return Math.max(0.1f, this.hardness); // 0으로 나누는 것을 방지
+        float finalHardness = this.hardness;
+        if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.AQUIFER)) {
+            if (this.maxFluidCapacity > 0) { // maxFluidCapacity가 0일 때의 오류 방지
+                float lowerBound = this.maxFluidCapacity * 0.6f;
+                float upperBound = this.maxFluidCapacity * 0.7f;
+                if (this.currentFluidAmount >= lowerBound && this.currentFluidAmount <= upperBound) {
+                    finalHardness *= 0.8f; // 20% 감소
+                }
+            }
+        }
+        return Math.max(0.1f, finalHardness); // 0으로 나누는 것을 방지
     }
 
     public ResourceLocation getBackgroundBlockId() {
         return backgroundBlockId;
     }
 
-    // --- [신규] 유체 관련 Getter/Setter ---
+    // --- 유체 관련 Getter/Setter ---
     public FluidStack getFluid() {
         if (fluidContent.isEmpty() || currentFluidAmount <= 0) {
             return FluidStack.EMPTY;
@@ -194,7 +209,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 .orElse(BuiltInRegistries.ITEM.getKey(Items.RAW_IRON));
     }
     // --- 초기화 메서드 ---
-    // [수정] 파라미터 타입을 Map<Block, Float>으로 변경
     public void configureFromFeature(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, Block backgroundBlock, Block representativeOreBlock, FluidStack fluid, int fluidCapacity) {
         this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(backgroundBlock);
         this.oreBlockId = BuiltInRegistries.BLOCK.getKey(representativeOreBlock);
@@ -203,7 +217,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
     /**
-     * [!!! 신규 !!!]
      * 모든 노드 타입(자연산, 인공)의 기본 속성을 설정하는 범용 메서드.
      */
     public void configureNode(Map<Item, Float> composition, Map<Item, Block> itemToBlockMap, int maxYield, float hardness, float richness, float regeneration, FluidStack fluid, int fluidCapacity) {
@@ -236,7 +249,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             return Collections.emptyList();
         }
 
-        // [수정] 특수 효과 적용을 위해 fortuneLevel을 변수로 만듭니다.
         int effectiveFortune = fortuneLevel;
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
             if (artificialNode.hasQuirk(Quirk.GEMSTONE_FACETS)) {
@@ -255,31 +267,33 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         if (this.miningProgress >= miningResistance) {
             this.miningProgress -= miningResistance;
 
-            // [핵심] 조합 레시피 발동 시도
-            for (NodeRecipe recipe : NodeRecipe.RECIPES) {
-                // 1. 레시피 조건 확인
-                if (checkRecipeConditions(recipe)) {
-                    // 2. 확률 체크
-                    if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
-                        // 3. 레시피 발동!
-                        this.currentYield -= recipe.consumptionMultiplier(); // 매장량 추가 소모
-                        setChanged();
-                        sendData();
-                        // 행운 효과를 결과물에도 적용 (선택적)
-                        ItemStack result = recipe.output().copy();
-                        return Collections.singletonList(result);
+            // 조합 레시피 발동 시도
+            if (this.isCracked()) {
+                for (NodeRecipe recipe : NodeRecipe.RECIPES) {
+                    if (checkRecipeConditions(recipe)) {
+                        if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
+                            this.currentYield -= recipe.consumptionMultiplier();
+                            setChanged();
+                            sendData();
+                            ItemStack result = recipe.output().copy();
+                            return Collections.singletonList(result);
+                        }
                     }
                 }
             }
 
+            // 휘발성 균열 카운터 로직
+            if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.VOLATILE_FISSURES)) {
+                artificialNode.incrementVolatileFissureCounter();
+            }
             this.currentYield--;
             setChanged();
             sendData();
 
-            // [수정] effectiveFortune을 사용합니다.
+            // effectiveFortune을 사용합니다.
             List<ItemStack> drops = getNormalDrops(effectiveFortune, hasSilkTouch);
 
-            // [!!! 핵심: 특수 효과 발동 !!!]
+            // 특수 효과 발동
             if (this instanceof ArtificialNodeBlockEntity artificialNode) {
                 artificialNode.applyQuirkEffects(drops, serverLevel);
             }
@@ -344,7 +358,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         Item itemToDrop = null;
 
-        // [7. 수정] 특수 효과에 따른 드롭 로직 변경
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
             // 혼돈의 산물
             if (artificialNode.hasQuirk(Quirk.CHAOTIC_OUTPUT) && level.getRandom().nextFloat() < 0.05f) { // 5% 확률
@@ -427,33 +440,78 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         } else {
             finalDrop.setCount(dropCount);
         }
+// --- 4. 추가 특성 효과 적용 ---
+        List<ItemStack> finalDrops = new ArrayList<>(Collections.singletonList(finalDrop));
 
-        // 최종 아이템 스택을 리스트에 담아 반환
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            // 미량 광물
+            if (artificialNode.hasQuirk(Quirk.TRACE_MINERALS) && level.getRandom().nextFloat() < 0.1f) {
+                finalDrops.add(new ItemStack(Items.IRON_NUGGET));
+            }
+            // 숨겨진 보물
+            if (artificialNode.hasQuirk(Quirk.BURIED_TREASURE) && level.getRandom().nextFloat() < 0.05f) {
+                generateBuriedTreasure().ifPresent(finalDrops::add);
+            }
+        }
 
-        return new ArrayList<>(Collections.singletonList(finalDrop));
+        return finalDrops;
 
     }
-    // [참고] OreNodeFeature에 있던 getOreItem 헬퍼 메서드를 여기로 가져오거나,
+    private Optional<ItemStack> generateBuriedTreasure() {
+        if (level == null || level.isClientSide()) return Optional.empty();
+        ServerLevel serverLevel = (ServerLevel) level;
 
+        final List<ResourceKey<LootTable>> lootTables = List.of(
+                BuiltInLootTables.ABANDONED_MINESHAFT,
+                BuiltInLootTables.DESERT_PYRAMID,
+                BuiltInLootTables.JUNGLE_TEMPLE,
+                BuiltInLootTables.SHIPWRECK_TREASURE,
+                BuiltInLootTables.SIMPLE_DUNGEON,
+                BuiltInLootTables.VILLAGE_WEAPONSMITH,
+                BuiltInLootTables.VILLAGE_TOOLSMITH
+        );
 
+        ResourceKey<LootTable> chosenTableKey = lootTables.get(serverLevel.getRandom().nextInt(lootTables.size()));
+
+        // get() 메서드 사용
+        LootTable lootTable = serverLevel.getServer().reloadableRegistries().getLootTable(chosenTableKey);
+
+        LootParams lootParams = new LootParams.Builder(serverLevel)
+                .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(worldPosition))
+                .create(LootContextParamSets.CHEST);
+
+        // getRandomItems() 메서드 사용
+        List<ItemStack> generatedLoot = lootTable.getRandomItems(lootParams);
+
+        // 생성된 아이템 중 하나를 무작위로 선택
+        if (!generatedLoot.isEmpty()) {
+            return Optional.of(generatedLoot.get(serverLevel.getRandom().nextInt(generatedLoot.size())).copy());
+        }
+
+        return Optional.empty();
+    }
     @Override
     public void tick() {
         super.tick();
         if (level != null && !level.isClientSide) {
-            // [핵심 수정] 재생력 로직 개선
-// [3. 추가] 오프셋이 설정되지 않았다면, 월드 시간 기준으로 랜덤한 오프셋을 설정합니다.
+
+            // 오프셋이 설정되지 않았다면, 월드 시간 기준으로 랜덤한 오프셋을 설정합니다.
             if (quirkCheckOffset == -1) {
                 quirkCheckOffset = (int) (level.getGameTime() % 40);
             }
 
-            // [4. 수정] 주기적 효과 처리 로직을 다시 tick() 안으로 가져옵니다.
+            // 주기적 효과 처리 로직을 다시 tick() 안으로 가져옵니다.
             // 40틱(2초)마다, 각자의 오프셋에 맞춰서 탐색을 수행합니다.
             if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
                 applyPeriodicQuirkEffects();
             }
-            // [2. 수정] 기존 재생력 로직에 '임시 부스트'를 추가
-            if (this.regeneration > 0 || this.temporaryRegenBoost > 0) {
-                float baseRegen = this.regeneration + this.temporaryRegenBoost; // 부스트 적용
+
+            float regenerationRate = this.regeneration;
+            if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.PETRIFIED_HEART)) {
+                regenerationRate += (this.regeneration * (this.hardness * 0.25f));
+            }
+            if (regenerationRate > 0 || this.temporaryRegenBoost > 0) {
+                float baseRegen = regenerationRate + this.temporaryRegenBoost; // 부스트 적용
                 float baseRegenPerSecond = baseRegen * 20;
                 float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
                 float finalRegenPerTick = (baseRegenPerSecond * finalRegenMultiplier) / 20f;
@@ -469,7 +527,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             }
 
 
-            // --- [핵심 수정] 유체 재생 로직 분리 ---
             if (this.maxFluidCapacity > 0 && this.currentFluidAmount < this.maxFluidCapacity) {
                 // 1. 기본 초당 재생량 (5mb/tick = 100mb/sec)
                 float baseFluidRegenPerTick = 5.0f;
@@ -494,7 +551,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             if (this.cracked && this.crackTimer > 0) {
                 this.crackTimer--;
 
-                // [핵심 수정] 타이머가 1초(20틱) 지날 때마다 클라이언트에 동기화 신호를 보냅니다.
+                // 타이머가 1초(20틱) 지날 때마다 클라이언트에 동기화 신호를 보냅니다.
                 // 매 틱마다 보내면 부하가 크므로, 1초에 한 번만 갱신해도 충분합니다.
                 if (this.crackTimer % 20 == 0) {
                     setChanged();
@@ -506,11 +563,11 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                     setCracked(false);
                 }
             }
-        }// [3. 추가] 주기적 특수 효과 처리 (2초에 한 번)
+        }//] 주기적 특수 효과 처리
         if (auraCheckCooldown > 0) {
             auraCheckCooldown--;
         } else {
-            auraCheckCooldown = 40; // 40틱 = 2초
+            auraCheckCooldown = 40;
             applyPeriodicQuirkEffects();
         }
 
@@ -519,7 +576,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             setChanged();
         }
     }
-    // [4. 추가] 주기적 효과를 처리하는 새 메서드
+    // 주기적 효과를 처리하는 새 메서드
     private void applyPeriodicQuirkEffects() {
         if (!(this instanceof ArtificialNodeBlockEntity artificialNode) || !artificialNode.hasLevel()) return;
 
@@ -550,7 +607,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             }
         }
     }
-    // [5. 추가] 활력 오라 효과를 받기 위한 public 메서드
+    // 활력 오라 효과를 받기 위한 public 메서드
     public void receiveRegenBoost() {
         // 부스트 값을 최대치로 설정 (0.001은 초당 0.02개 추가 재생에 해당)
         this.temporaryRegenBoost = Math.max(this.temporaryRegenBoost, 0.001f);
@@ -577,7 +634,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         if (cracked) {
             tag.putBoolean("Cracked", true);
-            // [추가] 남은 타이머 시간도 저장
             tag.putInt("CrackTimer", crackTimer);
         }
         ListTag compositionList = new ListTag();
@@ -589,7 +645,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         tag.put("Composition", compositionList);
 
-        // 새 맵 저장
         ListTag itemToBlockList = new ListTag();
         for (Map.Entry<Item, Block> entry : itemToBlockMap.entrySet()) {
             CompoundTag entryTag = new CompoundTag();
@@ -628,7 +683,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         cracked = tag.getBoolean("Cracked");
         if (cracked) {
-            // [추가] 타이머 시간 로드
             crackTimer = tag.getInt("CrackTimer");
         }
 
@@ -644,7 +698,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                         });
             }
         }
-        // 새 맵 로드
         this.itemToBlockMap.clear();
         if (tag.contains("ItemToBlockMap", 9)) {
             ListTag itemToBlockList = tag.getList("ItemToBlockMap", 10);
@@ -706,7 +759,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         // 특성
         tooltip.add(Component.literal("")); // 구분선
 
-        // --- [핵심 수정] 단단함(Hardness) 표시 ---
+        //  단단함(Hardness) 표시
         MutableComponent hardnessLine = Component.literal(" ")
                 .append(Component.translatable("goggle.mycreateaddon.ore_node.hardness").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(": "));
@@ -722,7 +775,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         tooltip.add(hardnessLine);
 
-        // --- [핵심 수정] 풍부함(Richness) 표시 ---
+        // 풍부함(Richness) 표시
         MutableComponent richnessLine = Component.literal(" ")
                 .append(Component.translatable("goggle.mycreateaddon.ore_node.richness").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(": "));
@@ -738,7 +791,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         tooltip.add(richnessLine);
 
-        // 재생력 (기존과 동일, 또는 단어로 변경 가능)
+        // 재생력
         if (this.regeneration > 0) {
             MutableComponent regenLine = Component.literal(" ")
                     .append(Component.translatable("goggle.mycreateaddon.ore_node.regeneration").withStyle(ChatFormatting.GRAY))
@@ -758,7 +811,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                     .append(Component.literal(String.format("(H:%.2f, R:%.2f, G:%.5f/s)", this.hardness, this.richness, this.regeneration * 20))
                             .withStyle(ChatFormatting.DARK_GRAY)));
         }
-        // [신규] 유체 정보 툴팁 추가
+        //유체 정보 툴팁 추가
         tooltip.add(Component.literal("")); // 구분선
         MutableComponent fluidHeader = Component.translatable("goggle.mycreateaddon.drill_core.storage.fluid").withStyle(ChatFormatting.AQUA);
         tooltip.add(Component.literal(" ").append(fluidHeader));
@@ -773,7 +826,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
 
         if (cracked) {
-            // [수정] 남은 시간을 초 단위로 표시
+            // 남은 시간을 초 단위로 표시
             int secondsLeft = crackTimer / 20;
             tooltip.add(Component.literal(" ").append(Component.literal("[Cracked] (" + secondsLeft + "s left)").withStyle(ChatFormatting.YELLOW)));
         }
@@ -795,7 +848,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Nonnull
     @Override
     public ModelData getModelData() {
-        // [수정] 배경 블록의 '상태'를 ModelData에 직접 넣어줍니다.
+        // 배경 블록의 '상태'를 ModelData에 직접 넣어줍니다.
         return ModelData.builder()
                 .with(BACKGROUND_STATE, getBackgroundStateClient())
                 .build();

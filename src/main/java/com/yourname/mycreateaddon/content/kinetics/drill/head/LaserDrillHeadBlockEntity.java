@@ -6,6 +6,7 @@ import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.yourname.mycreateaddon.client.LaserBeamRenderer;
 import com.yourname.mycreateaddon.config.MyAddonConfigs;
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
+import com.yourname.mycreateaddon.content.kinetics.node.ArtificialNodeBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.registry.MyAddonItems;
@@ -22,6 +23,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -74,17 +76,16 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         super(type, pos, state);
     }
 
-    // [핵심 수정] 모드 변경 시 타겟 초기화 및 즉시 갱신
     public void cycleMode() {
         this.currentMode = this.currentMode.getNext();
-        this.designatedTargets.clear(); // 모드 변경 시 지정 타겟 초기화
+        this.designatedTargets.clear();
         this.decompositionProgress = 0;
-        updateActiveTargets(); // 즉시 타겟 재탐색
+        updateActiveTargets();
         setChanged();
         sendData();
     }
 
-    // [신규] 조준기로 타겟을 추가/제거하는 메서드
+    // 조준기로 타겟을 추가/제거하는 메서드
     public void toggleTarget(BlockPos targetPos, Player player) {
         if (designatedTargets.contains(targetPos)) {
             designatedTargets.remove(targetPos);
@@ -107,8 +108,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
     }
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
-        // Create의 기본 운동 정보(Stress 등)를 표시하지 않으려면 이 라인을 제거
-        // super.addToGoggleTooltip(tooltip, isPlayerSneaking);
+
 
         tooltip.add(Component.literal("")); // 구분선
         tooltip.add(Component.translatable("goggle.mycreateaddon.laser_head.header").withStyle(ChatFormatting.GOLD));
@@ -162,7 +162,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         return null;
     }
 
-    // [핵심 수정] 실제 빔이 나갈 타겟(activeTargets)을 결정하는 중앙 로직
+    // 실제 빔이 나갈 타겟(activeTargets)을 결정하는 중앙 로직
     public void updateActiveTargets() {
         if (level == null) return;
 
@@ -229,7 +229,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         }
     }
 
-    // [유지] 청크 언로드 시에도 렌더러에서 제거
+    // 청크 언로드 시에도 렌더러에서 제거
     @Override
     public void onChunkUnloaded() {
         super.onChunkUnloaded();
@@ -265,7 +265,17 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
 
     private void handleDecompositionMode(DrillCoreBlockEntity core, BlockPos targetPos) {
         this.activeTargets = List.of(targetPos); // 렌더링용 타겟 업데이트
+        assert level != null;
+        BlockEntity be = level.getBlockEntity(targetPos);
 
+        // 대상이 OreNode가 아니거나, ArtificialNode인 경우 작업을 즉시 중단합니다.
+        if (!(be instanceof OreNodeBlockEntity) || be instanceof ArtificialNodeBlockEntity) {
+            if (decompositionProgress > 0) {
+                decompositionProgress = 0;
+                setChanged();
+            }
+            return;
+        }
         if (core.consumeEnergy(ENERGY_PER_DECOMPOSITION_TICK, false) == ENERGY_PER_DECOMPOSITION_TICK) {
             decompositionProgress++;
             setChanged();
@@ -275,7 +285,6 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
                 if (level.getBlockEntity(targetPos) instanceof OreNodeBlockEntity nodeBE) {
                     // 1. 정보 추출
                     CompoundTag nodeData = new CompoundTag();
-                    // [핵심 수정] 전체 NBT를 저장하여 itemToBlockMap도 포함시킵니다.
                     nodeBE.saveAdditional(nodeData, level.registryAccess());
 
                     // 2. 아이템 생성 및 NBT 저장
@@ -283,10 +292,12 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
                     CompoundTag itemNbt = new CompoundTag();
 
                     // 필요한 데이터만 선별하여 아이템 NBT에 복사
-                    if (nodeData.contains("Composition")) itemNbt.put("Composition", Objects.requireNonNull(nodeData.get("Composition")));
+                    if (nodeData.contains("Composition"))
+                        itemNbt.put("Composition", Objects.requireNonNull(nodeData.get("Composition")));
                     if (nodeData.contains("CurrentYield")) itemNbt.putFloat("Yield", nodeData.getFloat("CurrentYield"));
-                    // [!!! 신규 추가 !!!] 아이템-블록 매핑 정보도 복사합니다.
-                    if (nodeData.contains("ItemToBlockMap")) itemNbt.put("ItemToBlockMap", Objects.requireNonNull(nodeData.get("ItemToBlockMap")));
+                    // 아이템-블록 매핑 정보도 복사합니다.
+                    if (nodeData.contains("ItemToBlockMap"))
+                        itemNbt.put("ItemToBlockMap", Objects.requireNonNull(nodeData.get("ItemToBlockMap")));
 
                     if (nodeData.contains("FluidContent")) {
                         itemNbt.put("FluidContent", nodeData.getCompound("FluidContent"));

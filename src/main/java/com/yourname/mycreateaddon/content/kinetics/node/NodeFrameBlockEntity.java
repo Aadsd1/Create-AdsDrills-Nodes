@@ -41,6 +41,7 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
@@ -107,9 +108,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
         switch (tier) {
             case BRASS:
-                candidates.merge(Quirk.OVERLOAD_DISCHARGE, 2.0f, Float::sum);
-                candidates.merge(Quirk.BONE_CHILL, 1.0f, Float::sum);
-                candidates.merge(Quirk.WILD_MAGIC,1.0f,Float::sum);
                 break;
             case STEEL:
                 candidates.put(Quirk.OVERLOAD_DISCHARGE, 0.0f);
@@ -118,8 +116,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                 candidates.put(Quirk.WILD_MAGIC,0.0f);
                 break;
             case NETHERITE:
-                candidates.merge(Quirk.GEMSTONE_FACETS, 5.0f, Float::sum);
-                candidates.merge(Quirk.AURA_OF_VITALITY, 3.0f, Float::sum);
                 break;
         }
 
@@ -131,7 +127,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
     public boolean addData(ItemStack dataStack) {
-        // [수정] DATA_SLOT_START와 DATA_SLOT_COUNT 상수를 사용하여 루프를 구성합니다.
         for (int i = DATA_SLOT_START; i < DATA_SLOT_START + DATA_SLOT_COUNT; i++) {
             if (inventory.getStackInSlot(i).isEmpty()) {
                 inventory.setStackInSlot(i, dataStack.split(1));
@@ -300,7 +295,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 
 
-    private void completeCrafting() {
+    public void completeCrafting() {
         if (level == null || level.isClientSide) return;
 
         //  1. 최종 속성 계산
@@ -401,72 +396,86 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             }
             default -> throw new IllegalStateException("Unexpected value: " + tier);
         }
-
-        Map<Quirk, Float> weightedQuirks = new HashMap<>();
-        for (Quirk quirk : Quirk.values()) {
-            weightedQuirks.put(quirk, 3.0f);
-        }
-
-        ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
-        ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
-        final float CATALYST_BONUS = 10.0f;
-
-        if (!catalyst1.isEmpty()) {
-            weightedQuirks.replaceAll((quirk, weight) ->
-                    quirk.getCatalyst().get() == catalyst1.getItem() ? weight + CATALYST_BONUS : weight
-            );
-        }
-        if (!catalyst2.isEmpty()) {
-            weightedQuirks.replaceAll((quirk, weight) ->
-                    quirk.getCatalyst().get() == catalyst2.getItem() ? weight + CATALYST_BONUS : weight
-            );
-        }
-
-        int quirkCount = 0;
-        switch (tier) {
-            case BRASS:
-                quirkCount = 1;
-                weightedQuirks.merge(Quirk.OVERLOAD_DISCHARGE, 2.0f, Float::sum);
-                weightedQuirks.merge(Quirk.BONE_CHILL, 1.0f, Float::sum);
-                break;
-            case STEEL:
-                quirkCount = (random.nextFloat() < 0.7f) ? 2 : 1;
-                weightedQuirks.put(Quirk.OVERLOAD_DISCHARGE, 0.0f);
-                weightedQuirks.put(Quirk.BONE_CHILL, 0.0f);
-                weightedQuirks.put(Quirk.WITHERING_ECHO, 0.0f);
-                break;
-            case NETHERITE:
-                quirkCount = (random.nextFloat() < 0.8f) ? 3 : 2;
-                weightedQuirks.merge(Quirk.GEMSTONE_FACETS, 5.0f, Float::sum);
-                weightedQuirks.merge(Quirk.AURA_OF_VITALITY, 3.0f, Float::sum);
-                break;
-        }
-
+        // --- 2. 특성(Quirk) 결정 (수정된 로직) ---
+        List<Quirk> availableQuirks = new ArrayList<>(List.of(Quirk.values()));
         List<Quirk> finalQuirks = new ArrayList<>();
-        List<Map.Entry<Quirk, Float>> candidates = new ArrayList<>(weightedQuirks.entrySet());
 
-        for (int i = 0; i < quirkCount && !candidates.isEmpty(); i++) {
-            float totalQuirkWeight = 0;
-            for (Map.Entry<Quirk, Float> entry : candidates) {
-                totalQuirkWeight += entry.getValue();
+        // 2a. 코어 티어에 따라 특성 개수와 티어 분포 결정
+        int numQuirks;
+        List<Quirk.Tier> quirkTiersToGenerate = new ArrayList<>();
+
+        switch (tier) {
+            case BRASS -> {
+                numQuirks = 1;
+                if (random.nextFloat() < 0.1f) quirkTiersToGenerate.add(Quirk.Tier.RARE);
+                else quirkTiersToGenerate.add(Quirk.Tier.COMMON);
+            }
+            case STEEL -> {
+                numQuirks = (random.nextFloat() < 0.3f) ? 2 : 1; // 30% 확률로 2개
+                for (int i = 0; i < numQuirks; i++) {
+                    float r = random.nextFloat();
+                    if (r < 0.05f) quirkTiersToGenerate.add(Quirk.Tier.EPIC);
+                    else if (r < 0.60f) quirkTiersToGenerate.add(Quirk.Tier.RARE); // 55%
+                    else quirkTiersToGenerate.add(Quirk.Tier.COMMON); // 40%
+                }
+            }
+            case NETHERITE -> {
+                numQuirks = (random.nextFloat() < 0.7f) ? 3 : 2; // 70% 확률로 3개
+                for (int i = 0; i < numQuirks; i++) {
+                    float r = random.nextFloat();
+                    if (r < 0.4f) quirkTiersToGenerate.add(Quirk.Tier.EPIC);
+                    else if (r < 0.9f) quirkTiersToGenerate.add(Quirk.Tier.RARE); // 50%
+                    else quirkTiersToGenerate.add(Quirk.Tier.COMMON); // 10%
+                }
+            }
+        }
+
+        for (Quirk.Tier tierToGen : quirkTiersToGenerate) {
+            // [!!! 핵심 수정 2: 마스터 목록에서 후보 필터링 !!!]
+            Map<Quirk, Float> candidates = availableQuirks.stream()
+                    .filter(q -> q.getTier() == tierToGen)
+                    .collect(Collectors.toMap(q -> q, q -> 3.0f));
+
+            if (candidates.isEmpty()) continue;
+
+            final float CATALYST_BONUS = 10.0f;
+            ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
+            ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
+
+            if (!catalyst1.isEmpty()) {
+                candidates.replaceAll((quirk, weight) -> quirk.getCatalyst().get() == catalyst1.getItem() ? weight + CATALYST_BONUS : weight);
+            }
+            if (!catalyst2.isEmpty()) {
+                candidates.replaceAll((quirk, weight) -> quirk.getCatalyst().get() == catalyst2.getItem() ? weight + CATALYST_BONUS : weight);
             }
 
-            if (totalQuirkWeight <= 0) break;
+            switch (tier) {
+                case BRASS, NETHERITE -> {
+                }
+                case STEEL -> {
+                    candidates.remove(Quirk.OVERLOAD_DISCHARGE);
+                    candidates.remove(Quirk.BONE_CHILL);
+                    candidates.remove(Quirk.WITHERING_ECHO);
+                    candidates.remove(Quirk.WILD_MAGIC);
+                }
+            }
+            float totalQuirkWeight = candidates.values().stream().reduce(0f, Float::sum);
+            if (totalQuirkWeight <= 0) continue;
 
             float randomValue = random.nextFloat() * totalQuirkWeight;
-
-            Map.Entry<Quirk, Float> selectedEntry = null;
-            for (Map.Entry<Quirk, Float> entry : candidates) {
+            Quirk selectedQuirk = null;
+            for (Map.Entry<Quirk, Float> entry : candidates.entrySet()) {
                 randomValue -= entry.getValue();
                 if (randomValue <= 0) {
-                    selectedEntry = entry;
+                    selectedQuirk = entry.getKey();
                     break;
                 }
             }
 
-            if (selectedEntry != null) {
-                finalQuirks.add(selectedEntry.getKey());
-                candidates.remove(selectedEntry);
+            if (selectedQuirk != null) {
+                finalQuirks.add(selectedQuirk);
+                // [!!! 핵심 수정 3: 선택된 특성을 마스터 목록에서 제거 !!!]
+                availableQuirks.remove(selectedQuirk);
             }
         }
 
@@ -485,16 +494,15 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                 finalFluid = new FluidStack(dominantFluid, 1);
             }
         }
-
-        // --- 2. 블록 교체 및 데이터 주입 ---
+        // --- 3. 블록 교체 및 데이터 주입 ---
         this.isCompleting = true;
         BlockPos currentPos = this.worldPosition;
 
-        // 2a. 블록을 인공 노드로 교체
+        // 3a. 블록을 인공 노드로 교체
         level.setBlock(currentPos, MyAddonBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);
         BlockEntity newBE = level.getBlockEntity(currentPos);
 
-        // 2b. 새로 생성된 BE가 맞는지 확인하고, 계산된 모든 데이터를 직접 주입
+        // 3b. 새로 생성된 BE가 맞는지 확인하고, 계산된 모든 데이터를 직접 주입
         if (newBE instanceof ArtificialNodeBlockEntity artificialNode) {
             artificialNode.configureFromCrafting(
                     finalQuirks,
@@ -509,7 +517,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             );
         }
 
-        //3. 제작 완료 효과
+        //4. 제작 완료 효과
         level.playSound(null, currentPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0f, 0.8f);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
@@ -660,7 +668,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                     List<Map.Entry<Quirk, Float>> sortedList = clientQuirkCandidates.entrySet().stream()
                             .filter(e -> e.getValue() > 0)
                             .sorted(Map.Entry.<Quirk, Float>comparingByValue().reversed())
-                            .limit(5)
+                            .limit(6)
                             .toList();
 
                     for (Map.Entry<Quirk, Float> entry : sortedList) {

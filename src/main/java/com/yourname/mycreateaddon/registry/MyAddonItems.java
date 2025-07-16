@@ -94,8 +94,11 @@ public class MyAddonItems {
     public static final ItemEntry<SequencedAssemblyItem> INCOMPLETE_LASER_DRILL_HEAD=REGISTRATE.item("incomplete_laser_drill_head", SequencedAssemblyItem::new)
             .register();
 
-
-
+    public static final ItemEntry<NodeDebuggerItem> NODE_DEBUGGER = REGISTRATE
+            .item("node_debugger", NodeDebuggerItem::new)
+            .properties(p -> p.rarity(Rarity.EPIC)) // 눈에 띄게 에픽 등급으로 설정
+            .lang("Node Debugger")
+            .register();
 
     public static final ItemEntry<Item> CINNABAR = REGISTRATE.item("cinnabar", Item::new)
             .tag(MyAddonTags.CATALYSTS)

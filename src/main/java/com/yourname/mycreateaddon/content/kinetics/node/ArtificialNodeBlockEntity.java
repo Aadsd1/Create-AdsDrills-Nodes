@@ -4,12 +4,15 @@ package com.yourname.mycreateaddon.content.kinetics.node;
 import com.yourname.mycreateaddon.MyCreateAddon; // 모드 메인 클래스
 import com.yourname.mycreateaddon.crafting.Quirk;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -21,6 +24,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -33,11 +37,12 @@ import java.util.Map;
 // OreNodeBlockEntity를 상속받습니다.
 public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
 
-    // [핵심] 인공 노드의 고유한 배경 블록 ID
+    // 인공 노드의 고유한 배경 블록 ID
     private static final ResourceLocation ARTIFICIAL_CASING_ID =
             ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "block/artificial_node");
-    // [1] 이 노드가 가진 특수 효과 목록을 저장할 필드를 추가합니다.
+    // 이 노드가 가진 특수 효과 목록을 저장할 필드를 추가합니다.
     private final List<Quirk> quirks = new ArrayList<>();
+    private int volatileFissureCounter = 0;
 
     public ArtificialNodeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -66,17 +71,30 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
         // 부모의 configureNode에서 이미 setChanged를 호출하므로 여기서 또 호출할 필요는 없습니다.
     }
 
-    // [1. 추가] 외부에서 이 노드가 특정 특수 효과를 가졌는지 확인할 수 있는 public 메서드
+    // 외부에서 이 노드가 특정 특수 효과를 가졌는지 확인할 수 있는 public 메서드
     public boolean hasQuirk(Quirk quirk) {
         return this.quirks.contains(quirk);
     }
+    public void incrementVolatileFissureCounter() {
+        if (!hasQuirk(Quirk.VOLATILE_FISSURES)) return;
 
-    // getBackgroundBlockId 메서드를 오버라이드하여 항상 커스텀 케이싱을 반환합니다.
+        this.volatileFissureCounter++;
+        if (this.volatileFissureCounter >= 10) {
+            this.volatileFissureCounter = 0;
+            if (level != null && !level.isClientSide) {
+                // 폭발 효과 (엔티티 피해, 블록 파괴 없음)
+                level.explode(null, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5, 1.5f, Level.ExplosionInteraction.NONE);
+                // 균열 상태 설정
+                this.setCracked(true);
+            }
+        }
+    }
     @Override
     public ResourceLocation getBackgroundBlockId() {
         return ARTIFICIAL_CASING_ID;
     }
-    // [2] NBT 저장/로드 로직을 추가하여 특수 효과 목록을 영구적으로 보존합니다.
+
+    // NBT 저장/로드 로직을 추가하여 특수 효과 목록을 영구적으로 보존합니다.
     @Override
     protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(tag, registries, clientPacket);
@@ -89,6 +107,7 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
             }
             tag.put("Quirks", quirkListTag);
         }
+        tag.putInt("VolatileCounter", volatileFissureCounter);
     }
 
     @Override
@@ -106,6 +125,7 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
                 }
             }
         }
+        volatileFissureCounter = tag.getInt("VolatileCounter");
     }
 
     @Override
@@ -118,13 +138,40 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
             tooltip.add(Component.translatable("mycreateaddon.quirk.header").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
 
             for (Quirk quirk : quirks) {
-                // [!!! 핵심 수정 !!!]
-                // getDisplayName()이 반환한 Component를 copy()하여 MutableComponent로 만든 후 스타일을 적용합니다.
-                tooltip.add(Component.literal(" - ").append(quirk.getDisplayName().copy().withStyle(ChatFormatting.AQUA)));
+                Quirk.Tier tier = quirk.getTier();
+                MutableComponent tierComponent = Component.literal("[" + tier.getName() + "] ").withStyle(tier.getColor());
+
+                tooltip.add(Component.literal(" - ").append(tierComponent).append(quirk.getDisplayName().copy().withStyle(ChatFormatting.AQUA)));
 
                 // 쉬프트 누를 때만 설명 표시
                 if (isPlayerSneaking) {
-                    tooltip.add(Component.literal("    ").append(quirk.getDescription()));
+                    // [!!! 핵심 수정: 긴 설명을 여러 줄로 나누어 추가하는 로직 !!!]
+                    Font font = Minecraft.getInstance().font;
+                    Component description = quirk.getDescription();
+                    int maxWidth = 200; // 툴팁 한 줄의 최대 너비 (픽셀 단위)
+                    String indentation = "    "; // 들여쓰기
+
+                    // 설명이 비어있지 않은 경우에만 처리
+                    if (!description.getString().isEmpty()) {
+                        String[] words = description.getString().split(" ");
+                        StringBuilder currentLine = new StringBuilder();
+
+                        for (String word : words) {
+                            // 현재 줄에 다음 단어를 추가했을 때 최대 너비를 초과하는지 확인
+                            if (font.width(currentLine.toString() + word) > maxWidth) {
+                                // 최대 너비를 초과하면, 현재까지의 줄을 툴팁에 추가
+                                tooltip.add(Component.literal(indentation + currentLine.toString().trim()).withStyle(ChatFormatting.GRAY));
+                                // 새 줄 시작
+                                currentLine = new StringBuilder();
+                            }
+                            currentLine.append(word).append(" ");
+                        }
+
+                        // 마지막 줄 추가
+                        if (!currentLine.toString().trim().isEmpty()) {
+                            tooltip.add(Component.literal(indentation + currentLine.toString().trim()).withStyle(ChatFormatting.GRAY));
+                        }
+                    }
                 }
             }
         }

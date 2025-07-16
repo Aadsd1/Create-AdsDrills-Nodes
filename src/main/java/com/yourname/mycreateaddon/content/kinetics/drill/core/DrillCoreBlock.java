@@ -172,7 +172,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
         Item itemInHand = stack.getItem();
 
         // 업그레이드 재료 확인
-        if (itemInHand == MyAddonItems.STEEL_INGOT.get() || itemInHand == Items.NETHERITE_INGOT) {
+        if (itemInHand == MyAddonItems.DRILL_CORE_STEEL_UPGRADE.get() || itemInHand == MyAddonItems.DRILL_CORE_NETHERITE_UPGRADE.get()) {
             if (level.isClientSide) {
                 // 클라이언트에서는 항상 성공으로 처리하여 즉각적인 반응성을 보여줌
                 return ItemInteractionResult.SUCCESS;

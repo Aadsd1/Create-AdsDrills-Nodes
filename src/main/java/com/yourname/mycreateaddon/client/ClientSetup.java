@@ -5,14 +5,19 @@ import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEnti
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
 import com.yourname.mycreateaddon.etc.MyAddonPartialModels;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColor;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,6 +29,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeModelLoader; // 새로 만들 파일
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
 import java.awt.*;
 import java.util.Map;
@@ -47,10 +53,39 @@ public class ClientSetup {
     // FMLClientSetupEvent에서 PartialModel을 초기화합니다.
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(MyAddonPartialModels::init);
 
-        // [핵심] 드릴 코어 아이템에 커스텀 프로퍼티 등록
-        // [핵심] 드릴 코어 아이템에 커스텀 프로퍼티 등록
+        NeoForge.EVENT_BUS.register(NodeTargetRenderer.class);
+        event.enqueueWork(MyAddonPartialModels::init);
+        ItemProperties.register(
+                MyAddonItems.STEEL_NODE_LOCATOR.get().asItem(),
+                ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "angle_int"),
+                (stack, level, entity, seed) -> {
+                    CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+                    // 타겟이 없으면 기본 방향(남쪽)인 4를 반환
+                    if (data == null) return 4.0f;
+
+                    CompoundTag nbt = data.copyTag();
+                    if (!nbt.contains("TargetPos") || !(entity instanceof Player player)) {
+                        return 4.0f;
+                    }
+
+                    BlockPos targetPos = NbtUtils.readBlockPos(nbt, "TargetPos").orElse(null);
+                    if (targetPos == null) return 4.0f;
+
+                    double dx = targetPos.getX() - player.getX()+0.5;
+                    double dz = targetPos.getZ() - player.getZ()+0.5;
+                    double angle = Mth.atan2(dz, dx) / (Math.PI * 2.0);
+
+                    double playerAngle = Mth.wrapDegrees(player.getYRot()) / 360.0;
+
+                    double continuousAngle = Mth.positiveModulo(angle - playerAngle + 0.75, 1.0);
+
+                    int directionIndex = (int) Math.round(continuousAngle * 8) % 8;
+
+                    return (float) directionIndex;
+                }
+        );
+        // 드릴 코어 아이템에 커스텀 프로퍼티 등록
         ItemProperties.register(
                 MyAddonBlocks.DRILL_CORE.get().asItem(),
                 ResourceLocation.fromNamespaceAndPath(MyCreateAddon.MOD_ID, "tier"),
@@ -71,7 +106,7 @@ public class ClientSetup {
                     try {
                         DrillCoreBlockEntity.Tier tier = DrillCoreBlockEntity.Tier.valueOf(tierName);
 
-                        // [핵심 수정] 각 티어에 명시적인 값을 반환 (JSON과 일치시킴)
+                        // 각 티어에 명시적인 값을 반환 (JSON과 일치시킴)
                         return switch (tier) {
                             case BRASS -> 0;
                             case STEEL -> 1;
@@ -89,6 +124,7 @@ public class ClientSetup {
     // 모델 등록 이벤트 핸들러는 그대로 유지합니다.
     @SubscribeEvent
     public static void onModelRegister(ModelEvent.RegisterAdditional event) {
+
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_DRILL_LOCATION, "standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.SHAFT_FOR_MODULE_LOCATION, "standalone"));
         event.register(new ModelResourceLocation(MyAddonPartialModels.DIAMOND_DRILL_BODY_LOCATION,"standalone"));

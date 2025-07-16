@@ -7,6 +7,8 @@ import com.yourname.mycreateaddon.MyCreateAddon;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.OptionalDouble;
+
 public class MyAddonRenderTypes extends RenderType {
 
     // RenderType 상속을 위한 필수 생성자
@@ -32,6 +34,46 @@ public class MyAddonRenderTypes extends RenderType {
                     .setCullState(NO_CULL) // 모든 면을 그림 (빔이 얇으므로)
                     .setLightmapState(LIGHTMAP)
                     .setOverlayState(OVERLAY)
+                    .createCompositeState(false)
+    );
+
+    // [!!! 신규 추가 !!!] 노드 실루엣을 위한 렌더 타입
+    public static final RenderType NODE_SILHOUETTE = create(
+            MyCreateAddon.MOD_ID + ":node_silhouette",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.LINES,
+            256,
+            false,
+            false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(RENDERTYPE_LINES_SHADER)
+                    .setLineState(new LineStateShard(OptionalDouble.of(3.0D))) // 선 두께 (3.0)
+                    .setLayeringState(VIEW_OFFSET_Z_LAYERING)
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY) // 반투명
+                    .setOutputState(TRANSLUCENT_TARGET)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .setCullState(NO_CULL) // 모든 면을 그림
+                    .setDepthTestState(NO_DEPTH_TEST) // 다른 블록을 통과해서 보이도록 설정
+                    .createCompositeState(false)
+    );
+
+    // 1차 렌더링 (보이는 부분용) - 새로 추가
+    public static final RenderType NODE_SILHOUETTE_DEPTH_TESTED = create(
+            MyCreateAddon.MOD_ID + ":node_silhouette_depth_tested",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.LINES,
+            256,
+            false,
+            false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(RENDERTYPE_LINES_SHADER)
+                    .setLineState(new LineStateShard(OptionalDouble.of(3.0D))) // 선 두께는 동일하게
+                    .setLayeringState(VIEW_OFFSET_Z_LAYERING)
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setOutputState(TRANSLUCENT_TARGET)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .setCullState(NO_CULL)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST) // [!!!] 표준 깊이 테스트 활성화
                     .createCompositeState(false)
     );
 }

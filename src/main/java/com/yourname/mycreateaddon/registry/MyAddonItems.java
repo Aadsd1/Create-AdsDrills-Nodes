@@ -1,20 +1,46 @@
-package com.yourname.mycreateaddon.registry;// ModItems.java (만약 아이템을 직접 등록한다면)
+package com.yourname.mycreateaddon.registry;
 import com.simibubi.create.content.processing.sequenced.SequencedAssemblyItem;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.tterrag.registrate.util.entry.ItemEntry;
 import com.yourname.mycreateaddon.MyCreateAddon;
-import com.yourname.mycreateaddon.content.item.NeutralizerItem;
-import com.yourname.mycreateaddon.content.item.NodeDesignatorItem;
-import com.yourname.mycreateaddon.content.item.StabilizerCoreItem;
-import com.yourname.mycreateaddon.content.item.UnfinishedNodeDataItem;
+import com.yourname.mycreateaddon.content.item.*;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
-// ... 다른 import ...
+import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
+import net.neoforged.neoforge.client.model.generators.ModelFile;
 
 
 public class MyAddonItems {
 
     private static final CreateRegistrate REGISTRATE = MyCreateAddon.registrate();
+    public static final ItemEntry<NodeLocatorItem> BRASS_NODE_LOCATOR = REGISTRATE
+            .item("brass_node_locator", p -> new NodeLocatorItem(p, NodeLocatorItem.Tier.BRASS))
+            .properties(p -> p.stacksTo(1))
+            .lang("Brass Node Locator")
+            .register();
+
+    public static final ItemEntry<NodeLocatorItem> STEEL_NODE_LOCATOR = REGISTRATE
+            .item("steel_node_locator", p -> new NodeLocatorItem(p, NodeLocatorItem.Tier.STEEL))
+            .properties(p -> p.stacksTo(1))
+            .lang("Steel Node Locator")
+            .model((ctx, prov) -> {
+                ItemModelBuilder builder = prov.withExistingParent(ctx.getName(), "item/generated")
+                        .texture("layer0", prov.modLoc("item/steel_node_locator/steel_node_locator_base"));
+
+                for (int i = 0; i < 8; i++) {
+                    ModelFile needleModel = prov.getExistingFile(prov.modLoc("item/steel_node_locator_needle_" + i));
+
+                    builder.override()
+                            .predicate(prov.modLoc("angle_int"), (float) i)
+                            .model(needleModel);
+                }
+            })
+            .register();
+    public static final ItemEntry<NodeLocatorItem> NETHERITE_NODE_LOCATOR = REGISTRATE
+            .item("netherite_node_locator", p -> new NodeLocatorItem(p, NodeLocatorItem.Tier.NETHERITE))
+            .properties(p -> p.stacksTo(1).fireResistant())
+            .lang("Netherite Node Locator")
+            .register();
 
     public static final ItemEntry<Item> MODULE_BF_UPGRADE = REGISTRATE.item("module_bfurnace_upgrade", Item::new)
             .register();

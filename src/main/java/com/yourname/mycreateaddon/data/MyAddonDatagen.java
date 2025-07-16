@@ -192,5 +192,22 @@ public class MyAddonDatagen {
         registrate.addRawLang("mycreateaddon.fluid_content.header", "Fluid Content");
         registrate.addRawLang("mycreateaddon.catalyst.head","Catalyst");
         registrate.addRawLang("creativetab.mycreateaddon.base_tab", "My Create Addon");
+
+        // 툴팁
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.tier", "Tier: %s");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.tier.brass", "Brass");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.tier.steel", "Steel");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.tier.netherite", "Netherite");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.radius", "Scan Radius: %s blocks");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.usage", "Right-click to scan for nodes.");
+
+        // 액션바 메시지
+        registrate.addRawLang("message.mycreateaddon.locator.found.brass", "Node detected nearby!");
+        registrate.addRawLang("message.mycreateaddon.locator.found.steel", "Node detected! Approx. %s blocks away.");
+        registrate.addRawLang("message.mycreateaddon.locator.found.netherite", "Node locked at: %s, %s, %s");
+        registrate.addRawLang("message.mycreateaddon.locator.no_target_stored", "No target stored in this locator.");
+        registrate.addRawLang("message.mycreateaddon.locator.not_found", "No nodes found within %s blocks.");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.targeting_result", "Targeting Resource: %s");
+        registrate.addRawLang("tooltip.mycreateaddon.node_locator.tuning_info", "Tune with an Ore or clear with Flint in an Anvil.");
     }
 }

@@ -165,6 +165,38 @@ public class AnyCraftRecipeGen extends RecipeProvider {
                 .unlockedBy("has_brass_ingot",has(AllItems.BRASS_INGOT.get()))
                 .save(recipeOutput);
 
+        ShapedRecipeBuilder.shaped(RecipeCategory.TOOLS, MyAddonItems.BRASS_NODE_LOCATOR.get())
+                .pattern(" C ")
+                .pattern("ABA")
+                .pattern(" D ")
+                .define('A', AllItems.BRASS_INGOT.get())
+                .define('B', AllItems.ELECTRON_TUBE.get())
+                .define('C', AllItems.BRASS_SHEET.get())
+                .define('D', Items.COMPASS)
+                .unlockedBy("has_electron_tube", has(AllItems.ELECTRON_TUBE.get()))
+                .save(recipeOutput);
+        ShapedRecipeBuilder.shaped(RecipeCategory.TOOLS, MyAddonItems.STEEL_NODE_LOCATOR.get())
+                .pattern(" C ")
+                .pattern("ABA")
+                .pattern(" D ")
+                .define('A', MyAddonItems.STEEL_INGOT.get())
+                .define('B', MyAddonItems.BRASS_NODE_LOCATOR.get())
+                .define('C', AllItems.PRECISION_MECHANISM.get())
+                .define('D', MyAddonItems.ROSE_GOLD.get())
+                .unlockedBy("has_brass_locator", has(MyAddonItems.BRASS_NODE_LOCATOR.get()))
+                .save(recipeOutput);
+        ShapedRecipeBuilder.shaped(RecipeCategory.TOOLS, MyAddonItems.NETHERITE_NODE_LOCATOR.get())
+                .pattern(" C ")
+                .pattern("ABA")
+                .pattern(" D ")
+                .define('A', Items.NETHERITE_INGOT)
+                .define('B', MyAddonItems.STEEL_NODE_LOCATOR.get())
+                .define('C', MyAddonItems.THUNDER_STONE.get())
+                .define('D', Items.LODESTONE)
+                .unlockedBy("has_steel_locator", has(MyAddonItems.STEEL_NODE_LOCATOR.get()))
+                .save(recipeOutput);
+
+
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC,MyAddonItems.MODULE_SPEED_UPGRADE.get())
                 .pattern("ABA")
                 .pattern("CDE")

@@ -75,7 +75,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     public Map<Item, Float> getResourceComposition() {
         return this.resourceComposition;
     }
-
+    public Map<Item, Block> getItemToBlockMap() {
+        return this.itemToBlockMap;
+    }
     public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
             return Collections.emptyList();

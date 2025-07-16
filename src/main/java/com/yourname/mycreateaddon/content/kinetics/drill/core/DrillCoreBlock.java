@@ -2,9 +2,7 @@ package com.yourname.mycreateaddon.content.kinetics.drill.core;
 
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
-import com.yourname.mycreateaddon.content.kinetics.drill.head.IDrillHead;
-import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
-import com.yourname.mycreateaddon.registry.MyAddonBlockEntity; // BE 레지스트리 임포트
+import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
 import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,13 +15,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType; // BlockEntityType 임포트
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.world.level.pathfinder.PathComputationType;
@@ -35,9 +32,9 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
-import net.minecraft.world.level.block.state.properties.EnumProperty; // import 추가
-import net.minecraft.world.level.block.state.StateDefinition; // import 추가
-import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity.Tier; // Tier enum import
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.StateDefinition;
+import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity.Tier;
 
 import javax.annotation.Nullable;
 import java.util.Collections;

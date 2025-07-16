@@ -1,22 +1,18 @@
 package com.yourname.mycreateaddon;
 
 import com.simibubi.create.foundation.data.CreateRegistrate;
-import com.tterrag.registrate.AbstractRegistrate;
 import com.yourname.mycreateaddon.client.event.AnvilTuningEvents;
 import com.yourname.mycreateaddon.config.MyAddonConfigs;
 import com.yourname.mycreateaddon.registry.*;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTab;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Optional;
 
 @Mod(MyCreateAddon.MOD_ID)
 public class MyCreateAddon {

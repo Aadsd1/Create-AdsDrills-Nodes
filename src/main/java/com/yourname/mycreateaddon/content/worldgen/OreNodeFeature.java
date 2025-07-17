@@ -84,7 +84,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         if (be instanceof OreNodeBlockEntity nodeBE) {
             // 1. 바이옴 스캔으로 기본 가중치 데이터를 얻습니다.
-            OreScanResult biomeScanResult = scanAndGenerateOreData(context, origin, random, originalState);
+            OreScanResult biomeScanResult = scanAndGenerateOreData(context, origin);
             Map<Item, Float> finalWeightedSelection = new HashMap<>(biomeScanResult.weightedComposition());
             Map<Item, Block> finalItemToBlockMap = new HashMap<>(biomeScanResult.itemToBlockMap());
 
@@ -107,37 +107,35 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                 richness = (float) (stats.minRichness() + random.nextDouble() * (stats.maxRichness() - stats.minRichness()));
                 regeneration = (float) (stats.minRegeneration() + random.nextDouble() * (stats.maxRegeneration() - stats.minRegeneration()));
 
-                // 2b. ore_pool이 있다면, 가중치를 병합합니다.
-                if (!profile.orePool().isEmpty()) {
-                    for (MyAddonConfigs.DimensionGenerationProfile.OrePoolEntry entry : profile.orePool()) {
-                        Optional<Item> itemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(entry.itemId()));
-                        Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(entry.blockId()));
+                // 3. 차원의 전역 ore_pool을 먼저 적용합니다.
+                applyOrePool(finalWeightedSelection, finalItemToBlockMap, profile.orePool());
 
-                        if (itemOpt.isPresent() && blockOpt.isPresent()) {
-                            Item item = itemOpt.get();
-
-                            // 1. 바이옴 스캔으로 나온 기본 가중치를 가져옴 (없으면 0)
-                            float baseWeight = finalWeightedSelection.getOrDefault(item, 0.0f);
-
-                            // 2. 설정된 승수(multiplier)를 곱함
-                            float multipliedWeight = (float) (baseWeight * entry.weight_multiplier());
-
-                            // 3. 설정된 추가 가중치(add)를 더함
-                            float finalWeight = (float) (multipliedWeight + entry.weight_add());
-
-                            // 4. 최종 가중치가 0보다 클 경우에만 맵에 반영
-                            if (finalWeight > 0) {
-                                finalWeightedSelection.put(item, finalWeight);
-                                finalItemToBlockMap.put(item, blockOpt.get());
-                            } else {
-                                // 최종 가중치가 0 이하면 맵에서 제거하여 아예 등장하지 않도록 함
-                                finalWeightedSelection.remove(item);
+                // 4. 현재 바이옴에 맞는 biome_overrides를 찾아 적용합니다.
+                Holder<Biome> currentBiomeHolder = level.getBiome(origin);
+                for (MyAddonConfigs.BiomeOverride override : profile.biomeOverrides()) {
+                    for (String biomeIdentifier : override.biomes()) {
+                        boolean isMatch = false;
+                        // '#'으로 시작하면 태그로 인식
+                        if (biomeIdentifier.startsWith("#")) {
+                            TagKey<Biome> tagKey = TagKey.create(Registries.BIOME, ResourceLocation.parse(biomeIdentifier.substring(1)));
+                            if (currentBiomeHolder.is(tagKey)) {
+                                isMatch = true;
                             }
+                        } else { // 아니면 바이옴 ID로 인식
+                            if (currentBiomeHolder.unwrapKey().map(key -> key.location().toString().equals(biomeIdentifier)).orElse(false)) {
+                                isMatch = true;
+                            }
+                        }
+
+                        // 일치하는 바이옴/태그를 찾으면, 해당 override의 ore_pool을 적용하고 다음 override로 넘어갑니다.
+                        if (isMatch) {
+                            applyOrePool(finalWeightedSelection, finalItemToBlockMap, override.orePool());
+                            break;
                         }
                     }
                 }
 
-            // 2c. 유체 설정을 프로필 값으로 덮어씁니다.
+                // 2c. 유체 설정을 프로필 값으로 덮어씁니다.
                 if (random.nextFloat() < stats.fluidChance()) {
                     fluidToPlace = scanForBiomeFluid(context, random);
                     if (!fluidToPlace.isEmpty()) {
@@ -162,7 +160,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                 }
             }
 
-            // 3. 최종적으로 병합된 가중치 목록으로 노드 구성을 결정합니다.
+            // 5. 최종적으로 병합된 가중치 목록으로 노드 구성을 결정합니다.
             Map<Item, Float> finalComposition = generateFinalComposition(finalWeightedSelection, random);
 
             if (finalComposition.isEmpty()) {
@@ -181,8 +179,28 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         }
         return false;
     }
+    private void applyOrePool(Map<Item, Float> weightedSelection, Map<Item, Block> itemToBlockMap, List<MyAddonConfigs.DimensionGenerationProfile.OrePoolEntry> orePool) {
+        if (orePool.isEmpty()) return;
 
+        for (MyAddonConfigs.DimensionGenerationProfile.OrePoolEntry entry : orePool) {
+            Optional<Item> itemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(entry.itemId()));
+            Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(entry.blockId()));
 
+            if (itemOpt.isPresent() && blockOpt.isPresent()) {
+                Item item = itemOpt.get();
+                float baseWeight = weightedSelection.getOrDefault(item, 0.0f);
+                float multipliedWeight = (float) (baseWeight * entry.weight_multiplier());
+                float finalWeight = (float) (multipliedWeight + entry.weight_add());
+
+                if (finalWeight > 0) {
+                    weightedSelection.put(item, finalWeight);
+                    itemToBlockMap.putIfAbsent(item, blockOpt.get());
+                } else {
+                    weightedSelection.remove(item);
+                }
+            }
+        }
+    }
 
     private Map<Item, Float> generateFinalComposition(Map<Item, Float> weightedSelection, RandomSource randomSource) {
         if (weightedSelection.isEmpty()) {
@@ -278,7 +296,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         return representativeItemOpt.map(itemToBlockMap::get).orElse(Blocks.IRON_ORE);
     }
 
-    private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos, RandomSource randomSource, BlockState originalState) {
+    private OreScanResult scanAndGenerateOreData(FeaturePlaceContext<OreNodeConfiguration> context, BlockPos pos) {
 
         final TagKey<Block> oresTag = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
         WorldGenLevel level = context.level();

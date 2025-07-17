@@ -28,11 +28,18 @@ public class MyAddonConfigs {
         SERVER_SPEC = serverBuilder.build();
     }
 
+    public record BiomeOverride(
+            List<String> biomes, // 적용할 바이옴 ID 및 태그 리스트 (예: ["minecraft:desert", "#minecraft:is_jungle"])
+            List<DimensionGenerationProfile.OrePoolEntry> orePool
+    ) {
+    }
+
     // 설정 데이터를 저장할 record
     public record DimensionGenerationProfile(
             ResourceLocation dimensionId,
             Stats stats,
-            List<OrePoolEntry> orePool
+            List<OrePoolEntry> orePool,
+            List<BiomeOverride> biomeOverrides // <--- 이 필드가 추가되었습니다.
     ) {
         public record Stats(
                 int minYield, int maxYield,
@@ -41,13 +48,16 @@ public class MyAddonConfigs {
                 double minRegeneration, double maxRegeneration,
                 double fluidChance,
                 int minFluidCapacity, int maxFluidCapacity
-        ) {}
+        ) {
+        }
+
         public record OrePoolEntry(
                 String itemId,
                 String blockId,
                 double weight_add,
                 double weight_multiplier
-        ) {}
+        ) {
+        }
     }
 
 
@@ -77,7 +87,6 @@ public class MyAddonConfigs {
         public final ModConfigSpec.IntValue nodeFrameRequiredProgress;
 
 
-
         public MyAddonServerConfig(ModConfigSpec.Builder builder) {
             builder.comment("My Create Addon Server-Side Configurations").push("general");
 
@@ -96,11 +105,12 @@ public class MyAddonConfigs {
             dimensionProfiles = builder
                     .comment(
                             "Define specific generation rules for each dimension.",
-                            "Each profile can add weight (weight_add) or multiply existing biome weight (weight_multiplier).",
-                            "multiplier defaults to 1.0 (no change) if omitted."
+                            "Each profile can contain a global 'ore_pool' for the dimension,",
+                            "and a 'biome_overrides' list to apply specific rules to certain biomes or biome tags.",
+                            "Biome identifiers starting with '#' are treated as tags (e.g., '#minecraft:is_forest')."
                     )
                     .defineList("dimension_profiles",
-                            List.of(createDefaultOverworldProfile()),
+                            List.of(createDefaultOverworldProfile()), // 기본 오버월드 프로필 생성
                             Config::inMemory,
                             obj -> obj instanceof Config);
 
@@ -159,10 +169,10 @@ public class MyAddonConfigs {
                     );
 
                     List<?> rawOrePool = profileConfig.getOrElse("ore_pool", List.of());
-                    List<DimensionGenerationProfile.OrePoolEntry> orePool = new ArrayList<>();
+                    List<DimensionGenerationProfile.OrePoolEntry> globalOrePool = new ArrayList<>();
                     for (Object obj : rawOrePool) {
                         if (obj instanceof Config oreConfig) {
-                            orePool.add(new DimensionGenerationProfile.OrePoolEntry(
+                            globalOrePool.add(new DimensionGenerationProfile.OrePoolEntry(
                                     oreConfig.get("item_id"),
                                     oreConfig.get("block_id"),
                                     oreConfig.getOrElse("weight_add", 0.0), // 없으면 0
@@ -171,13 +181,42 @@ public class MyAddonConfigs {
                         }
                     }
 
-                    dimensionProfileCache.put(dimId, new DimensionGenerationProfile(dimId, stats, orePool));
+                    List<BiomeOverride> biomeOverrides = new ArrayList<>();
+                    List<? extends Config> overrideConfigs = profileConfig.getOrElse("biome_overrides", List.of());
+                    for (Config overrideConfig : overrideConfigs) {
+                        List<String> biomes = overrideConfig.getOrElse("biomes", List.of());
+                        List<DimensionGenerationProfile.OrePoolEntry> biomeOrePool = parseOrePool(overrideConfig.getOrElse("ore_pool", List.of()));
+                        if (!biomes.isEmpty() && !biomeOrePool.isEmpty()) {
+                            // [!!! 핵심 수정 !!!] 'DimensionGenerationProfile.' 접두사를 제거합니다.
+                            biomeOverrides.add(new BiomeOverride(biomes, biomeOrePool));
+                        }
+                    }
+
+
+                    dimensionProfileCache.put(dimId, new DimensionGenerationProfile(dimId, stats, globalOrePool, biomeOverrides));
                 } catch (Exception e) {
                     MyCreateAddon.LOGGER.warn("Failed to parse a dimension profile from config: {}", e.getMessage());
                 }
             }
         }
     }
+
+    // [!!! 신규 !!!] OrePool 파싱 로직을 별도 메서드로 분리하여 재사용합니다.
+    private static List<DimensionGenerationProfile.OrePoolEntry> parseOrePool(List<?> rawList) {
+        List<DimensionGenerationProfile.OrePoolEntry> orePool = new ArrayList<>();
+        for (Object obj : rawList) {
+            if (obj instanceof Config oreConfig) {
+                orePool.add(new DimensionGenerationProfile.OrePoolEntry(
+                        oreConfig.get("item_id"),
+                        oreConfig.get("block_id"),
+                        oreConfig.getOrElse("weight_add", 0.0),
+                        oreConfig.getOrElse("weight_multiplier", 1.0)
+                ));
+            }
+        }
+        return orePool;
+    }
+
     private static Config createDefaultOverworldProfile() {
         Config profile = Config.inMemory();
         profile.set("dimension_id", "minecraft:overworld");
@@ -202,6 +241,26 @@ public class MyAddonConfigs {
         orePool.add(createOreEntry("draconicevolution:draconium_Ingot","draconicevolution:overworld_draconium_ore",0.0,0.01));
         orePool.add(createOreEntry("mekanism:raw_osmium", "mekanism:osmium_ore", 15.0, 1.0));
         profile.set("ore_pool", orePool);
+        List<Config> biomeOverrides = new ArrayList<>();
+
+        // 예시 1: 사막 바이옴에서는 석탄 가중치를 높이고, 청금석 가중치를 약간 높임
+        Config desertOverride = Config.inMemory();
+        desertOverride.set("biomes", List.of("minecraft:desert"));
+        desertOverride.set("ore_pool", List.of(
+                createOreEntry("minecraft:coal", "minecraft:coal_ore", 0.0, 1.0), // 사막에서 석탄 추가
+                createOreEntry("minecraft:lapis_lazuli", "minecraft:lapis_ore", 0.0, 1.0) // 청금석 가중치 20% 증가
+        ));
+        biomeOverrides.add(desertOverride);
+
+        // 예시 2: 정글 관련 바이옴 태그에서는 구리 가중치를 크게 높임
+        Config jungleOverride = Config.inMemory();
+        jungleOverride.set("biomes", List.of("#minecraft:is_jungle")); // '#'은 태그를 의미
+        jungleOverride.set("ore_pool", List.of(
+                createOreEntry("minecraft:raw_copper", "minecraft:copper_ore", 0.0, 1.0) // 구리 가중치 추가 및 50% 증가
+        ));
+        biomeOverrides.add(jungleOverride);
+
+        profile.set("biome_overrides", biomeOverrides);
 
         return profile;
     }

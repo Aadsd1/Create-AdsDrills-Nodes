@@ -20,7 +20,7 @@ public class MyAddonConfigs {
     private static final ModConfigSpec SERVER_SPEC;
 
     private static final Map<ResourceLocation, DimensionGenerationProfile> dimensionProfileCache = new ConcurrentHashMap<>();
-    // [!!! 신규 !!!] 수동 매핑 캐시
+    // 수동 매핑 캐시
     private static final Map<ResourceLocation, ResourceLocation> manualOreMapCache = new ConcurrentHashMap<>();
 
     static {
@@ -40,7 +40,7 @@ public class MyAddonConfigs {
             ResourceLocation dimensionId,
             Stats stats,
             List<OrePoolEntry> orePool,
-            List<BiomeOverride> biomeOverrides // <--- 이 필드가 추가되었습니다.
+            List<BiomeOverride> biomeOverrides
     ) {
         public record Stats(
                 int minYield, int maxYield,
@@ -65,7 +65,7 @@ public class MyAddonConfigs {
     public static class MyAddonServerConfig {
         public final ModConfigSpec.ConfigValue<List<? extends String>> allowedDimensions;
 
-        // [!!! 신규 !!!] 월드 생성 관련 설정
+        //월드 생성 관련 설정
         public final ModConfigSpec.ConfigValue<List<? extends String>> modBlacklist;
         public final ModConfigSpec.ConfigValue<List<? extends Config>> manualOreMappings;
 
@@ -152,21 +152,19 @@ public class MyAddonConfigs {
                             "A list of dimension IDs where Ore Nodes are allowed to generate.",
                             "This is a general rule. Use dimension_profiles for more specific control."
                     )
-                    // [수정] defineList 시그니처 변경
                     .defineList(
                             List.of("allowedDimensions"),
                             () -> List.of("minecraft:overworld"),
-                            () -> "", // 새 요소 Supplier
+                            () -> "",
                             (obj) -> obj instanceof String // 유효성 검사
                     );
 
             modBlacklist = builder
                     .comment("A list of mod IDs to completely exclude from Ore Node generation.")
-                    // [수정] defineList 시그니처 변경
                     .defineList(
                             List.of("modBlacklist"),
                             () -> List.of("examplemod1"),
-                            () -> "", // 새 요소 Supplier
+                            () -> "",
                             obj -> obj instanceof String // 유효성 검사
                     );
 
@@ -179,7 +177,7 @@ public class MyAddonConfigs {
                     .defineList(
                             List.of("manualOreMappings"),
                             () -> List.of(createManualOreMapping("draconicevolution:overworld_draconium_ore", "draconicevolution:draconium_dust")), // 기본값 Supplier
-                            Config::inMemory, // 새 요소 Supplier
+                            Config::inMemory,
                             obj -> obj instanceof Config // 유효성 검사
                     );
 
@@ -193,7 +191,7 @@ public class MyAddonConfigs {
                     .defineList(
                             List.of("dimension_profiles"),
                             () -> List.of(createDefaultOverworldProfile()),
-                            Config::inMemory, // 새 요소 Supplier
+                            Config::inMemory,
                             obj -> obj instanceof Config // 유효성 검사
                     );
             builder.pop();
@@ -201,7 +199,6 @@ public class MyAddonConfigs {
             builder.pop();
         }
 
-        // [!!! 신규: 수동 매핑 getter !!!]
         public Optional<ResourceLocation> getManualMappingForItem(ResourceLocation blockId) {
             return Optional.ofNullable(manualOreMapCache.get(blockId));
         }
@@ -213,9 +210,9 @@ public class MyAddonConfigs {
 
         public static void onLoad() {
             dimensionProfileCache.clear();
-            manualOreMapCache.clear(); // [!!! 신규 !!!] 캐시 비우기
+            manualOreMapCache.clear();
 
-            // [!!! 신규: 수동 매핑 로드 !!!]
+
             List<? extends Config> mappings = SERVER.manualOreMappings.get();
             for (Config mappingConfig : mappings) {
                 try {
@@ -322,20 +319,18 @@ public class MyAddonConfigs {
         profile.set("ore_pool", orePool);
         List<Config> biomeOverrides = new ArrayList<>();
 
-        // 예시 1: 사막 바이옴에서는 석탄 가중치를 높이고, 청금석 가중치를 약간 높임
         Config desertOverride = Config.inMemory();
         desertOverride.set("biomes", List.of("minecraft:desert"));
         desertOverride.set("ore_pool", List.of(
-                createOreEntry("minecraft:coal", "minecraft:coal_ore", 0.0, 1.0), // 사막에서 석탄 추가
-                createOreEntry("minecraft:lapis_lazuli", "minecraft:lapis_ore", 0.0, 1.0) // 청금석 가중치 20% 증가
+                createOreEntry("minecraft:coal", "minecraft:coal_ore", 0.0, 1.0),
+                createOreEntry("minecraft:lapis_lazuli", "minecraft:lapis_ore", 0.0, 1.0)
         ));
         biomeOverrides.add(desertOverride);
 
-        // 예시 2: 정글 관련 바이옴 태그에서는 구리 가중치를 크게 높임
         Config jungleOverride = Config.inMemory();
         jungleOverride.set("biomes", List.of("#minecraft:is_jungle")); // '#'은 태그를 의미
         jungleOverride.set("ore_pool", List.of(
-                createOreEntry("minecraft:raw_copper", "minecraft:copper_ore", 0.0, 1.0) // 구리 가중치 추가 및 50% 증가
+                createOreEntry("minecraft:raw_copper", "minecraft:copper_ore", 0.0, 1.0)
         ));
         biomeOverrides.add(jungleOverride);
 

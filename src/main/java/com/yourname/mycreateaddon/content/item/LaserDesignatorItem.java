@@ -2,7 +2,6 @@ package com.yourname.mycreateaddon.content.item;
 
 
 
-import com.yourname.mycreateaddon.content.kinetics.drill.head.LaserDrillHeadBlock;
 import com.yourname.mycreateaddon.content.kinetics.drill.head.LaserDrillHeadBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlock;
 import net.minecraft.ChatFormatting;
@@ -22,8 +21,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public class NodeDesignatorItem extends Item {
-    public NodeDesignatorItem(Properties properties) {
+public class LaserDesignatorItem extends Item {
+    public LaserDesignatorItem(Properties properties) {
         super(properties);
     }
 
@@ -36,18 +35,30 @@ public class NodeDesignatorItem extends Item {
 
         if (player == null) return InteractionResult.PASS;
 
-        // 1. 레이저 헤드를 쉬프트+우클릭: 헤드 연결
-        if (player.isShiftKeyDown() && level.getBlockState(clickedPos).getBlock() instanceof LaserDrillHeadBlock) {
-            CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            nbt.put("HeadPos", NbtUtils.writeBlockPos(clickedPos));
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
-            if (!level.isClientSide) {
-                player.displayClientMessage(Component.translatable("mycreateaddon.node_designator.linked").withStyle(ChatFormatting.GREEN), true);
+        // 먼저, 클릭한 블록이 레이저 헤드인지 확인합니다.
+        if (level.getBlockEntity(clickedPos) instanceof LaserDrillHeadBlockEntity laserBE) {
+
+            // 1. Shift + 우클릭: 지정기를 이 헤드에 연결합니다.
+            if (player.isShiftKeyDown()) {
+                CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+                nbt.put("HeadPos", NbtUtils.writeBlockPos(clickedPos));
+                stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+                if (!level.isClientSide) {
+                    player.displayClientMessage(Component.translatable("mycreateaddon.node_designator.linked").withStyle(ChatFormatting.GREEN), true);
+                }
             }
-            return InteractionResult.SUCCESS;
+            // 2. 그냥 우클릭: 이 헤드의 모드를 변경합니다.
+            else {
+                if (!level.isClientSide) {
+                    laserBE.cycleMode();
+                    // 변경된 모드 이름을 플레이어에게 알려줍니다.
+                    player.displayClientMessage(laserBE.getMode().getDisplayName(), true);
+                }
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
         }
 
-        // 2. 광물 노드를 우클릭: 타겟 지정/해제
+        // 클릭한 블록이 광물 노드인 경우 (기존 타겟 지정 로직)
         if (level.getBlockState(clickedPos).getBlock() instanceof OreNodeBlock) {
             CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
             if (!nbt.contains("HeadPos")) {
@@ -56,9 +67,9 @@ public class NodeDesignatorItem extends Item {
             }
 
             BlockPos headPos = NbtUtils.readBlockPos(nbt, "HeadPos").orElse(BlockPos.ZERO);
-            if (level.getBlockEntity(headPos) instanceof LaserDrillHeadBlockEntity laserBE) {
+            if (level.getBlockEntity(headPos) instanceof LaserDrillHeadBlockEntity linkedLaserBE) {
                 if (!level.isClientSide) {
-                    laserBE.toggleTarget(clickedPos, player);
+                    linkedLaserBE.toggleTarget(clickedPos, player);
                 }
                 return InteractionResult.SUCCESS;
             }

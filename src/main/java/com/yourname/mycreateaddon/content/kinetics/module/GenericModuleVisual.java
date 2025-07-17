@@ -17,7 +17,6 @@ import java.util.function.Consumer;
 public class GenericModuleVisual extends KineticBlockEntityVisual<GenericModuleBlockEntity> {
 
     protected final Map<Direction, RotatingInstance> moduleShafts = new EnumMap<>(Direction.class);
-    // [핵심 수정] 커넥터도 RotatingInstance를 사용하되, 속도를 0으로 설정합니다.
     protected final Map<Direction, RotatingInstance> energyConnectors = new EnumMap<>(Direction.class);
 
     public GenericModuleVisual(VisualizationContext context, GenericModuleBlockEntity blockEntity, float partialTick) {
@@ -81,19 +80,16 @@ public class GenericModuleVisual extends KineticBlockEntityVisual<GenericModuleB
 
         for (Direction dir : requiredConnectors) {
             if (!energyConnectors.containsKey(dir)) {
-                // [핵심 수정] RotatingInstance를 생성합니다.
                 RotatingInstance newConnector = createRotatingInstanceFor(MyAddonPartialModels.ENERGY_PORT);
 
-                // 위치와 방향을 설정합니다.
                 newConnector.setPosition(getVisualPosition())
-                        .rotateToFace(Direction.UP, dir); // 모델의 기본 방향(SOUTH)에서 목표 방향(dir)으로 회전
+                        .rotateToFace(Direction.UP, dir); // 모델의 기본 방향에서 목표 방향(dir)으로 회전
 
                 energyConnectors.put(dir, newConnector);
                 changed = true;
             }
         }
 
-        // [핵심 수정] 모든 커넥터의 속도를 0으로 설정하여 정적인 상태로 만듭니다.
         for (Map.Entry<Direction, RotatingInstance> entry : energyConnectors.entrySet()) {
             entry.getValue().setup(blockEntity, entry.getKey().getAxis(), 0f).setChanged(); // 속도를 0으로 고정
         }

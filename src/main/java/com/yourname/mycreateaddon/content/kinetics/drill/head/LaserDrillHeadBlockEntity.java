@@ -173,7 +173,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         } else {
             // 지정 타겟이 없고, 광역 채굴 모드일 때만 자동 탐색
             if (currentMode == OperatingMode.WIDE_BEAM) {
-                newActiveTargets.addAll(findClosestTargets(4));
+                newActiveTargets.addAll(findClosestTargets());
             }
         }
 
@@ -324,19 +324,20 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         }
     }
 
-    private List<BlockPos> findClosestTargets(int limit) {
+    private List<BlockPos> findClosestTargets() {
         if (level == null) return List.of();
         BlockPos headPos = getBlockPos();
-        int range = 16;
+        // 설정값 가져오기
+        int range = MyAddonConfigs.SERVER.laserRange.get();
+        int maxTargets = MyAddonConfigs.SERVER.laserWideBeamMaxTargets.get();
 
         return BlockPos.betweenClosedStream(headPos.offset(-range, -range, -range), headPos.offset(range, range, range))
                 .filter(pos -> level.getBlockEntity(pos) instanceof OreNodeBlockEntity)
                 .map(BlockPos::immutable)
                 .sorted(Comparator.comparingDouble(pos -> pos.distSqr(headPos)))
-                .limit(limit)
+                .limit(maxTargets) // limit 대신 maxTargets 사용
                 .toList();
     }
-
 
 
     @Override

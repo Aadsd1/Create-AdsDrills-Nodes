@@ -14,13 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-
 public class MyAddonConfigs {
 
     public static final MyAddonServerConfig SERVER;
     private static final ModConfigSpec SERVER_SPEC;
 
     private static final Map<ResourceLocation, DimensionGenerationProfile> dimensionProfileCache = new ConcurrentHashMap<>();
+    // [!!! 신규 !!!] 수동 매핑 캐시
+    private static final Map<ResourceLocation, ResourceLocation> manualOreMapCache = new ConcurrentHashMap<>();
 
     static {
         final ModConfigSpec.Builder serverBuilder = new ModConfigSpec.Builder();
@@ -64,6 +65,10 @@ public class MyAddonConfigs {
     public static class MyAddonServerConfig {
         public final ModConfigSpec.ConfigValue<List<? extends String>> allowedDimensions;
 
+        // [!!! 신규 !!!] 월드 생성 관련 설정
+        public final ModConfigSpec.ConfigValue<List<? extends String>> modBlacklist;
+        public final ModConfigSpec.ConfigValue<List<? extends Config>> manualOreMappings;
+
         // 차원 프로필 설정
         public final ModConfigSpec.ConfigValue<List<? extends Config>> dimensionProfiles;
 
@@ -85,36 +90,22 @@ public class MyAddonConfigs {
         public final ModConfigSpec.IntValue laserEnergyPerDecompositionTick;
         public final ModConfigSpec.IntValue laserEnergyPerMiningTick;
         public final ModConfigSpec.IntValue nodeFrameRequiredProgress;
+        public final ModConfigSpec.DoubleValue heatEfficiencyBonus;
+        public final ModConfigSpec.DoubleValue heatOverloadPenalty;
+        public final ModConfigSpec.IntValue laserWideBeamMaxTargets;
+        public final ModConfigSpec.IntValue laserRange;
+        public final ModConfigSpec.IntValue brassCoreSpeedRequirement;
+        public final ModConfigSpec.IntValue steelCoreSpeedRequirement;
+        public final ModConfigSpec.IntValue netheriteCoreSpeedRequirement;
+        public final ModConfigSpec.IntValue brassCoreFailurePenalty;
+        public final ModConfigSpec.IntValue steelCoreFailurePenalty;
+        public final ModConfigSpec.IntValue minOreTypesPerNode;
+        public final ModConfigSpec.IntValue maxOreTypesPerNode;
 
 
         public MyAddonServerConfig(ModConfigSpec.Builder builder) {
             builder.comment("My Create Addon Server-Side Configurations").push("general");
 
-            builder.push("worldgen");
-
-            allowedDimensions = builder
-                    .comment(
-                            "A list of dimension IDs where Ore Nodes are allowed to generate.",
-                            "This is a general rule. Use dimension_profiles for more specific control."
-                    )
-                    .defineList("allowedDimensions",
-                            List.of("minecraft:overworld"),
-                            () -> "", // 새 항목 추가 시 기본값
-                            (obj) -> obj instanceof String);
-
-            dimensionProfiles = builder
-                    .comment(
-                            "Define specific generation rules for each dimension.",
-                            "Each profile can contain a global 'ore_pool' for the dimension,",
-                            "and a 'biome_overrides' list to apply specific rules to certain biomes or biome tags.",
-                            "Biome identifiers starting with '#' are treated as tags (e.g., '#minecraft:is_forest')."
-                    )
-                    .defineList("dimension_profiles",
-                            List.of(createDefaultOverworldProfile()), // 기본 오버월드 프로필 생성
-                            Config::inMemory,
-                            obj -> obj instanceof Config);
-
-            builder.pop();
 
             builder.push("drill_core");
             brassDrillMaxModules = builder.comment("Maximum modules for the Brass Drill Core.").defineInRange("brassDrillMaxModules", 8, 1, 64);
@@ -129,22 +120,90 @@ public class MyAddonConfigs {
             builder.pop();
 
             builder.push("heat_system");
+            heatEfficiencyBonus = builder.comment("Efficiency multiplier in the Optimal Boost heat range (e.g., 2.0 for 200%).").defineInRange("heatEfficiencyBonus", 2.0, 1.0, 10.0);
+            heatOverloadPenalty = builder.comment("Penalty multiplier in the Overloading heat range. Higher values mean faster efficiency loss.").defineInRange("heatOverloadPenalty", 20.0, 1.0, 100.0);
             heatOverloadStartThreshold = builder.comment("Heat percentage (%) to start overloading (efficiency loss).").defineInRange("heatOverloadStartThreshold", 90.0, 0.0, 100.0);
             heatBoostStartThreshold = builder.comment("Heat percentage (%) to start the optimal speed boost.").defineInRange("heatBoostStartThreshold", 40.0, 0.0, 100.0);
             heatCooldownResetThreshold = builder.comment("Heat percentage (%) required to cool down to before restarting after an overheat.").defineInRange("heatCooldownResetThreshold", 30.0, 0.0, 100.0);
             builder.pop();
 
             builder.push("laser_drill");
+            laserWideBeamMaxTargets = builder.comment("Maximum number of nodes the Laser Head can target automatically in Wide-Beam mode.").defineInRange("laserWideBeamMaxTargets", 4, 1, 16);
+            laserRange = builder.comment("Maximum range (in blocks) the Laser Head can automatically find targets.").defineInRange("laserRange", 16, 8, 64);
             laserDecompositionTime = builder.comment("Time in ticks for the laser's Decomposition mode to finish (20 ticks = 1 second).").defineInRange("laserDecompositionTime", 200, 20, 72000);
             laserEnergyPerDecompositionTick = builder.comment("Energy (FE) consumed per tick in Decomposition mode.").defineInRange("laserEnergyPerDecompositionTick", 500, 1, Integer.MAX_VALUE);
             laserEnergyPerMiningTick = builder.comment("Energy (FE) consumed per mining operation in Wide-Beam or Resonance mode.").defineInRange("laserEnergyPerMiningTick", 100, 1, Integer.MAX_VALUE);
             builder.pop();
 
             builder.push("node_crafting");
+            brassCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Brass Stabilizer Core.").defineInRange("brassCoreSpeedRequirement", 512, 32, 4096);
+            steelCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Steel Stabilizer Core.").defineInRange("steelCoreSpeedRequirement", 1024, 32, 4096);
+            netheriteCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Netherite Stabilizer Core.").defineInRange("netheriteCoreSpeedRequirement", 2048, 32, 4096);
+            brassCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Brass Stabilizer Core.").defineInRange("brassCoreFailurePenalty", 64, 0, 1024);
+            steelCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Steel Stabilizer Core.").defineInRange("steelCoreFailurePenalty", 256, 0, 1024);
             nodeFrameRequiredProgress = builder.comment("Total progress required to craft an Artificial Node in the Node Frame.").defineInRange("nodeFrameRequiredProgress", 240000, 1000, Integer.MAX_VALUE);
             builder.pop();
 
+            builder.push("worldgen");
+            minOreTypesPerNode = builder.comment("Minimum number of ore types a naturally generated node can have.").defineInRange("minOreTypesPerNode", 1, 1, 5);
+            maxOreTypesPerNode = builder.comment("Maximum number of ore types a naturally generated node can have.").defineInRange("maxOreTypesPerNode", 3, 1, 10);
+            allowedDimensions = builder
+                    .comment(
+                            "A list of dimension IDs where Ore Nodes are allowed to generate.",
+                            "This is a general rule. Use dimension_profiles for more specific control."
+                    )
+                    // [수정] defineList 시그니처 변경
+                    .defineList(
+                            List.of("allowedDimensions"),
+                            () -> List.of("minecraft:overworld"),
+                            () -> "", // 새 요소 Supplier
+                            (obj) -> obj instanceof String // 유효성 검사
+                    );
+
+            modBlacklist = builder
+                    .comment("A list of mod IDs to completely exclude from Ore Node generation.")
+                    // [수정] defineList 시그니처 변경
+                    .defineList(
+                            List.of("modBlacklist"),
+                            () -> List.of("examplemod1"),
+                            () -> "", // 새 요소 Supplier
+                            obj -> obj instanceof String // 유효성 검사
+                    );
+
+            manualOreMappings = builder
+                    .comment(
+                            "Manually define the item that an ore block should be associated with.",
+                            "This is useful for mods that don't use standard smelting recipes (e.g., Draconic Evolution).",
+                            "Each entry needs a 'block_id' and the 'item_id' it should map to."
+                    )
+                    .defineList(
+                            List.of("manualOreMappings"),
+                            () -> List.of(createManualOreMapping("draconicevolution:overworld_draconium_ore", "draconicevolution:draconium_dust")), // 기본값 Supplier
+                            Config::inMemory, // 새 요소 Supplier
+                            obj -> obj instanceof Config // 유효성 검사
+                    );
+
+            dimensionProfiles = builder
+                    .comment(
+                            "Define specific generation rules for each dimension.",
+                            "Each profile can contain a global 'ore_pool' for the dimension,",
+                            "and a 'biome_overrides' list to apply specific rules to certain biomes or biome tags.",
+                            "Biome identifiers starting with '#' are treated as tags (e.g., '#minecraft:is_forest')."
+                    )
+                    .defineList(
+                            List.of("dimension_profiles"),
+                            () -> List.of(createDefaultOverworldProfile()),
+                            Config::inMemory, // 새 요소 Supplier
+                            obj -> obj instanceof Config // 유효성 검사
+                    );
             builder.pop();
+
+            builder.pop();
+        }
+
+        // [!!! 신규: 수동 매핑 getter !!!]
+        public Optional<ResourceLocation> getManualMappingForItem(ResourceLocation blockId) {
+            return Optional.ofNullable(manualOreMapCache.get(blockId));
         }
 
         // 프로필을 가져오는 헬퍼 메서드
@@ -154,6 +213,21 @@ public class MyAddonConfigs {
 
         public static void onLoad() {
             dimensionProfileCache.clear();
+            manualOreMapCache.clear(); // [!!! 신규 !!!] 캐시 비우기
+
+            // [!!! 신규: 수동 매핑 로드 !!!]
+            List<? extends Config> mappings = SERVER.manualOreMappings.get();
+            for (Config mappingConfig : mappings) {
+                try {
+                    ResourceLocation blockId = ResourceLocation.parse(mappingConfig.get("block_id"));
+                    ResourceLocation itemId = ResourceLocation.parse(mappingConfig.get("item_id"));
+                    manualOreMapCache.put(blockId, itemId);
+                } catch (Exception e) {
+                    MyCreateAddon.LOGGER.warn("Failed to parse a manual ore mapping from config: {}", e.getMessage());
+                }
+            }
+
+
             List<? extends Config> profiles = SERVER.dimensionProfiles.get();
             for (Config profileConfig : profiles) {
                 try {
@@ -187,7 +261,6 @@ public class MyAddonConfigs {
                         List<String> biomes = overrideConfig.getOrElse("biomes", List.of());
                         List<DimensionGenerationProfile.OrePoolEntry> biomeOrePool = parseOrePool(overrideConfig.getOrElse("ore_pool", List.of()));
                         if (!biomes.isEmpty() && !biomeOrePool.isEmpty()) {
-                            // [!!! 핵심 수정 !!!] 'DimensionGenerationProfile.' 접두사를 제거합니다.
                             biomeOverrides.add(new BiomeOverride(biomes, biomeOrePool));
                         }
                     }
@@ -200,8 +273,14 @@ public class MyAddonConfigs {
             }
         }
     }
+    // 수동 매핑 항목을 쉽게 만드는 헬퍼 메서드
+    private static Config createManualOreMapping(String blockId, String itemId) {
+        Config mapping = Config.inMemory();
+        mapping.set("block_id", blockId);
+        mapping.set("item_id", itemId);
+        return mapping;
+    }
 
-    // [!!! 신규 !!!] OrePool 파싱 로직을 별도 메서드로 분리하여 재사용합니다.
     private static List<DimensionGenerationProfile.OrePoolEntry> parseOrePool(List<?> rawList) {
         List<DimensionGenerationProfile.OrePoolEntry> orePool = new ArrayList<>();
         for (Object obj : rawList) {

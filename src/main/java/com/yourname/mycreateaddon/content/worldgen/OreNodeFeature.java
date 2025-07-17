@@ -11,6 +11,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.TagKey;
@@ -37,7 +38,6 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import java.util.*;
-
 
 public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     // [신규] 비율 프리셋을 정의하는 내부 record
@@ -207,15 +207,20 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
             return Collections.emptyMap();
         }
 
-        // --- 여기서부터는 진짜 무작위 선택 로직이 필요합니다. ---
-        // 기존의 '상위 N개 선택'은 버그의 원인이므로 완전히 새로운 로직으로 대체합니다.
-
         Map<Item, Float> finalComposition = new HashMap<>();
         List<Item> candidatePool = new ArrayList<>(weightedSelection.keySet());
 
-        // 1. 노드에 포함될 광물 종류 개수 결정 (1~3개)
-        int oreTypeCount = 1 + randomSource.nextInt(Math.min(3, candidatePool.size()));
+        // 1. 노드에 포함될 광물 종류 개수를 설정에서 가져와 결정
+        int minTypes = MyAddonConfigs.SERVER.minOreTypesPerNode.get();
+        int maxTypes = MyAddonConfigs.SERVER.maxOreTypesPerNode.get();
 
+        int maxPossible = Math.min(maxTypes, candidatePool.size());
+        int minPossible = Math.min(minTypes, maxPossible);
+
+        int oreTypeCount = minPossible;
+        if (maxPossible > minPossible) {
+            oreTypeCount += randomSource.nextInt(maxPossible - minPossible + 1);
+        }
         // 2. 가중치 기반으로 oreTypeCount만큼 광물을 무작위로 선택
         List<Item> selectedOres = new ArrayList<>();
         float totalWeight = (float) weightedSelection.values().stream().mapToDouble(f -> f).sum();
@@ -309,11 +314,17 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
         var registryAccess = context.level().registryAccess();
         var blockRegistry = registryAccess.registryOrThrow(Registries.BLOCK);
+        List<String> blacklist = new ArrayList<>(MyAddonConfigs.SERVER.modBlacklist.get());
 
         for (Holder<PlacedFeature> placedFeatureHolder : oreFeatures) {
             placedFeatureHolder.unwrapKey()
                     .flatMap(level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE)::getOptional)
                     .ifPresent(placedFeature -> {
+                        ResourceLocation featureId = placedFeature.feature().unwrapKey().map(ResourceKey::location).orElse(null);
+                        if (featureId != null && blacklist.contains(featureId.getNamespace())) {
+                            return; // 블랙리스트에 있는 모드의 피처는 건너뜁니다.
+                        }
+
                         if (placedFeature.feature().value().config() instanceof OreConfiguration oreConfig) {
                             for (OreConfiguration.TargetBlockState target : oreConfig.targetStates) {
                                 Block oreBlock = target.state.getBlock();
@@ -361,7 +372,8 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     /**
      * 바이옴 특성과 피처를 스캔하여 노드에 할당할 유체를 결정하는 메서드
      * 이제 LakeFeature와 SpringFeature를 모두 탐색합니다.
-     */@SuppressWarnings("deprecation")
+     */
+    @SuppressWarnings("deprecation")
     private FluidStack scanForBiomeFluid(FeaturePlaceContext<OreNodeConfiguration> context, RandomSource random) {
         WorldGenLevel level = context.level();
         BlockPos pos = context.origin();
@@ -451,6 +463,13 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     }
 
     private Item getOreItem(Block oreBlock, WorldGenLevel level) {
+        // [!!! 신규: 수동 매핑 우선 확인 !!!]
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(oreBlock);
+        Optional<ResourceLocation> manualItemId = MyAddonConfigs.SERVER.getManualMappingForItem(blockId);
+        if (manualItemId.isPresent()) {
+            return BuiltInRegistries.ITEM.getOptional(manualItemId.get()).orElse(Items.AIR);
+        }
+
         Item oreBlockItem = oreBlock.asItem();
         if (oreBlockItem == Items.AIR) {
             return Items.AIR;

@@ -13,6 +13,8 @@ import net.neoforged.neoforge.client.model.generators.ModelFile;
 public class MyAddonItems {
 
     private static final CreateRegistrate REGISTRATE = MyCreateAddon.registrate();
+
+
     public static final ItemEntry<NodeLocatorItem> BRASS_NODE_LOCATOR = REGISTRATE
             .item("brass_node_locator", p -> new NodeLocatorItem(p, NodeLocatorItem.Tier.BRASS))
             .properties(p -> p.stacksTo(1))
@@ -156,11 +158,10 @@ public class MyAddonItems {
             .register();
 
 
-    public static final ItemEntry<NodeDesignatorItem> NODE_DESIGNATOR = REGISTRATE.item("node_designator", NodeDesignatorItem::new)
+    public static final ItemEntry<LaserDesignatorItem> LASER_DESIGNATOR = REGISTRATE.item("laser_designator", LaserDesignatorItem::new)
             .register();
 
     public static void register() {
-        // [3. 추가] MyAddonTags 클래스를 초기화합니다.
         MyAddonTags.init();
     }
 }

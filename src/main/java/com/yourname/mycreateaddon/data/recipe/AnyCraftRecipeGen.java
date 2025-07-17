@@ -398,7 +398,7 @@ public class AnyCraftRecipeGen extends RecipeProvider {
                 .unlockedBy("has_brass_ingot",has(AllItems.BRASS_INGOT.get()))
                 .save(recipeOutput);
 
-        ShapedRecipeBuilder.shaped(RecipeCategory.MISC,MyAddonItems.NODE_DESIGNATOR.get())
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC,MyAddonItems.LASER_DESIGNATOR.get())
                 .pattern("ABA")
                 .pattern("BCA")
                 .pattern("AAD")

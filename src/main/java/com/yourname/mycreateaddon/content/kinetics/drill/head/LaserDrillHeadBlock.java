@@ -8,8 +8,6 @@ import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEnti
 import com.yourname.mycreateaddon.registry.MyAddonBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -20,18 +18,6 @@ public class LaserDrillHeadBlock extends DirectionalKineticBlock implements IDri
         super(properties);
     }
 
-    @Override
-    public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-        if (!context.getLevel().isClientSide) {
-            withBlockEntityDo(context.getLevel(), context.getClickedPos(), be -> {
-                be.cycleMode();
-                if (context.getPlayer() != null) {
-                    context.getPlayer().displayClientMessage(be.getMode().getDisplayName(), true);
-                }
-            });
-        }
-        return InteractionResult.SUCCESS;
-    }
 
     @Override
     public void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core) {

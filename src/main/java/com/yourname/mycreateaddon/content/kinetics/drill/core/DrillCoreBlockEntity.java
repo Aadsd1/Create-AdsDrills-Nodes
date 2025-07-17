@@ -309,20 +309,24 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
         return getSpeed() * getHeatEfficiency();
     }
-    // [수정] 새로운 효율 계산 메서드
+    // 효율 계산 메서드
     public float getHeatEfficiency() {
         if (isOverheated || heat >= 100.0f) {
             return 0f;
         }
 
+        // 설정값 가져오기
+        float bonus = MyAddonConfigs.SERVER.heatEfficiencyBonus.get().floatValue();
+        float penalty = MyAddonConfigs.SERVER.heatOverloadPenalty.get().floatValue();
+
         if (heat > OVERLOAD_START_THRESHOLD) {
-            // 90% 열(효율 200%)에서 100% 열(효율 0%)까지 급격히 감소
-            // f(x) = -0.2x + 20
-            return Math.max(0, -20.0f * (this.heat / 100.0f) + 20.0f);
+            // 90% 열(보너스 효율)에서 100% 열(효율 0%)까지 급격히 감소
+            float fraction = (heat - OVERLOAD_START_THRESHOLD) / (100f - OVERLOAD_START_THRESHOLD);
+            return Math.max(0, bonus - (fraction * penalty));
         } else if (heat > BOOST_START_THRESHOLD) {
-            // 40% 열(효율 100%)에서 90% 열(효율 200%)까지 선형적으로 증가
-            // f(x) = 0.02x + 0.2
-            return 2.0f * (this.heat / 100.0f) + 0.2f;
+            // 40% 열(효율 100%)에서 90% 열(보너스 효율)까지 선형적으로 증가
+            float fraction = (heat - BOOST_START_THRESHOLD) / (OVERLOAD_START_THRESHOLD - BOOST_START_THRESHOLD);
+            return 1.0f + (fraction * (bonus - 1.0f));
         }
 
         // 0% ~ 40% 구간은 기본 효율

@@ -214,8 +214,8 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
             if (coreStack.getItem() instanceof StabilizerCoreItem stabilizer) {
                 switch (stabilizer.getTier()) {
-                    case BRASS -> progressDecay = 64;
-                    case STEEL -> progressDecay = 256;
+                    case BRASS -> progressDecay = MyAddonConfigs.SERVER.brassCoreFailurePenalty.get();
+                    case STEEL -> progressDecay = MyAddonConfigs.SERVER.steelCoreFailurePenalty.get();
                     case NETHERITE -> resetOnFail = true;
                 }
             }
@@ -406,7 +406,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
         switch (tier) {
             case BRASS -> {
-                numQuirks = 1;
                 if (random.nextFloat() < 0.1f) quirkTiersToGenerate.add(Quirk.Tier.RARE);
                 else quirkTiersToGenerate.add(Quirk.Tier.COMMON);
             }
@@ -696,9 +695,9 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         ItemStack coreStack = inventory.getStackInSlot(9);
         if (coreStack.getItem() instanceof StabilizerCoreItem stabilizer) {
             return switch (stabilizer.getTier()) {
-                case BRASS -> 512;
-                case STEEL -> 1024;
-                case NETHERITE -> 2048;
+                case BRASS -> MyAddonConfigs.SERVER.brassCoreSpeedRequirement.get();
+                case STEEL -> MyAddonConfigs.SERVER.steelCoreSpeedRequirement.get();
+                case NETHERITE -> MyAddonConfigs.SERVER.netheriteCoreSpeedRequirement.get();
             };
         }
         return Integer.MAX_VALUE; // 코어가 없으면 작동 불가

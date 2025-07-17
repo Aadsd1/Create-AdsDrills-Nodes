@@ -89,7 +89,7 @@ public class MyAddonCreativeTabs {
                         pOutput.accept(MyAddonItems.NETHERITE_STABILIZER_CORE);
                         pOutput.accept(MyAddonItems.ORE_NODE_NEUTRALIZER);
                         pOutput.accept(MyAddonItems.UNFINISHED_NODE_DATA);
-                        pOutput.accept(MyAddonItems.NODE_DESIGNATOR);
+                        pOutput.accept(MyAddonItems.LASER_DESIGNATOR);
                         pOutput.accept(MyAddonItems.NODE_DEBUGGER);
 
                     })

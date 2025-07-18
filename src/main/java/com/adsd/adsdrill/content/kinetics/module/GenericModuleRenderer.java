@@ -1,0 +1,12 @@
+package com.adsd.adsdrill.content.kinetics.module;
+
+import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+
+public class GenericModuleRenderer extends KineticBlockEntityRenderer<GenericModuleBlockEntity> {
+
+
+    public GenericModuleRenderer(BlockEntityRendererProvider.Context context) {
+        super(context);
+    }
+}

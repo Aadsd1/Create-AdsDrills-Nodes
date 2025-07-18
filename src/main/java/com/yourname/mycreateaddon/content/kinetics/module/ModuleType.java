@@ -33,7 +33,7 @@ public enum ModuleType {
     FLUID_BUFFER(0.01f, 0.0f, 0.0f, 0, 16000, 0, new FrameBehavior()),
 
     // 에너지 관련 모듈
-    ENERGY_INPUT(0.0f, 0.0f, 0.0f, 0, 0, 0, new EnergyInputModuleBehavior()),
+    ENERGY_INPUT(0.0f, 0.0f, 0.0f, 0, 0, 10000, new EnergyInputModuleBehavior()),
     ENERGY_BUFFER(0.01f, 0.0f, 0.0f, 0, 0, 100000, new FrameBehavior()),
     KINETIC_DYNAMO(2.0f, 0.0f, 0.1f, 0, 0, 0, new KineticDynamoModuleBehavior());
 

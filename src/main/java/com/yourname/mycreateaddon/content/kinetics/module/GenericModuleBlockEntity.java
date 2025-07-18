@@ -101,9 +101,9 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
 
         Set<Direction> newConnections = new HashSet<>();
         for (Direction dir : Direction.values()) {
-            // 이웃 블록이 해당 방향에서 에너지 Capability를 제공하는지 확인
             IEnergyStorage energy = level.getCapability(Capabilities.EnergyStorage.BLOCK, worldPosition.relative(dir), dir.getOpposite());
-            if (energy != null && energy.canReceive()) {
+
+            if (energy != null && energy.canExtract()) {
                 newConnections.add(dir);
             }
         }
@@ -114,7 +114,6 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
             sendData();
         }
     }
-
     // Visual이 사용할 getter
     public Set<Direction> getEnergyConnections() {
         return energyConnections;
@@ -184,7 +183,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         }
 
         if (moduleType == ModuleType.ENERGY_INPUT) {
-            this.energyInputBuffer = new DrillEnergyStorage(10000, 1000, 0, this::setChanged);
+            this.energyInputBuffer = new DrillEnergyStorage(10000, 1000, 1000, this::setChanged);
         }
     }
 

@@ -121,7 +121,7 @@ public class MyAddonConfigs {
 
             builder.push("heat_system");
             heatEfficiencyBonus = builder.comment("Efficiency multiplier in the Optimal Boost heat range (e.g., 2.0 for 200%).").defineInRange("heatEfficiencyBonus", 2.0, 1.0, 10.0);
-            heatOverloadPenalty = builder.comment("Penalty multiplier in the Overloading heat range. Higher values mean faster efficiency loss.").defineInRange("heatOverloadPenalty", 20.0, 1.0, 100.0);
+            heatOverloadPenalty = builder.comment("Penalty multiplier in the Overloading heat range. Higher values mean faster efficiency loss.").defineInRange("heatOverloadPenalty", 2.0, 1.0, 100.0);
             heatOverloadStartThreshold = builder.comment("Heat percentage (%) to start overloading (efficiency loss).").defineInRange("heatOverloadStartThreshold", 90.0, 0.0, 100.0);
             heatBoostStartThreshold = builder.comment("Heat percentage (%) to start the optimal speed boost.").defineInRange("heatBoostStartThreshold", 40.0, 0.0, 100.0);
             heatCooldownResetThreshold = builder.comment("Heat percentage (%) required to cool down to before restarting after an overheat.").defineInRange("heatCooldownResetThreshold", 30.0, 0.0, 100.0);

@@ -38,7 +38,6 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.List;
-import java.util.function.Supplier;
 
 
 public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
@@ -82,9 +81,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     public Map<Item, Float> getResourceComposition() {
         return this.resourceComposition;
     }
-    public Map<Item, Block> getItemToBlockMap() {
-        return this.itemToBlockMap;
-    }
+
     public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
             return Collections.emptyList();
@@ -306,43 +303,29 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     private boolean checkRecipeConditions(NodeRecipe recipe) {
         // 1. 유체 조건 확인
-        // 레시피가 유체를 요구하는데, 노드에 해당 유체가 없으면 실패.
         if (recipe.requiredFluid() != null &&
                 (this.fluidContent.isEmpty() || this.fluidContent.getFluid() != recipe.requiredFluid())) {
             return false;
         }
 
-        // 2. 광물 조건 확인
-        for (Supplier<Item> requiredItemSupplier : recipe.requiredItems()) {
-            Item requiredItem = requiredItemSupplier.get(); // 실제 Item 객체 가져오기
+        // 2. 광물 조건 확인 (수정된 부분)
+        for (Item requiredItem : recipe.requiredItems()) { // Supplier.get() 호출 제거
 
-            // 2a. 노드에 필수 광물이 아예 없는 경우 실패
             if (!this.resourceComposition.containsKey(requiredItem)) {
                 return false;
             }
 
-            // 2b. 최소 비율 조건 확인
             float currentRatio = this.resourceComposition.get(requiredItem);
+            Float minimumRatio = recipe.minimumRatios().get(requiredItem); // 직접 Item으로 조회
 
-            // recipe.minimumRatios 맵에서 현재 아이템(requiredItem)에 해당하는 최소 비율을 찾아야 함.
-            // Supplier를 직접 비교하는 대신, Supplier가 가리키는 Item을 비교해야 함.
-            Float minimumRatio = null;
-            for (Map.Entry<Supplier<Item>, Float> entry : recipe.minimumRatios().entrySet()) {
-                if (entry.getKey().get() == requiredItem) { // .get()으로 실제 Item을 꺼내서 비교
-                    minimumRatio = entry.getValue();
-                    break;
-                }
-            }
-
-            // 최소 비율 값을 찾지 못했거나, 현재 비율이 최소치보다 낮으면 실패
             if (minimumRatio == null || currentRatio < minimumRatio) {
                 return false;
             }
         }
 
-        // 모든 유체 및 광물 조건을 통과했다면, 이 레시피는 유효함.
         return true;
     }
+
     /**
      * 일반적인 채굴 규칙에 따라 드롭될 아이템 리스트를 반환합니다.
      * 이 메서드는 조합 레시피가 발동하지 않았을 때 호출됩니다.

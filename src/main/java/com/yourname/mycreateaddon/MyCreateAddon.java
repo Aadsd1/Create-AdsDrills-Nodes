@@ -2,7 +2,7 @@ package com.yourname.mycreateaddon;
 
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.yourname.mycreateaddon.client.event.AnvilTuningEvents;
-import com.yourname.mycreateaddon.client.event.EventBusEvents;
+import com.yourname.mycreateaddon.client.event.CommandEvents;
 import com.yourname.mycreateaddon.config.MyAddonConfigs;
 import com.yourname.mycreateaddon.registry.*;
 import net.minecraft.resources.ResourceKey;
@@ -41,7 +41,7 @@ public class MyCreateAddon {
 
         NeoForge.EVENT_BUS.register(AnvilTuningEvents.class);
 
-        NeoForge.EVENT_BUS.register(EventBusEvents.class);
+        NeoForge.EVENT_BUS.register(CommandEvents.class);
     }
 
     public static CreateRegistrate registrate() {

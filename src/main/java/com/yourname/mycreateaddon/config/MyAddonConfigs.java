@@ -2,17 +2,20 @@ package com.yourname.mycreateaddon.config;
 
 
 import com.yourname.mycreateaddon.MyCreateAddon;
+import com.yourname.mycreateaddon.crafting.NodeRecipe;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import com.electronwill.nightconfig.core.Config;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 public class MyAddonConfigs {
 
@@ -72,6 +75,7 @@ public class MyAddonConfigs {
         // 차원 프로필 설정
         public final ModConfigSpec.ConfigValue<List<? extends Config>> dimensionProfiles;
 
+        public final ModConfigSpec.ConfigValue<List<? extends Config>> nodeCombinationRecipes;
 
         // ... 드릴 코어, 열 시스템 등 설정 ...
         public final ModConfigSpec.IntValue brassDrillMaxModules;
@@ -176,7 +180,10 @@ public class MyAddonConfigs {
                     )
                     .defineList(
                             List.of("manualOreMappings"),
-                            () -> List.of(createManualOreMapping("draconicevolution:overworld_draconium_ore", "draconicevolution:draconium_dust")), // 기본값 Supplier
+                            () -> List.of(
+                                    createManualOreMapping("draconicevolution:overworld_draconium_ore", "draconicevolution:draconium_dust"),
+                                    createManualOreMapping("draconicevolution:deepslate_draconium_ore","draconicevolution:draconium_dust")
+                            ),
                             Config::inMemory,
                             obj -> obj instanceof Config // 유효성 검사
                     );
@@ -193,6 +200,91 @@ public class MyAddonConfigs {
                             () -> List.of(createDefaultOverworldProfile()),
                             Config::inMemory,
                             obj -> obj instanceof Config // 유효성 검사
+                    );
+
+            nodeCombinationRecipes = builder
+                    .comment(
+                            "Define custom recipes for generating new resources inside a Cracked Ore Node.",
+                            "Each recipe is triggered by chance when a cracked node is mined with the correct resources.",
+                            "'required_fluid' is optional. Use 'minecraft:empty' or omit for no fluid.",
+                            "'minimum_ratios' defines the minimum percentage (0.0 to 1.0) of each required item in the node's composition."
+                    )
+                    .defineList(
+                            List.of("nodeCombinationRecipes"),
+                            () -> List.of(
+                                    // Steel
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:raw_iron", "minecraft:coal"),
+                                            "minecraft:empty",
+                                            List.of(Map.of("item", "minecraft:raw_iron", "ratio", 0.1), Map.of("item", "minecraft:coal", "ratio", 0.1)),
+                                            "mycreateaddon:raw_steel_chunk", 0.5, 2.0
+                                    ),
+                                    // Thunder Stone
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:raw_copper", "minecraft:redstone"),
+                                            "minecraft:water",
+                                            List.of(Map.of("item", "minecraft:raw_copper", "ratio", 0.1), Map.of("item", "minecraft:redstone", "ratio", 0.1)),
+                                            "mycreateaddon:thunder_stone", 0.05, 2.0
+                                    ),
+                                    // The Fossil
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:granite", "minecraft:coal"),
+                                            "minecraft:empty",
+                                            List.of(Map.of("item", "minecraft:granite", "ratio", 0.1), Map.of("item", "minecraft:coal", "ratio", 0.1)),
+                                            "mycreateaddon:fossil", 0.05, 2.0
+                                    ),
+                                    // Silky Jewel
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:emerald", "minecraft:raw_gold"),
+                                            "minecraft:empty",
+                                            List.of(Map.of("item", "minecraft:emerald", "ratio", 0.1), Map.of("item", "minecraft:raw_gold", "ratio", 0.1)),
+                                            "mycreateaddon:silky_jewel", 0.05, 2.0
+                                    ),
+                                    // Ultramarine
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:lapis_lazuli", "minecraft:raw_iron"),
+                                            "minecraft:water",
+                                            List.of(Map.of("item", "minecraft:lapis_lazuli", "ratio", 0.1), Map.of("item", "minecraft:raw_iron", "ratio", 0.1)),
+                                            "mycreateaddon:ultramarine", 0.05, 2.0
+                                    ),
+                                    // Rose Gold
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:raw_gold", "minecraft:raw_copper"),
+                                            "minecraft:empty",
+                                            List.of(Map.of("item", "minecraft:raw_gold", "ratio", 0.1), Map.of("item", "minecraft:raw_copper", "ratio", 0.1)),
+                                            "mycreateaddon:raw_rose_gold_chunk", 0.05, 2.0
+                                    ),
+                                    // Ivory Crystal
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:andesite", "minecraft:diamond"),
+                                            "minecraft:empty",
+                                            List.of(Map.of("item", "minecraft:andesite", "ratio", 0.1), Map.of("item", "minecraft:diamond", "ratio", 0.1)),
+                                            "mycreateaddon:ivory_crystal", 0.05, 2.0
+                                    ),
+                                    // Cinnabar
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:redstone", "minecraft:coal"),
+                                            "minecraft:lava",
+                                            List.of(Map.of("item", "minecraft:redstone", "ratio", 0.1), Map.of("item", "minecraft:coal", "ratio", 0.1)),
+                                            "mycreateaddon:cinnabar", 0.05, 2.0
+                                    ),
+                                    // Koh-i-Noor
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:diamond", "minecraft:emerald"),
+                                            "minecraft:lava",
+                                            List.of(Map.of("item", "minecraft:diamond", "ratio", 0.1), Map.of("item", "minecraft:emerald", "ratio", 0.1)),
+                                            "mycreateaddon:koh_i_noor", 0.05, 2.0
+                                    ),
+                                    // XOMV
+                                    createDefaultNodeRecipe(
+                                            List.of("minecraft:redstone", "create:raw_zinc"),
+                                            "minecraft:water",
+                                            List.of(Map.of("item", "minecraft:redstone", "ratio", 0.1), Map.of("item", "create:raw_zinc", "ratio", 0.1)),
+                                            "mycreateaddon:xomv", 0.05, 2.0
+                                    )
+                            ),
+                            Config::inMemory,
+                            obj -> obj instanceof Config
                     );
             builder.pop();
 
@@ -268,6 +360,74 @@ public class MyAddonConfigs {
                     MyCreateAddon.LOGGER.warn("Failed to parse a dimension profile from config: {}", e.getMessage());
                 }
             }
+
+            NodeRecipe.RECIPES.clear(); // 기존 레시피 초기화
+            List<? extends Config> recipeConfigs = SERVER.nodeCombinationRecipes.get();
+
+            for (Config recipeConfig : recipeConfigs) {
+                try {
+                    // 1. 필수 아이템 파싱
+                    List<String> requiredItemIds = recipeConfig.get("required_items");
+                    List<Item> requiredItems = new ArrayList<>();
+                    for (String id : requiredItemIds) {
+                        BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(id))
+                                .ifPresent(requiredItems::add);
+                    }
+                    if (requiredItems.size() != requiredItemIds.size()) {
+                        MyCreateAddon.LOGGER.warn("Skipping NodeRecipe due to missing required items: {}", requiredItemIds);
+                        continue;
+                    }
+
+                    // 2. 필수 유체 파싱 (선택적)
+                    String fluidId = recipeConfig.getOrElse("required_fluid", "minecraft:empty");
+                    Fluid requiredFluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidId));
+                    if (requiredFluid == Fluids.EMPTY) {
+                        requiredFluid = null;
+                    }
+
+                    // 3. 최소 비율 파싱
+                    List<? extends Config> ratioConfigs = recipeConfig.get("minimum_ratios");
+                    Map<Item, Float> minimumRatios = new HashMap<>();
+                    boolean ratiosValid = true;
+                    for (Config ratioConfig : ratioConfigs) {
+                        Optional<Item> itemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(ratioConfig.get("item")));
+                        if (itemOpt.isPresent()) {
+                            minimumRatios.put(itemOpt.get(), ((Number) ratioConfig.get("ratio")).floatValue());
+                        } else {
+                            ratiosValid = false;
+                            break;
+                        }
+                    }
+                    if (!ratiosValid) {
+                        MyCreateAddon.LOGGER.warn("Skipping NodeRecipe due to missing ratio item.");
+                        continue;
+                    }
+
+                    // 4. 결과물 및 기타 값 파싱
+                    Optional<Item> outputItemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(recipeConfig.get("output")));
+                    if (outputItemOpt.isEmpty()) {
+                        MyCreateAddon.LOGGER.warn("Skipping NodeRecipe due to missing output item: {}", Optional.ofNullable(recipeConfig.get("output")));
+                        continue;
+                    }
+                    ItemStack output = new ItemStack(outputItemOpt.get());
+                    float chance = ((Number) recipeConfig.get("chance")).floatValue();
+                    float consumptionMultiplier = ((Number) recipeConfig.get("consumption_multiplier")).floatValue();
+
+                    // 5. 최종 레시피 객체 생성 및 추가
+                    NodeRecipe.RECIPES.add(new NodeRecipe(
+                            requiredItems,
+                            requiredFluid,
+                            minimumRatios,
+                            output,
+                            chance,
+                            consumptionMultiplier
+                    ));
+
+                } catch (Exception e) {
+                    MyCreateAddon.LOGGER.warn("Failed to parse a NodeRecipe from config: {}", e.getMessage());
+                }
+            }
+            MyCreateAddon.LOGGER.info("Loaded {} Node Combination Recipes from config.", NodeRecipe.RECIPES.size());
         }
     }
     // 수동 매핑 항목을 쉽게 만드는 헬퍼 메서드
@@ -346,6 +506,25 @@ public class MyAddonConfigs {
         ore.set("weight_add", add);
         ore.set("weight_multiplier", multiplier);
         return ore;
+    }
+    private static Config createDefaultNodeRecipe(List<String> requiredItems, String requiredFluid, List<Map<String, Object>> minimumRatios, String output, double chance, double consumptionMultiplier) {
+        Config recipe = Config.inMemory();
+        recipe.set("required_items", requiredItems);
+        recipe.set("required_fluid", requiredFluid);
+
+        List<Config> ratioConfigs = new ArrayList<>();
+        for (Map<String, Object> ratioMap : minimumRatios) {
+            Config ratioConfig = Config.inMemory();
+            ratioConfig.set("item", ratioMap.get("item"));
+            ratioConfig.set("ratio", ratioMap.get("ratio"));
+            ratioConfigs.add(ratioConfig);
+        }
+        recipe.set("minimum_ratios", ratioConfigs);
+
+        recipe.set("output", output);
+        recipe.set("chance", chance);
+        recipe.set("consumption_multiplier", consumptionMultiplier);
+        return recipe;
     }
 
 

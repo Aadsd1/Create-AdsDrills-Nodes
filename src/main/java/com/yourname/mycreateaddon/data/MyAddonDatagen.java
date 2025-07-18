@@ -72,6 +72,31 @@ public class MyAddonDatagen {
 
 
     public static void addCustomLang(CreateRegistrate registrate) {
+        registrate.addRawLang("mycreateaddon.jei.category.node_assembly", "Node Assembly");
+        registrate.addRawLang("mycreateaddon.jei.category.module_upgrading", "Module Upgrading");
+        registrate.addRawLang("mycreateaddon.jei.category.drill_upgrading", "Drill Head Upgrading");
+        registrate.addRawLang("mycreateaddon.jei.category.node_combination", "Node Combination");
+        registrate.addRawLang("mycreateaddon.jei.category.laser_decomposition", "Laser Decomposition");
+
+        // Node Frame 툴팁 및 텍스트
+        registrate.addRawLang("mycreateaddon.jei.tooltip.node_data", "Insert 1 to 9 Unfinished Node Data items. More data increases the final node's yield.");
+        registrate.addRawLang("mycreateaddon.jei.tooltip.stabilizer_core", "A Stabilizer Core is required. The tier of the core determines the potential stats and Quirks of the final node.");
+        registrate.addRawLang("mycreateaddon.jei.tooltip.catalyst", "Optional. Catalysts increase the chance of specific Quirks appearing.");
+        registrate.addRawLang("mycreateaddon.jei.requires_drill", "Requires a Rotary Drill Head above, powered by a Drill Core.");
+
+        // 드릴 헤드 강화 텍스트
+        registrate.addRawLang("mycreateaddon.jei.fortune_1", "Fortune I");
+        registrate.addRawLang("mycreateaddon.jei.fortune_up_to_3", "Fortune (Up to III)");
+        registrate.addRawLang("mycreateaddon.jei.silk_touch", "Silk Touch");
+
+        // 노드 조합 텍스트
+        registrate.addRawLang("mycreateaddon.jei.in_cracked_node", "In a Cracked Ore Node");
+
+        // 모루 튜닝 정보
+        registrate.addRawLang("mycreateaddon.jei.info.anvil_tuning", "The Netherite Node Locator can be tuned in an Anvil.\n\n- Combine with any Ore to make the locator target that specific resource.\n- Combine with Flint to clear any existing target.");
+
+        registrate.addRawLang("mycreateaddon.jei.tooltip.chance", "%s%% Chance");
+
         registrate.addRawLang("goggle.mycreateaddon.drill_core.header", "Drill Assembly");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.invalid", "Structure Invalid");
         registrate.addRawLang("goggle.mycreateaddon.drill_core.reason.loop_detected", "Error: Structural loop detected.");

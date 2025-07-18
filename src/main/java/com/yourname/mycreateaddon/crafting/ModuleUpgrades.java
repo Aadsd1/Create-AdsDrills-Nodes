@@ -1,14 +1,11 @@
 package com.yourname.mycreateaddon.crafting;
 
 
-import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllItems;
 import com.yourname.mycreateaddon.registry.MyAddonBlocks;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yourname.mycreateaddon.content.kinetics.module.GenericModuleBlock;
 import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -61,7 +58,9 @@ public class ModuleUpgrades {
     private static void addUpgrade(Item upgradeItem, BlockEntry<? extends GenericModuleBlock> resultModule) {
         UPGRADE_MAP.put(upgradeItem, resultModule);
     }
-
+    public static Map<Item, BlockEntry<? extends GenericModuleBlock>> getUpgradeResultMap() {
+        return UPGRADE_MAP;
+    }
     /**
      * 주어진 아이템으로 업그레이드할 수 있는 모듈을 반환합니다.
      * @param item 확인할 아이템

@@ -3,6 +3,7 @@ package com.yourname.mycreateaddon.content.kinetics.drill.head;
 
 import com.yourname.mycreateaddon.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.yourname.mycreateaddon.content.kinetics.node.OreNodeBlockEntity;
+import com.yourname.mycreateaddon.registry.MyAddonItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -10,7 +11,6 @@ import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -69,7 +69,7 @@ public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock {
     @Override
     protected @NotNull ItemInteractionResult useItemOn(@NotNull ItemStack stack, @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
         Item itemInHand = stack.getItem();
-        if (itemInHand == Items.GOLD_INGOT || itemInHand == Items.EMERALD) {
+        if (itemInHand == MyAddonItems.ROSE_GOLD.get() || itemInHand == MyAddonItems.SILKY_JEWEL.get()) {
             if (!player.isShiftKeyDown()) {
                 if (!level.isClientSide) {
                     withBlockEntityDo(level, pos, be -> {

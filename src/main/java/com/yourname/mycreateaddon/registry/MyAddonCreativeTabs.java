@@ -51,6 +51,9 @@ public class MyAddonCreativeTabs {
 
                         pOutput.accept(MyAddonItems.DRILL_CORE_NETHERITE_UPGRADE);
                         pOutput.accept(MyAddonItems.DRILL_CORE_STEEL_UPGRADE);
+                        pOutput.accept(MyAddonItems.BRASS_NODE_LOCATOR.get());
+                        pOutput.accept(MyAddonItems.STEEL_NODE_LOCATOR.get());
+                        pOutput.accept(MyAddonItems.NETHERITE_NODE_LOCATOR.get());
 
                         pOutput.accept(MyAddonItems.MODULE_UPGRADE_REMOVER);
                         pOutput.accept(MyAddonItems.MODULE_R_BRAKE_UPGRADE);

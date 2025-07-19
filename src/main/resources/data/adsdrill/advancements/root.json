@@ -1,0 +1,28 @@
+{
+  "display": {
+    "icon": {
+      "id": "adsdrill:drill_core"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.root.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.root.description"
+    },
+    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "get_drill_core": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:drill_core"]
+          }
+        ]
+      }
+    }
+  }
+}

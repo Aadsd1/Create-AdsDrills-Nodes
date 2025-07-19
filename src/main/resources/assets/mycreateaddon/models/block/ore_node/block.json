@@ -1,4 +1,0 @@
-{
-  "parent": "minecraft:block/block",
-  "loader": "mycreateaddon:ore_node_loader"
-}

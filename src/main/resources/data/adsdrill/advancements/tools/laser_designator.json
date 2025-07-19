@@ -1,0 +1,35 @@
+{
+  "parent": "adsdrill:tools/advanced_locator",
+  "display": {
+    "icon": {
+      "id": "adsdrill:laser_designator"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.tools.laser_designator.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.tools.laser_designator.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_designator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:laser_designator"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_designator"
+    ]
+  ]
+}

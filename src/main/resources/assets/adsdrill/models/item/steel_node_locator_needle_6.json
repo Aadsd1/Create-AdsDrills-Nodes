@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "adsdrill:item/steel_node_locator/steel_node_locator_base",
+    "layer1": "adsdrill:item/steel_node_locator/steel_node_locator_needle_6"
+  }
+}

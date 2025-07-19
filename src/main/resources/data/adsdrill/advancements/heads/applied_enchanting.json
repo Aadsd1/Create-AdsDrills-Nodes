@@ -1,0 +1,63 @@
+{
+  "parent": "adsdrill:heads/diamond_rotary_drill",
+  "display": {
+    "icon": {
+      "id": "minecraft:enchanted_book",
+      "components": {
+        "minecraft:stored_enchantments": { "minecraft:fortune": 3 }
+      }
+    },
+    "title": {
+      "translate": "advancements.adsdrill.heads.applied_enchanting.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.heads.applied_enchanting.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_fortune_drill": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:iron_rotary_drill_head",
+              "adsdrill:diamond_rotary_drill_head",
+              "adsdrill:netherite_rotary_drill_head"
+            ],
+            "components": {
+              "minecraft:block_entity_data": { "Fortune": { "min": 1 } }
+            }
+          }
+        ]
+      }
+    },
+    "get_silktouch_drill": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:iron_rotary_drill_head",
+              "adsdrill:diamond_rotary_drill_head",
+              "adsdrill:netherite_rotary_drill_head"
+            ],
+            "components": {
+              "minecraft:block_entity_data": { "SilkTouch": true }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_fortune_drill",
+      "get_silktouch_drill"
+    ]
+  ]
+}

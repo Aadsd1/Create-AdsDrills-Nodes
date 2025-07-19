@@ -181,7 +181,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (nextTier != null) {
             this.coreTier = nextTier;
 
-            // [핵심] 블록의 상태(BlockState)를 새로운 티어로 업데이트
+            // 블록의 상태(BlockState)를 새로운 티어로 업데이트
             BlockState oldState = getBlockState();
             BlockState newState = oldState.setValue(DrillCoreBlock.TIER, nextTier);
             level.setBlock(getBlockPos(), newState, Block.UPDATE_ALL);
@@ -202,18 +202,15 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return ModelData.builder().with(CORE_ENTITY_PROPERTY, this).build();
     }
 
-    // [신규] 외부에서 티어를 쉽게 가져갈 수 있도록 public getter 추가
     public Tier getCoreTier() {
         return this.coreTier;
     }
     @Override
     public IItemHandler getInternalItemBuffer() {
-        // [수정] null 대신, 핸들러 리스트를 사용하는 가상 핸들러를 새로 생성하여 반환
         return new DrillStructureItemHandler(this.itemBufferHandlers);
     }
     @Override
     public IFluidHandler getInternalFluidBuffer() {
-        // [수정] null 대신, 유체 핸들러 리스트를 사용하는 가상 핸들러를 새로 생성하여 반환
         return new DrillStructureFluidHandler(this.fluidBufferHandlers);
     }
 
@@ -272,12 +269,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
     @Override
     public FluidStack consumeFluid(FluidStack fluidToConsume, boolean simulate) {
-        // [수정] 가상 핸들러의 drain 메서드를 직접 호출하여 유체를 소모
+        // 가상 핸들러의 drain 메서드를 직접 호출하여 유체를 소모
         IFluidHandler virtualHandler = getInternalFluidBuffer();
         return virtualHandler.drain(fluidToConsume, simulate ? IFluidHandler.FluidAction.SIMULATE : IFluidHandler.FluidAction.EXECUTE);
     }
     /**
-     * [신규] IResourceAccessor의 consumeEnergy 메서드 구현
+     * IResourceAccessor의 consumeEnergy 메서드 구현
      */
     @Override
     public int consumeEnergy(int amount, boolean simulate) {
@@ -297,9 +294,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
     }
 
-    // [추가] 열 효율까지 모두 계산된 최종 속도를 반환하는 getter
+    // 열 효율까지 모두 계산된 최종 속도를 반환하는 getter
     public float getFinalSpeed() {
-        // [핵심 추가] 다른 모든 검사보다 먼저 레드스톤 제동을 확인
+        //  다른 모든 검사보다 먼저 레드스톤 제동을 확인
         if (isHaltedByRedstone()) {
             return 0;
         }
@@ -336,7 +333,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public float getVisualSpeed() {
         return this.visualSpeed;
     }
-    // [핵심 수정] Optional<Item>을 반환하도록 변경
+
     public Optional<Item> getResonatorFilter() {
         if (level == null || resonatorModules.isEmpty()) {
             return Optional.empty();
@@ -364,7 +361,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // OreNodeBlockEntity의 applyMiningTick 메서드를 직접 호출하여 결과를 반환합니다.
         return nodeBE.applyMiningTick(miningAmount, fortune, silkTouch);
     }
-    // [신규] 특정 자원만 채굴하는 메서드
+    // 특정 자원만 채굴하는 메서드
     public List<ItemStack> mineSpecificNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch, Item specificItem) {
         if (level == null || level.isClientSide()) return List.of();
         return nodeBE.applySpecificMiningTick(miningAmount, fortune, silkTouch, specificItem);
@@ -372,7 +369,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     public void scheduleStructureCheck() {
         if (level != null && !level.isClientSide) {
-            // [수정] 즉시 검사 플래그 대신, 2틱의 쿨다운을 설정합니다.
+            // 즉시 검사 플래그 대신, 2틱의 쿨다운을 설정합니다.
             // 이미 쿨다운이 진행 중이라면, 다시 초기화합니다.
             this.structureCheckCooldown = 2;
         }
@@ -454,7 +451,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
             BlockState startState = level.getBlockState(startPos);
             if (startState.getBlock() instanceof GenericModuleBlock) {
-                // [복원] 코어와 첫 모듈의 연결 정보를 기록
+                // 코어와 첫 모듈의 연결 정보를 기록
                 moduleConnections.computeIfAbsent(worldPosition, k -> new HashSet<>()).add(startDir);
                 moduleConnections.computeIfAbsent(startPos, k -> new HashSet<>()).add(startDir.getOpposite());
 
@@ -480,13 +477,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                         ModuleType type = moduleBE.getModuleType();
 
-                        // [핵심 수정] 복리 계산으로 변경
                         speedMultiplier *= (1.0 + type.getSpeedBonus());
                         stressMultiplier *= (1.0 + type.getStressImpact()); // 스트레스도 곱셈으로 변경
                         heatMultiplier *= (1.0 + type.getHeatModifier());
-
-                        // [참고] 만약 모듈의 스트레스만 합산하고 싶다면 아래와 같이 유지
-                        // totalStressImpact += type.getStressImpact();
 
                         totalEnergyCapacity+=type.getEnergyCapacity();
                         if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
@@ -494,7 +487,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
                         boolean isDuplicate = false;
 
-                        // [핵심 수정] 필터 모듈도 processingModuleChain에 추가되도록 로직 변경
                         RecipeType<?> recipeType = type.getBehavior().getRecipeType();
                         // 1. 이 모듈이 "우선순위를 가진" 모듈인지 확인 (일반 처리 모듈 또는 필터 모듈)
                         if (recipeType != null || type == ModuleType.FILTER) {
@@ -525,7 +517,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         }
 
 
-                        // [수정] 냉각/에너지 관련 모듈을 activeSystemModules에 추가
                         else if (type == ModuleType.COOLANT || type == ModuleType.KINETIC_DYNAMO || type == ModuleType.ENERGY_INPUT) {
                             activeSystemModules.add(modulePos);
 
@@ -555,7 +546,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
 
         this.energyBuffer.setCapacity(totalEnergyCapacity);
-        // [핵심 추가] 구조가 유효하고 레이저 헤드가 부착된 경우에만 에너지 경고를 확인합니다.
+        // 구조가 유효하고 레이저 헤드가 부착된 경우에만 에너지 경고를 확인합니다.
         if (this.structureValid && isLaserHeadAttached) {
             if (this.energyBuffer.getMaxEnergyStored() == 0) {
                 // 에너지 버퍼나 발전기가 없어 최대 용량이 0이면
@@ -884,7 +875,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public void tick() {
         super.tick();
 
-        // [수정] 클라이언트와 서버 로직을 분리합니다.
         assert level != null;
         if (level.isClientSide()) {
             // --- 클라이언트 전용 시각/청각 효과 ---
@@ -894,9 +884,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             serverTick();
         }
     }
-    // [수정] 클라이언트 로직을 위한 메서드
+    // 클라이언트 로직을 위한 메서드
     public void clientTick() {
-        // [추가] level이 null일 경우를 대비한 안전장치
         if (level == null) return;
 
         // isOverheated 상태에서는 효과 없음
@@ -905,7 +894,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         float heatPercent = this.heat / 100f;
         if (heatPercent <= 0.4f) return;
 
-        // [핵심 수정] level에서 RandomSource 인스턴스를 가져옵니다.
         RandomSource random = level.random;
 
         Vec3 center = Vec3.atCenterOf(worldPosition);
@@ -931,7 +919,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         (random.nextFloat() - 0.5f) * 0.1f);
             }
             if (random.nextInt(40) == 0) {
-                // [핵심 수정] .get()을 제거하고 사운드 이벤트 필드를 직접 사용합니다.
                 level.playLocalSound(worldPosition, SoundEvents.NOTE_BLOCK_HARP.value(), SoundSource.BLOCKS, 0.3f, 1.5f + heatPercent, false);
             }
         }
@@ -941,7 +928,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         // 기존 tick() 메서드에 있던 모든 서버 로직을 여기로 옮깁니다.
         tickCounter++;
         assert level != null;
-        // [수정] 쿨다운 기반의 구조 검사 실행
+        //  쿨다운 기반의 구조 검사 실행
         if (structureCheckCooldown > 0) {
             structureCheckCooldown--;
             if (structureCheckCooldown == 0) {
@@ -960,11 +947,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
             headBlock = h;
         }
-// [핵심 추가] 레이저 헤드 작동 시 에너지 부족 경고 처리
+        // 레이저 헤드 작동 시 에너지 부족 경고 처리
         if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof LaserDrillHeadBlock) {
             // 레이저 헤드가 있고, 에너지 공급원이 있는 상태에서(NO_ENERGY_SOURCE가 아님)
             // 현재 에너지가 부족한 경우 경고 상태를 설정합니다.
-            if (this.invalidityReason != InvalidityReason.NO_ENERGY_SOURCE && this.energyBuffer.getEnergyStored() < 100) { // ENERGY_PER_MINING_TICK 값
+
+            if (this.invalidityReason != InvalidityReason.NO_ENERGY_SOURCE && this.energyBuffer.getEnergyStored() < AdsDrillConfigs.SERVER.laserEnergyPerMiningTick.get()) {
                 if (getFinalSpeed() != 0) { // 드릴이 작동 중일 때만 에너지 부족 경고 표시
                     this.invalidityReason = InvalidityReason.INSUFFICIENT_ENERGY;
                 }
@@ -977,12 +965,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             this.invalidityReason = InvalidityReason.NONE;
         }
         // --- 과열 로직 수정 ---
-        // [핵심 수정] finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
+        // finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
         if (finalSpeed != 0 && headBlock != null) {
             float baseHeatGen = headBlock.getHeatGeneration();
             float speedFactor = Math.max(1, Math.abs(finalSpeed) / 64f);
 
-            // [핵심 수정] 곱셈으로 누적된 열 생성 배율을 적용합니다.
+            // 곱셈으로 누적된 열 생성 배율을 적용합니다.
             // heatMultiplier는 음수 보너스가 적용되어 1.0보다 작은 값이 됩니다. (예: 0.8)
             float finalHeatMultiplier = (float) Math.max(0, this.heatMultiplier);
             float heatThisTick = baseHeatGen * speedFactor * finalHeatMultiplier;
@@ -991,7 +979,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         } else {
             // 냉각: 드릴이 멈춰있을 때 열이 식는 로직
-            // [핵심 수정] CORE_BASE_COOLING 대신 티어의 기본 냉각률을 사용
             float coolingRate = coreTier.getBaseCooling();
             if (headBlock != null) {
                 coolingRate += headBlock.getCoolingRate();
@@ -1001,7 +988,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // (열 수치 제한 및 과열 상태 갱신 로직은 이전과 동일)
         this.heat = Mth.clamp(this.heat, 0, 100);
-        // [추가] 이전 틱의 과열 상태를 기억하기 위한 필드
+        // 이전 틱의 과열 상태를 기억하기 위한 필드
         // --- isOverheated 상태 업데이트 ---
         boolean wasOverheated = isOverheated;
         if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {

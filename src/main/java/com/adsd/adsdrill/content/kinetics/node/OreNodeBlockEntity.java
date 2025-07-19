@@ -8,6 +8,7 @@ import com.adsd.adsdrill.crafting.NodeRecipe;
 import com.adsd.adsdrill.crafting.Quirk;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -253,10 +254,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             }
         }
 
-        // [6. 수정] 양극성 보너스 적용
+        // 양극성 보너스 적용
         double effectiveMiningAmount = (int) (miningAmount / getHardness());
         if (this.polarityBonusActive) {
-            effectiveMiningAmount *= 1.25; // 채굴량 25% 증가
+            effectiveMiningAmount *= 1.33; // 채굴량 25% 증가
         }
         this.miningProgress += (int)effectiveMiningAmount;
         int miningResistance = 1000;
@@ -576,16 +577,19 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
 
         // 양극성/음극성: 주변에 반대 극성이 있는지 확인
-        this.polarityBonusActive = false; // 매번 초기화
+        this.polarityBonusActive = false; // 매번 체크할 때마다 보너스 상태를 초기화합니다.
         if (artificialNode.hasQuirk(Quirk.POLARITY_POSITIVE) || artificialNode.hasQuirk(Quirk.POLARITY_NEGATIVE)) {
             Quirk oppositeQuirk = artificialNode.hasQuirk(Quirk.POLARITY_POSITIVE) ? Quirk.POLARITY_NEGATIVE : Quirk.POLARITY_POSITIVE;
 
-            for (BlockPos pos : BlockPos.betweenClosed(worldPosition.offset(-1, -1, -1), worldPosition.offset(1, 1, 1))) {
-                if (pos.equals(worldPosition)) continue;
+            // 6개의 기본 방향(상하좌우앞뒤)만 순회합니다.
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = worldPosition.relative(dir);
+
+                // 이웃 블록이 반대 극성을 가진 인공 노드인지 확인합니다.
                 assert level != null;
-                if (level.getBlockEntity(pos) instanceof ArtificialNodeBlockEntity otherNode && otherNode.hasQuirk(oppositeQuirk)) {
-                    this.polarityBonusActive = true;
-                    break; // 하나라도 찾으면 중단
+                if (level.getBlockEntity(neighborPos) instanceof ArtificialNodeBlockEntity otherNode && otherNode.hasQuirk(oppositeQuirk)) {
+                    this.polarityBonusActive = true; // 조건을 만족하면 보너스를 활성화하고,
+                    break; // 더 이상 탐색할 필요 없이 중단합니다.
                 }
             }
         }

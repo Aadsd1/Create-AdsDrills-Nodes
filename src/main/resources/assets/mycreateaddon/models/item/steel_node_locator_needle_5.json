@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "mycreateaddon:item/steel_node_locator/steel_node_locator_base",
-    "layer1": "mycreateaddon:item/steel_node_locator/steel_node_locator_needle_5"
-  }
-}

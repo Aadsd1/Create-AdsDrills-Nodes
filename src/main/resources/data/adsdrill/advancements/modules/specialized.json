@@ -1,0 +1,46 @@
+{
+  "parent": "adsdrill:modules/frame",
+  "display": {
+    "icon": {
+      "id": "adsdrill:speed_module"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.modules.specialized.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.modules.specialized.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_speed_module": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:speed_module"]
+          }
+        ]
+      }
+    },
+    "get_buffer_module": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:item_buffer_module"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_speed_module",
+      "get_buffer_module"
+    ]
+  ]
+}

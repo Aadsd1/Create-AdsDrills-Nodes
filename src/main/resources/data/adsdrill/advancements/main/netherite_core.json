@@ -1,0 +1,31 @@
+{
+  "parent": "adsdrill:main/steel_core",
+  "display": {
+    "icon": {
+      "id": "adsdrill:core_netherite_upgrade",
+      "components": { "minecraft:fire_resistant": {} }
+    },
+    "title": { "translate": "advancements.adsdrill.main.netherite_core.title" },
+    "description": { "translate": "advancements.adsdrill.main.netherite_core.description" },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "get_netherite_core": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:drill_core"],
+            "components": {
+              "minecraft:block_entity_data": {
+                "CoreTier": "NETHERITE"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -65,7 +65,7 @@ public class AdsDrillJEIPlugin implements IModPlugin {
                         new ItemStack(AdsDrillItems.NETHERITE_STABILIZER_CORE.get())
                 ),
                 mezz.jei.api.constants.VanillaTypes.ITEM_STACK,
-                Component.translatable("mycreateaddon.jei.info.stabilizer_cores")
+                Component.translatable("adsdrill.jei.info.stabilizer_cores")
         );
         addAnvilTuningRecipes(registration);
     }

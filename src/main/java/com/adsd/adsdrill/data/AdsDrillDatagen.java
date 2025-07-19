@@ -72,7 +72,7 @@ public class AdsDrillDatagen {
 
 
     public static void addCustomLang(CreateRegistrate registrate) {
-        registrate.addRawLang("mycreateaddon.jei.info.stabilizer_cores", "Stabilizer Cores are used in the Node Frame to begin the Artificial Node crafting process. The tier of the core heavily influences the final node's stats, potential Quirks, and the required crafting speed.");
+        registrate.addRawLang("adsdrill.jei.info.stabilizer_cores", "Stabilizer Cores are used in the Node Frame to begin the Artificial Node crafting process. The tier of the core heavily influences the final node's stats, potential Quirks, and the required crafting speed.");
 
         registrate.addRawLang("adsdrill.jei.category.node_assembly", "Node Assembly");
         registrate.addRawLang("adsdrill.jei.category.module_upgrading", "Module Upgrading");
@@ -247,5 +247,80 @@ public class AdsDrillDatagen {
         registrate.addRawLang("message.adsdrill.locator.not_found", "No nodes found within %s blocks.");
         registrate.addRawLang("tooltip.adsdrill.node_locator.targeting_result", "Targeting Resource: %s");
         registrate.addRawLang("tooltip.adsdrill.node_locator.tuning_info", "Tune with an Ore or clear with Flint in an Anvil.");
+
+        // ==================================================
+        //               Advancements - Drill Heads
+        // ==================================================
+        registrate.addRawLang("advancements.adsdrill.heads.basic_rotary_drill.title", "Time to Dig");
+        registrate.addRawLang("advancements.adsdrill.heads.basic_rotary_drill.description", "Craft the most basic Rotary Drill Head to complete your drill assembly.");
+
+        registrate.addRawLang("advancements.adsdrill.heads.diamond_rotary_drill.title", "Deeper and Harder");
+        registrate.addRawLang("advancements.adsdrill.heads.diamond_rotary_drill.description", "Strengthen your Rotary Drill Head with diamonds.");
+
+        registrate.addRawLang("advancements.adsdrill.heads.netherite_rotary_drill.title","Nether-Infused Drill");
+        registrate.addRawLang("advancements.adsdrill.heads.netherite_rotary_drill.description","Make your End tier Rotary Drill Head");
+
+        registrate.addRawLang("advancements.adsdrill.heads.hydraulic_drill.title", "Hydraulic Breakthrough");
+        registrate.addRawLang("advancements.adsdrill.heads.hydraulic_drill.description", "Craft a Hydraulic Drill Head to selectively mine specific resources using the power of water.");
+
+        registrate.addRawLang("advancements.adsdrill.heads.laser_drill.title", "Pew Pew!");
+        registrate.addRawLang("advancements.adsdrill.heads.laser_drill.description", "Craft the pinnacle of mining technology, the Laser Drill Head.");
+
+        registrate.addRawLang("advancements.adsdrill.heads.applied_enchanting.title", "Applied Enchanting");
+        registrate.addRawLang("advancements.adsdrill.heads.applied_enchanting.description", "Apply a Fortune or Silk Touch upgrade directly to a Rotary Drill Head.");
+
+        registrate.addRawLang("advancements.adsdrill.heads.unstable_mining.title", "Unstable Mining");
+        registrate.addRawLang("advancements.adsdrill.heads.unstable_mining.description", "Craft an Explosive Drill Head. It seems to react... interestingly to overheating.");
+        // ==================================================
+        //               Advancements - Module System
+        // ==================================================
+        registrate.addRawLang("advancements.adsdrill.modules.frame.title", "Sturdy Foundation");
+        registrate.addRawLang("advancements.adsdrill.modules.frame.description", "Craft a Frame Module, the foundation for all other modules.");
+
+        registrate.addRawLang("advancements.adsdrill.modules.specialized.title", "Specialized Support");
+        registrate.addRawLang("advancements.adsdrill.modules.specialized.description", "Upgrade a Frame Module into a Speed or Buffer Module to enhance your drill's performance.");
+
+        registrate.addRawLang("advancements.adsdrill.modules.processing.title", "Automated Factory");
+        registrate.addRawLang("advancements.adsdrill.modules.processing.description", "Add a processing module, like a Furnace or Crusher, to handle everything from mining to smelting.");
+
+        registrate.addRawLang("advancements.adsdrill.modules.power_management.json.title", "Unlimited Power!");
+        registrate.addRawLang("advancements.adsdrill.modules.power_management.json.description", "Construct an energy module to generate, store, or receive FE for advanced drill heads.");
+
+        registrate.addRawLang("advancements.adsdrill.modules.redstone_control.title", "Red Light, Green Light");
+        registrate.addRawLang("advancements.adsdrill.modules.redstone_control.description", "Add a Redstone Brake Module to your assembly for remote control capabilities.");
+        // ==================================================
+        //            Advancements - Artificial Node
+        // ==================================================
+        registrate.addRawLang("advancements.adsdrill.artificial_node.frame.title", "Geologist? No, Creator!");
+        registrate.addRawLang("advancements.adsdrill.artificial_node.frame.description", "Craft the Node Frame, the foundation for creating artificial ore nodes.");
+
+        registrate.addRawLang("advancements.adsdrill.artificial_node.stabilizer.title", "The Core of Stability");
+        registrate.addRawLang("advancements.adsdrill.artificial_node.stabilizer.description", "Craft a Stabilizer Core, which determines the properties of an artificial node.");
+
+        registrate.addRawLang("advancements.adsdrill.artificial_node.complete.title", "Stonemason's Alchemy");
+        registrate.addRawLang("advancements.adsdrill.artificial_node.complete.description", "With the power of a Node Frame and a Drill, create something from almost nothing. Obtain your first Artificial Ore Node!");
+
+        registrate.addRawLang("advancements.adsdrill.artificial_node.deconstructionist.title", "Deconstructionist");
+        registrate.addRawLang("advancements.adsdrill.artificial_node.deconstructionist.description", "Use a Laser Drill in Decomposition mode to break down a natural ore node into raw data.");
+        // ==================================================
+        //               Advancements - Tools
+        // ==================================================
+        registrate.addRawLang("advancements.adsdrill.tools.locator.title", "Nodal Navigator");
+        registrate.addRawLang("advancements.adsdrill.tools.locator.description", "Craft a Node Locator to search for hidden ore nodes beneath the surface.");
+
+        registrate.addRawLang("advancements.adsdrill.tools.advanced_locator.title", "Precision Engineering");
+        registrate.addRawLang("advancements.adsdrill.tools.advanced_locator.description", "Upgrade your Node Locator for a wider range and more precise targeting capabilities.");
+
+        registrate.addRawLang("advancements.adsdrill.tools.laser_designator.title", "Point and Shoot");
+        registrate.addRawLang("advancements.adsdrill.tools.laser_designator.description", "Craft a Laser Designator to manually assign targets to your Laser Drill Head.");
+
+        // ==================================================
+        //            Advancements - Hidden Challenges
+        // ==================================================
+        registrate.addRawLang("advancements.adsdrill.hidden.catalyst_collector.title", "Master of Quirks");
+        registrate.addRawLang("advancements.adsdrill.hidden.catalyst_collector.description", "You have collected every known catalyst capable of influencing the very nature of artificial nodes. A true alchemist!");
+
+        registrate.addRawLang("advancements.adsdrill.hidden.fine_tuning.title", "Fine-Tuning");
+        registrate.addRawLang("advancements.adsdrill.hidden.fine_tuning.description", "Tune a Netherite Node Locator in an Anvil to seek out a specific resource.");
     }
 }

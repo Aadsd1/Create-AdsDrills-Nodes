@@ -1,0 +1,35 @@
+{
+  "parent": "adsdrill:artificial_node/deconstructionist",
+  "display": {
+    "icon": {
+      "id": "adsdrill:node_frame"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.artificial_node.frame.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.artificial_node.frame.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_node_frame": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:node_frame"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_node_frame"
+    ]
+  ]
+}

@@ -8,14 +8,12 @@ import com.adsd.adsdrill.crafting.NodeRecipe;
 import com.adsd.adsdrill.crafting.Quirk;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
@@ -26,12 +24,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.loot.BuiltInLootTables;
-import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -83,6 +75,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return this.resourceComposition;
     }
 
+    public void setPolarityBonusActive(boolean active) {
+        this.polarityBonusActive = active;
+    }
+
     public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
             return Collections.emptyList();
@@ -129,6 +125,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     }
 
+    public int getMaxFluidCapacity() {
+        return maxFluidCapacity;
+    }
+
     public boolean isCracked() {
         return cracked;
     }
@@ -155,16 +155,13 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
     public float getHardness() {
         float finalHardness = this.hardness;
-        if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.AQUIFER)) {
-            if (this.maxFluidCapacity > 0) { // maxFluidCapacity가 0일 때의 오류 방지
-                float lowerBound = this.maxFluidCapacity * 0.6f;
-                float upperBound = this.maxFluidCapacity * 0.7f;
-                if (this.currentFluidAmount >= lowerBound && this.currentFluidAmount <= upperBound) {
-                    finalHardness *= 0.8f; // 20% 감소
-                }
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                finalHardness = quirk.onCalculateHardness(finalHardness, context);
             }
         }
-        return Math.max(0.1f, finalHardness); // 0으로 나누는 것을 방지
+        return Math.max(0.1f, finalHardness);
     }
 
     public ResourceLocation getBackgroundBlockId() {
@@ -247,25 +244,32 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             return Collections.emptyList();
         }
 
+        // [1. 특성 적용] 행운 레벨을 특성에 따라 먼저 계산합니다.
         int effectiveFortune = fortuneLevel;
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            if (artificialNode.hasQuirk(Quirk.GEMSTONE_FACETS)) {
-                effectiveFortune *= 2;
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                effectiveFortune = quirk.onCalculateFortune(effectiveFortune);
             }
         }
 
-        // 양극성 보너스 적용
-        double effectiveMiningAmount = (int) (miningAmount / getHardness());
-        if (this.polarityBonusActive) {
-            effectiveMiningAmount *= 1.33; // 채굴량 25% 증가
+        // [2. 채굴량 계산] 경도와 양극성 보너스를 적용합니다.
+        double effectiveMiningAmount = (miningAmount / getHardness());
+
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                effectiveMiningAmount = quirk.onCalculateMiningAmount(effectiveMiningAmount, context);
+            }
         }
-        this.miningProgress += (int)effectiveMiningAmount;
-        int miningResistance = 1000;
+
+        this.miningProgress += (int) effectiveMiningAmount;
+
+        int miningResistance = 1000; // 채굴 저항값 (설정으로 뺄 수도 있음)
 
         if (this.miningProgress >= miningResistance) {
             this.miningProgress -= miningResistance;
 
-            // 조합 레시피 발동 시도
+            // [3. 조합 레시피 확인] 균열 상태일 때만 조합을 시도합니다.
             if (this.isCracked()) {
                 for (NodeRecipe recipe : NodeRecipe.RECIPES) {
                     if (checkRecipeConditions(recipe)) {
@@ -273,27 +277,35 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                             this.currentYield -= recipe.consumptionMultiplier();
                             setChanged();
                             sendData();
-                            ItemStack result = recipe.output().copy();
-                            return Collections.singletonList(result);
+                            // 조합 성공 시, 조합 결과물만 반환하고 즉시 종료
+                            return Collections.singletonList(recipe.output().copy());
                         }
                     }
                 }
             }
 
-            // 휘발성 균열 카운터 로직
-            if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.VOLATILE_FISSURES)) {
-                artificialNode.incrementVolatileFissureCounter();
-            }
+            // [4. 일반 채굴 진행]
             this.currentYield--;
+
+            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+                Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
+                for (Quirk quirk : artificialNode.getQuirks()) {
+                    quirk.onYieldConsumed(context);
+                }
+            }
+
             setChanged();
             sendData();
 
-            // effectiveFortune을 사용합니다.
+            // [5. 일반 드롭 아이템 생성]
             List<ItemStack> drops = getNormalDrops(effectiveFortune, hasSilkTouch);
 
-            // 특수 효과 발동
+            // [6. 드롭 후 발동하는 특성 적용]
             if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-                artificialNode.applyQuirkEffects(drops, serverLevel);
+                Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
+                for (Quirk quirk : artificialNode.getQuirks()) {
+                    quirk.onAfterDropsCalculated(drops, context);
+                }
             }
 
             return drops;
@@ -301,6 +313,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         return Collections.emptyList();
     }
+
 
     private boolean checkRecipeConditions(NodeRecipe recipe) {
         // 1. 유체 조건 확인
@@ -340,28 +353,21 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             return Collections.emptyList();
         }
 
+        // [1. 드롭할 아이템 종류 결정]
         Item itemToDrop = null;
 
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            // 혼돈의 산물
-            if (artificialNode.hasQuirk(Quirk.CHAOTIC_OUTPUT) && level.getRandom().nextFloat() < 0.05f) { // 5% 확률
-                List<Item> allOres = resourceComposition.keySet().stream().toList();
-                itemToDrop = allOres.get(level.getRandom().nextInt(allOres.size()));
-            }
-            // 정화 공명
-            else if (artificialNode.hasQuirk(Quirk.PURIFYING_RESONANCE)) {
-                Item dominantOre = resourceComposition.entrySet().stream()
-                        .max(Map.Entry.comparingByValue())
-                        .map(Map.Entry::getKey)
-                        .orElse(null);
-
-                if (dominantOre != null && level.getRandom().nextFloat() < 0.4f) { // 40% 확률로 주 광물 강제
-                    itemToDrop = dominantOre;
+            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                Optional<Item> override = quirk.onSelectItemToDrop(context);
+                if (override.isPresent()) {
+                    itemToDrop = override.get();
+                    break; // 첫 번째로 아이템을 지정한 특성의 결정을 따름
                 }
             }
         }
 
-        // 위에서 결정되지 않았다면, 기존의 가중치 기반 랜덤 선택
+        // 위에서 특성에 의해 결정되지 않았다면, 기존의 가중치 랜덤 로직 실행
         if (itemToDrop == null) {
             List<Map.Entry<Item, Float>> sortedComposition = new ArrayList<>(resourceComposition.entrySet());
             sortedComposition.sort(Comparator.comparing(entry -> BuiltInRegistries.ITEM.getKey(entry.getKey()).toString()));
@@ -374,125 +380,75 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                     break;
                 }
             }
-            if (itemToDrop == null) {
+            if (itemToDrop == null && !sortedComposition.isEmpty()) {
                 itemToDrop = sortedComposition.getFirst().getKey();
             }
         }
 
+        if (itemToDrop == null) {
+            return new ArrayList<>();
+        }
 
-        // --- 2. 실크터치 처리 ---
-
+        // [2. 실크 터치 처리]
         if (hasSilkTouch) {
-            // 아이템-블록 매핑에서 선택된 아이템에 해당하는 블록을 찾음
             Block blockToDrop = this.itemToBlockMap.get(itemToDrop);
-
-            // 만약 맵에 해당 아이템이 없다면(오류 상황), 노드의 대표 광석 블록이라도 드롭
             ItemStack silkStack = new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId)));
-
-            // 아이템 대신 블록을 리스트에 담아 반환
             return new ArrayList<>(Collections.singletonList(silkStack));
         }
 
-        // --- 3. 일반 드롭 (행운 및 풍부함 효과 적용) ---
-
+        // [3. 드롭량 계산]
         ItemStack finalDrop = new ItemStack(itemToDrop);
-        int dropCount = 1; // 기본 드롭량은 1개
+        int dropCount = 1;
 
-        // 행운(Fortune) 레벨에 따른 추가 드롭량 계산
+        // 행운(Fortune) 효과 적용
         if (fortuneLevel > 0) {
             RandomSource random = level.getRandom();
-            // 바닐라의 행운 로직과 유사하게, 레벨에 따라 추가 드롭 확률과 개수가 결정됨
-            int bonusDrops = 0;
             for (int i = 0; i < fortuneLevel; i++) {
-                if (random.nextInt(100) < 50) { // 50% 확률로 추가 드롭 시도
-                    bonusDrops++;
+                if (random.nextInt(100) < 50) {
+                    dropCount++;
                 }
             }
-            // 운이 좋으면 더 많이 나올 수 있도록 약간의 변동성 추가
-            dropCount += random.nextInt(bonusDrops + 1);
+            dropCount += random.nextInt((int) (fortuneLevel * 0.5f) + 1); // 약간의 변동성 추가
         }
 
-        // 풍부함(Richness) 스탯에 따른 추가 드롭량 계산
-        // 풍부함이 1.0을 초과하는 만큼의 확률로 드롭량이 1개 더 증가
+        // 풍부함(Richness) 효과 적용
         if (this.richness > 1.0f && level.getRandom().nextFloat() < (this.richness - 1.0f)) {
             dropCount++;
         }
 
-        // 최종 계산된 드롭량을 아이템 스택에 설정
-        if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.STEADY_HANDS)) {
-            finalDrop.setCount(Math.max(2, dropCount)); // 최소 2개 보장
-        } else {
-            finalDrop.setCount(dropCount);
-        }
-// --- 4. 추가 특성 효과 적용 ---
-        List<ItemStack> finalDrops = new ArrayList<>(Collections.singletonList(finalDrop));
-
+        // [4. 드롭량 관련 특성 적용]
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            // 미량 광물
-            if (artificialNode.hasQuirk(Quirk.TRACE_MINERALS) && level.getRandom().nextFloat() < 0.1f) {
-                finalDrops.add(new ItemStack(Items.IRON_NUGGET));
-            }
-            // 숨겨진 보물
-            if (artificialNode.hasQuirk(Quirk.BURIED_TREASURE) && level.getRandom().nextFloat() < 0.05f) {
-                generateBuriedTreasure().ifPresent(finalDrops::add);
+            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                dropCount = quirk.onCalculateDrops(dropCount, context);
             }
         }
 
-        return finalDrops;
+        finalDrop.setCount(dropCount);
 
+        // 최종적으로 생성된 아이템 리스트를 반환
+        return new ArrayList<>(Collections.singletonList(finalDrop));
     }
-    private Optional<ItemStack> generateBuriedTreasure() {
-        if (level == null || level.isClientSide()) return Optional.empty();
-        ServerLevel serverLevel = (ServerLevel) level;
 
-        final List<ResourceKey<LootTable>> lootTables = List.of(
-                BuiltInLootTables.ABANDONED_MINESHAFT,
-                BuiltInLootTables.DESERT_PYRAMID,
-                BuiltInLootTables.JUNGLE_TEMPLE,
-                BuiltInLootTables.SHIPWRECK_TREASURE,
-                BuiltInLootTables.SIMPLE_DUNGEON,
-                BuiltInLootTables.VILLAGE_WEAPONSMITH,
-                BuiltInLootTables.VILLAGE_TOOLSMITH
-        );
 
-        ResourceKey<LootTable> chosenTableKey = lootTables.get(serverLevel.getRandom().nextInt(lootTables.size()));
-
-        // get() 메서드 사용
-        LootTable lootTable = serverLevel.getServer().reloadableRegistries().getLootTable(chosenTableKey);
-
-        LootParams lootParams = new LootParams.Builder(serverLevel)
-                .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(worldPosition))
-                .create(LootContextParamSets.CHEST);
-
-        // getRandomItems() 메서드 사용
-        List<ItemStack> generatedLoot = lootTable.getRandomItems(lootParams);
-
-        // 생성된 아이템 중 하나를 무작위로 선택
-        if (!generatedLoot.isEmpty()) {
-            return Optional.of(generatedLoot.get(serverLevel.getRandom().nextInt(generatedLoot.size())).copy());
-        }
-
-        return Optional.empty();
-    }
     @Override
     public void tick() {
         super.tick();
         if (level != null && !level.isClientSide) {
 
-            // 오프셋이 설정되지 않았다면, 월드 시간 기준으로 랜덤한 오프셋을 설정합니다.
             if (quirkCheckOffset == -1) {
                 quirkCheckOffset = (int) (level.getGameTime() % 40);
             }
-
-            // 주기적 효과 처리 로직을 다시 tick() 안으로 가져옵니다.
-            // 40틱(2초)마다, 각자의 오프셋에 맞춰서 탐색을 수행합니다.
             if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
                 applyPeriodicQuirkEffects();
             }
 
             float regenerationRate = this.regeneration;
-            if (this instanceof ArtificialNodeBlockEntity artificialNode && artificialNode.hasQuirk(Quirk.PETRIFIED_HEART)) {
-                regenerationRate += (this.regeneration * (this.hardness * 0.25f));
+            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+                Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+                for (Quirk quirk : artificialNode.getQuirks()) {
+                    regenerationRate = quirk.onCalculateRegeneration(regenerationRate, context);
+                }
             }
             if (regenerationRate > 0 || this.temporaryRegenBoost > 0) {
                 float baseRegen = regenerationRate + this.temporaryRegenBoost; // 부스트 적용
@@ -562,42 +518,27 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
     // 주기적 효과를 처리하는 새 메서드
     private void applyPeriodicQuirkEffects() {
-        if (!(this instanceof ArtificialNodeBlockEntity artificialNode) || !artificialNode.hasLevel()) return;
+        if (!(this instanceof ArtificialNodeBlockEntity artificialNode)) return;
 
-        // 활력의 오라: 주변 노드에 재생력 부스트 부여
-        if (artificialNode.hasQuirk(Quirk.AURA_OF_VITALITY)) {
-            BlockPos.betweenClosedStream(worldPosition.offset(-4, -4, -4), worldPosition.offset(4, 4, 4))
-                    .forEach(pos -> {
-                        if (pos.equals(worldPosition)) return;
-                        assert level != null;
-                        if (level.getBlockEntity(pos) instanceof OreNodeBlockEntity otherNode) {
-                            otherNode.receiveRegenBoost();
-                        }
-                    });
+        // 주기적 효과가 있는 특성들을 위해 컨텍스트 생성
+        Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+
+        // 양극성 보너스는 매번 체크하기 전에 초기화
+        this.setPolarityBonusActive(false);
+
+        // 이 노드가 가진 모든 특성에 대해 onPeriodicTick 이벤트 호출
+        for (Quirk quirk : artificialNode.getQuirks()) {
+            quirk.onPeriodicTick(context);
         }
+    }
 
-        // 양극성/음극성: 주변에 반대 극성이 있는지 확인
-        this.polarityBonusActive = false; // 매번 체크할 때마다 보너스 상태를 초기화합니다.
-        if (artificialNode.hasQuirk(Quirk.POLARITY_POSITIVE) || artificialNode.hasQuirk(Quirk.POLARITY_NEGATIVE)) {
-            Quirk oppositeQuirk = artificialNode.hasQuirk(Quirk.POLARITY_POSITIVE) ? Quirk.POLARITY_NEGATIVE : Quirk.POLARITY_POSITIVE;
-
-            // 6개의 기본 방향(상하좌우앞뒤)만 순회합니다.
-            for (Direction dir : Direction.values()) {
-                BlockPos neighborPos = worldPosition.relative(dir);
-
-                // 이웃 블록이 반대 극성을 가진 인공 노드인지 확인합니다.
-                assert level != null;
-                if (level.getBlockEntity(neighborPos) instanceof ArtificialNodeBlockEntity otherNode && otherNode.hasQuirk(oppositeQuirk)) {
-                    this.polarityBonusActive = true; // 조건을 만족하면 보너스를 활성화하고,
-                    break; // 더 이상 탐색할 필요 없이 중단합니다.
-                }
-            }
-        }
+    public boolean isPolarityBonusActive() {
+        return polarityBonusActive;
     }
     // 활력 오라 효과를 받기 위한 public 메서드
     public void receiveRegenBoost() {
         // 부스트 값을 최대치로 설정 (0.001은 초당 0.02개 추가 재생에 해당)
-        this.temporaryRegenBoost = Math.max(this.temporaryRegenBoost, 0.001f);
+        this.temporaryRegenBoost = Math.max(this.temporaryRegenBoost, 0.01f);
     }
 
     // --- NBT 및 동기화 ---

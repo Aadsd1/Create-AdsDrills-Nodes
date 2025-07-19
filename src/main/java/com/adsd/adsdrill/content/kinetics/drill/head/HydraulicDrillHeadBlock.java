@@ -1,6 +1,7 @@
 package com.adsd.adsdrill.content.kinetics.drill.head;
 
 
+import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.adsd.adsdrill.content.kinetics.node.OreNodeBlockEntity;
 import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
@@ -39,8 +40,9 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
     public void onDrillTick(Level level, BlockPos headPos, BlockState headState, DrillCoreBlockEntity core) {
         if (level.isClientSide || core.getFinalSpeed() == 0) return;
 
-        FluidStack waterRequest = new FluidStack(net.minecraft.world.level.material.Fluids.WATER, WATER_CONSUMPTION);
-        if (core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.SIMULATE).getAmount() < WATER_CONSUMPTION) {
+        int waterConsumption = AdsDrillConfigs.SERVER.hydraulicWaterConsumption.get();
+        FluidStack waterRequest = new FluidStack(net.minecraft.world.level.material.Fluids.WATER, waterConsumption);
+        if (core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.SIMULATE).getAmount() < waterConsumption) {
             return;
         }
 

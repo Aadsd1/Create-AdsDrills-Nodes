@@ -48,7 +48,9 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
         super(type, pos, state);
     }
 
-
+    public List<Quirk> getQuirks() {
+        return this.quirks;
+    }
     public void configureFromCrafting(
             List<Quirk> quirks,
             Map<Item, Float> composition,
@@ -178,61 +180,5 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
         return true;
     }
 
-    public void applyQuirkEffects(List<ItemStack> drops, ServerLevel level) {
-        if (quirks.isEmpty() || drops.isEmpty()) return;
 
-        RandomSource random = level.getRandom();
-
-        for (Quirk quirk : quirks) {
-            switch (quirk) {
-                case STEADY_HANDS:
-                    // 최소 드롭량 보장은 getNormalDrops에서 처리되므로 여기선 할 일 없음.
-                    break;
-                case STATIC_CHARGE:
-                    if (level.isRaining() && random.nextFloat() < 0.1f) { // 10% 확률
-                        for (ItemStack stack : drops) {
-                            stack.grow(stack.getCount()); // 결과물 2배
-                        }
-                    }
-                    break;
-                case BONE_CHILL:
-                    if (random.nextFloat() < 0.01f) { // 1% 확률
-                        Skeleton skeleton = new Skeleton(EntityType.SKELETON, level);
-                        skeleton.moveTo(worldPosition.getX() + 0.5, worldPosition.getY() + 1, worldPosition.getZ() + 0.5, random.nextFloat() * 360, 0);
-                        level.addFreshEntity(skeleton);
-                    }
-                    break;
-                case BOTTLED_KNOWLEDGE:
-                    if (random.nextFloat() < 0.02f) { // 2% 확률
-                        drops.add(new ItemStack(Items.EXPERIENCE_BOTTLE));
-                    }
-                    break;
-                case AURA_OF_VITALITY:
-                    // 주변 플레이어 체력 회복
-                    if (random.nextFloat() < 0.005f) { // 0.5% 확률
-                        level.getEntitiesOfClass(Player.class, getRenderBoundingBox().inflate(8)).forEach(player -> {
-                            player.heal(2.0f); // 하트 1칸 회복
-                        });
-                    }
-                    break;
-                case SIGNAL_AMPLIFICATION:
-                    if (level.hasNeighborSignal(getBlockPos())) {
-                        for (ItemStack stack : drops) {
-                            int bonus = (int) Math.ceil(stack.getCount() * 0.1);
-                            stack.grow(bonus);
-                        }
-                    }
-                    break;
-                case WILD_MAGIC:
-                    if (random.nextFloat() < 0.05f) { // 3% 확률
-                        level.playSound(null, worldPosition, SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.BLOCKS, 1.0f, random.nextFloat() * 2.0f);
-                        level.sendParticles(ParticleTypes.NOTE, worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5, 5, 0.5, 0.5, 0.5, 0);
-                    }
-                    break;
-                // 다른 케이스들은 다른 곳에서 처리됩니다.
-                default:
-                    break;
-            }
-        }
-    }
 }

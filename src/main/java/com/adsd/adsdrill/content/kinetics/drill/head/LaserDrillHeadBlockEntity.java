@@ -215,7 +215,8 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
             int energyCost = AdsDrillConfigs.SERVER.laserEnergyPerMiningTick.get();
             if (core.consumeEnergy(energyCost, false) == energyCost) {
                 if (serverLevel.getBlockEntity(targetPos) instanceof OreNodeBlockEntity nodeBE) {
-                    List<ItemStack> drops = core.mineNode(nodeBE, 20, 0, false);
+                    int miningAmount = AdsDrillConfigs.SERVER.laserMiningAmount.get();
+                    List<ItemStack> drops = core.mineNode(nodeBE, miningAmount, 0, false);
                     drops.forEach(core::processMinedItem);
                 }
             }
@@ -256,8 +257,9 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         if (core.consumeEnergy(ENERGY_PER_MINING_TICK, false) == ENERGY_PER_MINING_TICK) {
             assert level != null;
             if (level.getBlockEntity(targetPos) instanceof OreNodeBlockEntity nodeBE) {
+                int miningAmount = AdsDrillConfigs.SERVER.laserMiningAmount.get();
                 // 특정 자원만 채굴하도록 코어에 요청
-                List<ItemStack> drops = core.mineSpecificNode(nodeBE, 20, 0, false, filter.get());
+                List<ItemStack> drops = core.mineSpecificNode(nodeBE, miningAmount, 0, false, filter.get());
                 drops.forEach(core::processMinedItem);
             }
         }

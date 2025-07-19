@@ -3,12 +3,14 @@ package com.adsd.adsdrill.config;
 
 import com.adsd.adsdrill.AdsDrillAddon;
 import com.adsd.adsdrill.crafting.NodeRecipe;
+import com.adsd.adsdrill.crafting.Quirk;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
@@ -17,6 +19,9 @@ import com.electronwill.nightconfig.core.Config;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+
 public class AdsDrillConfigs {
 
     public static final MyAddonServerConfig SERVER;
@@ -26,10 +31,29 @@ public class AdsDrillConfigs {
     // 수동 매핑 캐시
     private static final Map<ResourceLocation, ResourceLocation> manualOreMapCache = new ConcurrentHashMap<>();
 
+    private static final Map<Quirk, QuirkConfig> quirkConfigCache = new ConcurrentHashMap<>();
+
     static {
         final ModConfigSpec.Builder serverBuilder = new ModConfigSpec.Builder();
         SERVER = new MyAddonServerConfig(serverBuilder);
         SERVER_SPEC = serverBuilder.build();
+    }
+
+    // 특성 설정 데이터를 담을 Record
+    public record QuirkConfig(
+            boolean isEnabled,
+            double chance,
+            List<ResourceLocation> lootTables,
+            List<String> blacklistedTiers,
+            double minFluidPercentage,
+            double maxFluidPercentage,
+            double hardnessMultiplier,
+            double valueMultiplier
+    ) {
+        // 기본값을 가진 생성자
+        public QuirkConfig() {
+            this(true, 0.05, List.of(BuiltInLootTables.SIMPLE_DUNGEON.location()), List.of(), 0.6, 0.7, 0.8,1.33);
+        }
     }
 
     public record BiomeOverride(
@@ -105,7 +129,19 @@ public class AdsDrillConfigs {
         public final ModConfigSpec.IntValue steelCoreFailurePenalty;
         public final ModConfigSpec.IntValue minOreTypesPerNode;
         public final ModConfigSpec.IntValue maxOreTypesPerNode;
+        public final ModConfigSpec.IntValue laserMiningAmount;
+        public final ModConfigSpec.DoubleValue rotarySpeedDivisor;
+        public final ModConfigSpec.IntValue hydraulicWaterConsumption;
+        public final ModConfigSpec.IntValue pumpRatePer64RPM;
 
+        public final Map<Quirk, ModConfigSpec.BooleanValue> quirkEnabled = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.DoubleValue> quirkChance = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.ConfigValue<List<? extends String>>> quirkLootTables = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.ConfigValue<List<? extends String>>> quirkBlacklistedTiers = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.DoubleValue> quirkMinFluidPercentage = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.DoubleValue> quirkMaxFluidPercentage = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.DoubleValue> quirkHardnessMultiplier = new EnumMap<>(Quirk.class);
+        public final Map<Quirk, ModConfigSpec.DoubleValue> quirkValueMultiplier = new EnumMap<>(Quirk.class);
 
         public MyAddonServerConfig(ModConfigSpec.Builder builder) {
             builder.comment("My Create Addon Server-Side Configurations").push("general");
@@ -121,6 +157,14 @@ public class AdsDrillConfigs {
             brassDrillBaseStress = builder.comment("Base stress impact (SU) of the Brass Drill Core.").defineInRange("brassDrillBaseStress", 4.0, 0.0, 1024.0);
             steelDrillBaseStress = builder.comment("Base stress impact (SU) of the Steel Drill Core.").defineInRange("steelDrillBaseStress", 6.0, 0.0, 1024.0);
             netheriteDrillBaseStress = builder.comment("Base stress impact (SU) of the Netherite Drill Core.").defineInRange("netheriteDrillBaseStress", 8.0, 0.0, 1024.0);
+            builder.pop();
+
+            // 드릴 헤드 설정 섹션
+            builder.push("drill_heads");
+            laserMiningAmount = builder.comment("Mining amount per operation for the Laser Drill Head.").defineInRange("laserMiningAmount", 20, 1, 256);
+            rotarySpeedDivisor = builder.comment("Divisor to calculate mining amount from RPM for Rotary Drill Heads. Lower value means more output per RPM.").defineInRange("rotarySpeedDivisor", 20.0, 1.0, 512.0);
+            hydraulicWaterConsumption = builder.comment("Water (mB) consumed per tick by the Hydraulic Drill Head.").defineInRange("hydraulicWaterConsumption", 50, 1, 1000);
+            pumpRatePer64RPM = builder.comment("Base fluid pumping rate (mB/t) for the Pump Head at 64 RPM.").defineInRange("pumpRatePer64RPM", 250, 10, 10000);
             builder.pop();
 
             builder.push("heat_system");
@@ -171,6 +215,48 @@ public class AdsDrillConfigs {
                             () -> "",
                             obj -> obj instanceof String // 유효성 검사
                     );
+            builder.push("quirks");
+            builder.comment("Control all aspects of Artificial Node Quirks.");
+
+            for (Quirk quirk : Quirk.values()) {
+                builder.push(quirk.getId());
+
+                quirkEnabled.put(quirk, builder.comment("Enable/disable this quirk from being generated.").define("enabled", true));
+
+                quirkBlacklistedTiers.put(quirk, builder.comment("List of Stabilizer Core tiers (BRASS, STEEL, NETHERITE) that CANNOT generate this quirk.")
+                        .defineList(List.of("blacklistedForTiers"),
+                                () -> (quirk == Quirk.OVERLOAD_DISCHARGE) ? List.of("STEEL") : new ArrayList<>(),
+                                () -> "",
+                                obj -> obj instanceof String));
+
+                switch (quirk) {
+                    case BURIED_TREASURE -> {
+                        quirkChance.put(quirk, builder.comment("Chance to drop an item from a structure's loot table.").defineInRange("chance", 0.05, 0.0, 1.0));
+                        quirkLootTables.put(quirk, builder.comment("List of loot table IDs to pull items from.")
+                                .defineList(List.of("lootTables"),
+                                        () -> List.of(
+                                                "minecraft:abandoned_mineshaft", "minecraft:desert_pyramid", "minecraft:jungle_temple",
+                                                "minecraft:shipwreck_treasure", "minecraft:simple_dungeon"
+                                        ),
+                                        () -> "",
+                                        obj -> obj instanceof String && ResourceLocation.tryParse((String)obj) != null));
+                    }
+                    case AQUIFER -> {
+                        quirkMinFluidPercentage.put(quirk, builder.comment("Minimum fluid percentage (0.0-1.0) to activate hardness reduction.").defineInRange("minFluidPercentage", 0.6, 0.0, 1.0));
+                        quirkMaxFluidPercentage.put(quirk, builder.comment("Maximum fluid percentage (0.0-1.0) to activate hardness reduction.").defineInRange("maxFluidPercentage", 0.7, 0.0, 1.0));
+                        quirkHardnessMultiplier.put(quirk, builder.comment("Hardness multiplier when active (e.g., 0.8 for 20% reduction).").defineInRange("hardnessMultiplier", 0.8, 0.1, 1.0));
+                    }
+                    case OVERLOAD_DISCHARGE, STATIC_CHARGE, BONE_CHILL, BOTTLED_KNOWLEDGE, CHAOTIC_OUTPUT, TRACE_MINERALS ->
+                            quirkChance.put(quirk, builder.comment("Chance for this quirk to activate on a valid event.").defineInRange("chance", 0.1, 0.0, 1.0));
+                    case POLARITY_POSITIVE, POLARITY_NEGATIVE->
+                        quirkValueMultiplier.put(quirk, builder.comment("Mining amount multiplier when the polarity bonus is active.").defineInRange("multiplier", 1.33, 1.0, 10.0));
+                    case PURIFYING_RESONANCE->
+                        quirkChance.put(quirk, builder.comment("Chance to force drop the most dominant ore in the node.").defineInRange("chance", 0.4, 0.0, 1.0));
+                    default -> {}
+                }
+                builder.pop();
+            }
+            builder.pop();
 
             manualOreMappings = builder
                     .comment(
@@ -316,6 +402,38 @@ public class AdsDrillConfigs {
                 }
             }
 
+            // 특성 설정 캐시 로드
+            quirkConfigCache.clear();
+            for (Quirk quirk : Quirk.values()) {
+                try {
+                    // [!!! 수정됨 !!!] get()만 사용하여 값을 가져옴. Optional/getOrDefault 제거
+                    boolean enabled = SERVER.quirkEnabled.get(quirk).get();
+
+                    double chance = SERVER.quirkChance.containsKey(quirk) ? SERVER.quirkChance.get(quirk).get() : 0.0;
+
+                    List<? extends String> rawLootTables = SERVER.quirkLootTables.containsKey(quirk) ? SERVER.quirkLootTables.get(quirk).get() : List.of();
+                    List<ResourceLocation> lootTables = new ArrayList<>(rawLootTables).stream()
+                            .map(ResourceLocation::tryParse)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+
+                    List<? extends String> rawTiers = SERVER.quirkBlacklistedTiers.get(quirk).get();
+                    List<String> blacklistedTiers = new ArrayList<>(rawTiers);
+
+                    double minFluid = SERVER.quirkMinFluidPercentage.containsKey(quirk) ? SERVER.quirkMinFluidPercentage.get(quirk).get() : 0.6;
+                    double maxFluid = SERVER.quirkMaxFluidPercentage.containsKey(quirk) ? SERVER.quirkMaxFluidPercentage.get(quirk).get() : 0.7;
+                    double hardnessMult = SERVER.quirkHardnessMultiplier.containsKey(quirk) ? SERVER.quirkHardnessMultiplier.get(quirk).get() : 0.8;
+
+                    double valueMultiplier = SERVER.quirkValueMultiplier.containsKey(quirk) ? SERVER.quirkValueMultiplier.get(quirk).get() : 1.33;
+
+                    // QuirkConfig 레코드와 생성자에도 valueMultiplier 필드 추가 필요
+                    QuirkConfig qc = new QuirkConfig(enabled, chance, lootTables, blacklistedTiers, minFluid, maxFluid, hardnessMult, valueMultiplier);
+                    quirkConfigCache.put(quirk, qc);
+                } catch (Exception e) {
+                    AdsDrillAddon.LOGGER.warn("Failed to parse quirk config for '{}': {}", quirk.getId(), e.getMessage());
+                }
+            }
+            AdsDrillAddon.LOGGER.info("Loaded {} Quirk configurations.", quirkConfigCache.size());
 
             List<? extends Config> profiles = SERVER.dimensionProfiles.get();
             for (Config profileConfig : profiles) {
@@ -430,6 +548,14 @@ public class AdsDrillConfigs {
             AdsDrillAddon.LOGGER.info("Loaded {} Node Combination Recipes from config.", NodeRecipe.RECIPES.size());
         }
     }
+
+
+    // 외부에서 특성 설정에 쉽게 접근할 수 있는 public 메서드
+    public static QuirkConfig getQuirkConfig(Quirk quirk) {
+        return quirkConfigCache.getOrDefault(quirk, new QuirkConfig()); // 설정 로드 실패 시 기본값 반환
+    }
+
+
     // 수동 매핑 항목을 쉽게 만드는 헬퍼 메서드
     private static Config createManualOreMapping(String blockId, String itemId) {
         Config mapping = Config.inMemory();

@@ -397,9 +397,16 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             default -> throw new IllegalStateException("Unexpected value: " + tier);
         }
         // --- 2. 특성(Quirk) 결정 (수정된 로직) ---
-        List<Quirk> availableQuirks = new ArrayList<>(List.of(Quirk.values()));
-        List<Quirk> finalQuirks = new ArrayList<>();
+        List<Quirk> availableQuirks = new ArrayList<>();
+        for(Quirk q : Quirk.values()){
+            var config = AdsDrillConfigs.getQuirkConfig(q);
+            // 설정에서 활성화되어 있고, 현재 코어 등급에 블랙리스트되지 않은 특성만 추가
+            if(config.isEnabled() && !config.blacklistedTiers().contains(tier.name())){
+                availableQuirks.add(q);
+            }
+        }
 
+        List<Quirk> finalQuirks = new ArrayList<>();
         // 2a. 코어 티어에 따라 특성 개수와 티어 분포 결정
         int numQuirks;
         List<Quirk.Tier> quirkTiersToGenerate = new ArrayList<>();

@@ -1,6 +1,8 @@
 package com.adsd.adsdrill.content.kinetics.drill.core;
 
 
+import com.adsd.adsdrill.content.kinetics.drill.head.IDrillHead;
+import com.adsd.adsdrill.content.kinetics.module.GenericModuleBlock;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
 import com.adsd.adsdrill.registry.AdsDrillItems;
@@ -118,7 +120,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
         return face == state.getValue(FACING);
     }
-    // [신규] createBlockStateDefinition을 오버라이드하여 프로퍼티를 등록
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder.add(TIER));
@@ -149,9 +151,14 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     @Override
     protected void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
-        if (!level.isClientSide()) {
-            // 변경을 유발한 블록(block)이 우리 모드의 모듈이거나 또 다른 코어일 때만 재검사를 예약합니다.
-            withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
+        if (!level.isClientSide) {
+            // [!!! 수정됨 !!!]
+            withBlockEntityDo(level, pos, coreBE -> {
+                // 변경을 유발한 블록이 구조 블록이거나, 끊어진 위치가 기존 구조에 포함되어 있었다면 재검사
+                if (block instanceof GenericModuleBlock || block instanceof DrillCoreBlock || block instanceof IDrillHead || coreBE.getStructureCache().contains(fromPos)) {
+                    coreBE.scheduleStructureCheck();
+                }
+            });
             level.sendBlockUpdated(pos, state, state, 3);
         }
     }

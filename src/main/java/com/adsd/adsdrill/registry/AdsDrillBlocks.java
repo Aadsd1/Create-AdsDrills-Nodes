@@ -230,7 +230,7 @@ public class AdsDrillBlocks {
             .register();
 
     public static final BlockEntry<PumpHeadBlock> PUMP_HEAD = REGISTRATE
-            .block("pump_head", p -> new PumpHeadBlock(p, 250, 4.0f)) // pumpRate: 250mb/t, stressImpact: 4.0 SU
+            .block("pump_head", p -> new PumpHeadBlock(p, 4.0f)) // pumpRate: 250mb/t, stressImpact: 4.0 SU
             .initialProperties(SharedProperties::stone)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate(BlockStateGen.directionalBlockProvider(true)) // 회전 가능하도록 설정

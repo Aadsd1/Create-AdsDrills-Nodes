@@ -10,15 +10,15 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
+import com.adsd.adsdrill.config.AdsDrillConfigs;
+
 
 public class PumpHeadBlock extends AbstractDrillHeadBlock {
 
-    private final int pumpRate;
     private final float stressImpact;
 
-    public PumpHeadBlock(Properties properties, int pumpRate, float stressImpact) {
+    public PumpHeadBlock(Properties properties, float stressImpact) {
         super(properties);
-        this.pumpRate = pumpRate;
         this.stressImpact = stressImpact;
     }
 
@@ -31,7 +31,8 @@ public class PumpHeadBlock extends AbstractDrillHeadBlock {
 
         if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
             if (!nodeBE.getFluid().isEmpty()) {
-                int amountToDrain = (int) (this.pumpRate * (Math.abs(core.getFinalSpeed()) / 64f));
+                int pumpRate = AdsDrillConfigs.SERVER.pumpRatePer64RPM.get();
+                int amountToDrain = (int) (pumpRate * (Math.abs(core.getFinalSpeed()) / 64f));
                 if (amountToDrain <= 0) return;
                 FluidStack drained = nodeBE.drainFluid(amountToDrain);
                 if (!drained.isEmpty()) {

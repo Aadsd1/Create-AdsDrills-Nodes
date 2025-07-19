@@ -1,6 +1,7 @@
 package com.adsd.adsdrill.content.kinetics.drill.head;
 
 
+import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.adsd.adsdrill.content.kinetics.node.OreNodeBlockEntity;
 import com.adsd.adsdrill.registry.AdsDrillItems;
@@ -48,7 +49,7 @@ public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock {
             if (nodeBE.isCracked() && this.miningLevel < 2) {
                 return;
             }
-            int miningAmount = (int) (Math.abs(finalSpeed) / 20f);
+            int miningAmount = (int) (Math.abs(finalSpeed) / AdsDrillConfigs.SERVER.rotarySpeedDivisor.get());
             if (miningAmount > 0) {
                 int fortune = 0;
                 boolean silkTouch = false;

@@ -20,6 +20,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -925,7 +926,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
     public void serverTick() {
-        // 기존 tick() 메서드에 있던 모든 서버 로직을 여기로 옮깁니다.
         tickCounter++;
         assert level != null;
         //  쿨다운 기반의 구조 검사 실행
@@ -964,7 +964,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             // 레이저 헤드가 제거되면 에너지 관련 경고도 함께 해제합니다.
             this.invalidityReason = InvalidityReason.NONE;
         }
-        // --- 과열 로직 수정 ---
+        // --- 과열 로직 ---
         // finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
         if (finalSpeed != 0 && headBlock != null) {
             float baseHeatGen = headBlock.getHeatGeneration();
@@ -997,33 +997,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             isOverheated = true;
         }
 
-        // --- [핵심 리팩토링] 과열 이벤트 처리 ---
+        // --- 과열 이벤트 처리 ---
         if (!wasOverheated && isOverheated) {
             boolean eventHandledByHead = false;
             if (headBlock != null) {
                 eventHandledByHead = headBlock.onOverheat(level, cachedHeadPos, this);
             }
 
-            // [!!! 신규: 과열 특수 효과 발동 !!!]
+            // [!!! 수정됨: 전략 패턴 적용 !!!]
             Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
             BlockPos nodePos = cachedHeadPos.relative(headFacing);
             if (level.getBlockEntity(nodePos) instanceof ArtificialNodeBlockEntity artificialNode) {
-                // [수정] level.getRandom()을 사용하여 RandomSource 객체를 가져옵니다.
-                RandomSource random = level.getRandom();
-
-                // 위더의 메아리
-                if (artificialNode.hasQuirk(Quirk.WITHERING_ECHO)) {
-                    WitherSkeleton witherSkeleton = new WitherSkeleton(EntityType.WITHER_SKELETON, level);
-                    witherSkeleton.moveTo(nodePos.getX() + 0.5, nodePos.getY() + 1, nodePos.getZ() + 0.5, random.nextFloat() * 360, 0);
-                    level.addFreshEntity(witherSkeleton);
-                }
-                // 과부하 방전
-                if (artificialNode.hasQuirk(Quirk.OVERLOAD_DISCHARGE)) {
-                    if (random.nextFloat() < 0.25f) { // 25% 확률
-                        LightningBolt lightning = new LightningBolt(EntityType.LIGHTNING_BOLT, level);
-                        lightning.setPos(Vec3.atCenterOf(this.worldPosition)); // 드릴 코어 위치에 번개
-                        level.addFreshEntity(lightning);
-                    }
+                Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, nodePos, artificialNode, this);
+                for (Quirk quirk : artificialNode.getQuirks()) { // artificialNode에 getQuirks() getter 필요
+                    quirk.onDrillCoreOverheat(context);
                 }
             }
 
@@ -1032,7 +1019,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
         // --- 동기화 로직 ---
-        // [핵심 수정] visualSpeed를 업데이트할 때, 로컬 변수 finalSpeed를 사용합니다.
         boolean needsSync = false;
         if (this.visualSpeed != finalSpeed) {
             this.visualSpeed = finalSpeed;
@@ -1079,6 +1065,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
     }
+
+    public Set<BlockPos> getStructureCache() { return this.structureCache; }
 
     /**
      * 채굴된 아이템을 받아 처리 체인을 시작하는 메서드.

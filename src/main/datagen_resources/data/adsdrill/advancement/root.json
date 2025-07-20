@@ -19,7 +19,14 @@
       "conditions": {
         "items": [
           {
-            "items": ["adsdrill:drill_core"]
+            "items": [
+              "adsdrill:drill_core"
+            ],
+            "components": {
+              "minecraft:block_entity_data": {
+                "CoreTier": "BRASS"
+              }
+            }
           }
         ]
       }

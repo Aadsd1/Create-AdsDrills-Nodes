@@ -600,7 +600,8 @@ public class AdsDrillConfigs {
         // 기본 광물 목록 설정 (오스뮴 포함)
         List<Config> orePool = new ArrayList<>();
         orePool.add(createOreEntry("minecraft:diamond", "minecraft:diamond_ore", 0.0, 0.5));
-        orePool.add(createOreEntry("draconicevolution:draconium_Ingot","draconicevolution:overworld_draconium_ore",0.0,0.01));
+        orePool.add(createOreEntry("draconicevolution:draconium_dust","draconicevolution:overworld_draconium_ore",0.0,0.01));
+        orePool.add(createOreEntry("draconicevolution:draconium_dust","draconicevolution:deepslate_draconium_ore",0.0,0.01));
         orePool.add(createOreEntry("mekanism:raw_osmium", "mekanism:osmium_ore", 15.0, 1.0));
         profile.set("ore_pool", orePool);
         List<Config> biomeOverrides = new ArrayList<>();

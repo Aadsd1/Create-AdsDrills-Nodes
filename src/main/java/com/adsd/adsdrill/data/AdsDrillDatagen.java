@@ -48,7 +48,7 @@ public class AdsDrillDatagen {
         generator.addProvider(event.includeServer(), new AnyCraftRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new MixRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new SequencialRecipeGen(packOutput, lookupProvider));
-
+        generator.addProvider(event.includeServer(), new AdvancementProvider(packOutput));
         generator.addProvider(event.includeServer(), new DatapackBuiltinEntriesProvider(
                 packOutput, lookupProvider,
                 new RegistrySetBuilder()
@@ -230,7 +230,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.quirk_candidates.header", "Quirk Candidates:");
         registrate.addRawLang("adsdrill.fluid_content.header", "Fluid Content");
         registrate.addRawLang("adsdrill.catalyst.head","Catalyst");
-        registrate.addRawLang("creativetab.adsdrill.base_tab", "My Create Addon");
+        registrate.addRawLang("creativetab.adsdrill.base_tab", "AdsDrills & Nodes");
         // 툴팁
         registrate.addRawLang("tooltip.adsdrill.node_locator.tier", "Tier: %s");
         registrate.addRawLang("tooltip.adsdrill.node_locator.tier.brass", "Brass");
@@ -248,6 +248,15 @@ public class AdsDrillDatagen {
         registrate.addRawLang("tooltip.adsdrill.node_locator.targeting_result", "Targeting Resource: %s");
         registrate.addRawLang("tooltip.adsdrill.node_locator.tuning_info", "Tune with an Ore or clear with Flint in an Anvil.");
 
+        //Advancements Root-Main
+        registrate.addRawLang("advancements.adsdrill.root.title", "Advanced Drilling");
+        registrate.addRawLang("advancements.adsdrill.root.description", "Craft a Drill Core, the heart of a modular mining drill.");
+
+        registrate.addRawLang("advancements.adsdrill.main.steel_core.title", "Heart of Steel");
+        registrate.addRawLang("advancements.adsdrill.main.steel_core.description", "Upgrade the Brass Drill Core to Steel to attach more modules and increase its efficiency.");
+
+        registrate.addRawLang("advancements.adsdrill.main.netherite_core.title", "The Ultimate Core");
+        registrate.addRawLang("advancements.adsdrill.main.netherite_core.description", "Perform the final upgrade on your Drill Core with Netherite to unleash its maximum potential.");
         // ==================================================
         //               Advancements - Drill Heads
         // ==================================================

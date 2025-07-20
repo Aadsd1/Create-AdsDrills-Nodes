@@ -50,8 +50,19 @@ public class NodeCombinationCategory implements IRecipeCategory<NodeRecipe> {
     @Override
     public void setRecipe(@NotNull IRecipeLayoutBuilder builder, NodeRecipe recipe, @NotNull IFocusGroup focuses) {
         for (int i = 0; i < Math.min(4, recipe.requiredItems().size()); i++) {
+            // 레시피에서 현재 아이템과 그에 해당하는 최소 비율을 가져옵니다.
+            var requiredItem = recipe.requiredItems().get(i);
+            Float minimumRatio = recipe.minimumRatios().get(requiredItem);
+
             builder.addSlot(RecipeIngredientRole.INPUT, 8 + i * 18, 8)
-                    .addItemStack(new ItemStack(recipe.requiredItems().get(i)));
+                    .addItemStack(new ItemStack(requiredItem))
+                    .addRichTooltipCallback((view, tooltip) -> {
+                        // 최소 비율 값이 존재할 경우에만 툴팁을 추가합니다.
+                        if (minimumRatio != null) {
+                            tooltip.add(Component.translatable("adsdrill.jei.tooltip.minimum_ratio", String.format("%.0f%%", minimumRatio * 100))
+                                    .withStyle(ChatFormatting.GRAY));
+                        }
+                    });
         }
 
         if (recipe.requiredFluid() != null && recipe.requiredFluid() != Fluids.EMPTY) {

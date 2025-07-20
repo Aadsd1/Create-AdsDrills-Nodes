@@ -43,7 +43,6 @@ public class AdvancementProvider implements DataProvider {
                     .map(sourcePath -> {
                         Path relativePath = sourceAdvancementsDir.relativize(sourcePath);
 
-                        // [핵심 수정] 윈도우 경로(\)를 마인크래프트 경로(/)로 변환합니다.
                         String normalizedPath = relativePath.toString().replace('\\', '/');
 
                         // .json 확장자를 제거하고 ResourceLocation을 생성합니다.

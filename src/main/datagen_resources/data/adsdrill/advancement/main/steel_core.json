@@ -16,13 +16,9 @@
       "conditions": {
         "items": [
           {
-            "items": ["adsdrill:drill_core"],
-            "components": {
-              "minecraft:block_entity_data": {
-                "CoreTier": "STEEL"
-              }
+            "items": ["adsdrill:core_upgrade_steel"]
             }
-          }
+
         ]
       }
     }

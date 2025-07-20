@@ -26,10 +26,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.WitherSkeleton;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import com.adsd.adsdrill.content.kinetics.base.DrillEnergyStorage;
@@ -149,7 +146,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private InvalidityReason invalidityReason = InvalidityReason.NONE;
 
     private int structureCheckCooldown;
-    private static final int MAX_STRUCTURE_RANGE = 16;
+    private static final int MAX_STRUCTURE_RANGE = AdsDrillConfigs.SERVER.maxDrillStructureSize.get();
 
     private double speedMultiplier = 1.0;
     private double stressMultiplier = 1.0;

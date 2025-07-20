@@ -40,10 +40,10 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import java.util.*;
 
 public class OreNodeFeature extends Feature<OreNodeConfiguration> {
-    // [신규] 비율 프리셋을 정의하는 내부 record
+    // 비율 프리셋을 정의하는 내부 record
     private record RatioPreset(String name, List<Float> ratios) {}
 
-    // [신규] 사용 가능한 모든 프리셋 리스트
+    // 사용 가능한 모든 프리셋 리스트
     private static final List<RatioPreset> PRESETS = List.of(
             // 1개 광물 집중형
             new RatioPreset("Dominant",   List.of(0.85f)),
@@ -135,14 +135,48 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     }
                 }
 
-                // 2c. 유체 설정을 프로필 값으로 덮어씁니다.
+
                 if (random.nextFloat() < stats.fluidChance()) {
-                    fluidToPlace = scanForBiomeFluid(context, random);
+                    // 1. 적용할 Fluid Pool 결정
+                    List<AdsDrillConfigs.FluidPoolEntry> activeFluidPool = null;
+
+                    for (AdsDrillConfigs.BiomeOverride override : profile.biomeOverrides()) {
+                        // biome_overrides에 fluid_pool이 정의되어 있는지 확인
+                        if (override.fluidPool() != null && !override.fluidPool().isEmpty()) {
+                            for (String biomeIdentifier : override.biomes()) {
+                                boolean isMatch = false;
+                                if (biomeIdentifier.startsWith("#")) {
+                                    TagKey<Biome> tagKey = TagKey.create(Registries.BIOME, ResourceLocation.parse(biomeIdentifier.substring(1)));
+                                    if (currentBiomeHolder.is(tagKey)) isMatch = true;
+                                } else {
+                                    if (currentBiomeHolder.unwrapKey().map(key -> key.location().toString().equals(biomeIdentifier)).orElse(false)) isMatch = true;
+                                }
+                                if (isMatch) {
+                                    activeFluidPool = override.fluidPool();
+                                    break;
+                                }
+                            }
+                        }
+                        if (activeFluidPool != null) break;
+                    }
+
+                    // 바이옴 override가 없으면 차원의 전역 fluid_pool 사용
+                    if (activeFluidPool == null) {
+                        activeFluidPool = profile.fluidPool();
+                    }
+
+                    // 2. Fluid Pool을 기반으로 액체 생성 또는 동적 스캔
+                    if (activeFluidPool != null && !activeFluidPool.isEmpty()) {
+                        fluidToPlace = selectFluidFromPool(activeFluidPool, random);
+                    } else {
+                        // 설정된 풀이 없으면 기존의 동적 스캔 방식 사용
+                        fluidToPlace = scanForBiomeFluid(context, random);
+                    }
+
                     if (!fluidToPlace.isEmpty()) {
                         fluidCapacity = UniformInt.of(stats.minFluidCapacity(), stats.maxFluidCapacity()).sample(random);
                     }
                 }
-
             } else {
                 // --- 프로필이 없을 경우: 기본 로직을 사용합니다. ---
                 maxYield = featureConfig.totalYield().sample(random);
@@ -179,6 +213,24 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         }
         return false;
     }
+    private FluidStack selectFluidFromPool(List<AdsDrillConfigs.FluidPoolEntry> fluidPool, RandomSource random) {
+        double totalWeight = fluidPool.stream().mapToDouble(AdsDrillConfigs.FluidPoolEntry::weight).sum();
+        if (totalWeight <= 0) {
+            return FluidStack.EMPTY;
+        }
+
+        double randomValue = random.nextDouble() * totalWeight;
+        for (AdsDrillConfigs.FluidPoolEntry entry : fluidPool) {
+            randomValue -= entry.weight();
+            if (randomValue <= 0) {
+                Optional<Fluid> fluidOpt = BuiltInRegistries.FLUID.getOptional(ResourceLocation.parse(entry.fluidId()));
+                return fluidOpt.map(fluid -> new FluidStack(fluid, 1)).orElse(FluidStack.EMPTY);
+            }
+        }
+
+        return FluidStack.EMPTY; // 비정상적인 경우
+    }
+
     private void applyOrePool(Map<Item, Float> weightedSelection, Map<Item, Block> itemToBlockMap, List<AdsDrillConfigs.DimensionGenerationProfile.OrePoolEntry> orePool) {
         if (orePool.isEmpty()) return;
 

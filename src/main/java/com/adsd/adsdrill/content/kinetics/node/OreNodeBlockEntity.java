@@ -48,7 +48,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     private float temporaryRegenBoost = 0;
     private boolean polarityBonusActive = false;
-    private int auraCheckCooldown = 0;
 
     private int miningProgress;
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
@@ -434,99 +433,82 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Override
     public void tick() {
         super.tick();
-        if (level != null && !level.isClientSide) {
 
-            if (quirkCheckOffset == -1) {
-                quirkCheckOffset = (int) (level.getGameTime() % 40);
-            }
-            if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
-                applyPeriodicQuirkEffects();
-            }
+        if (level == null) return;
 
-            float regenerationRate = this.regeneration;
-            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-                Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
-                for (Quirk quirk : artificialNode.getQuirks()) {
-                    regenerationRate = quirk.onCalculateRegeneration(regenerationRate, context);
-                }
-            }
-            if (regenerationRate > 0 || this.temporaryRegenBoost > 0) {
-                float baseRegen = regenerationRate + this.temporaryRegenBoost; // 부스트 적용
-                float baseRegenPerSecond = baseRegen * 20;
-                float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
-                float finalRegenPerTick = (baseRegenPerSecond * finalRegenMultiplier) / 20f;
-
-                if (this.currentYield < this.maxYield) {
-                    this.currentYield = Math.min(this.maxYield, this.currentYield + finalRegenPerTick);
-                }
-            }
-
-            // 부스트는 매 틱 감소하여 점차 사라짐
-            if (this.temporaryRegenBoost > 0) {
-                this.temporaryRegenBoost = Math.max(0, this.temporaryRegenBoost - 0.0001f);
-            }
+        if(!level.isClientSide){
+            serverTick();
+        }
+    }
 
 
-            if (this.maxFluidCapacity > 0 && this.currentFluidAmount < this.maxFluidCapacity) {
-                // 1. 기본 초당 재생량 (5mb/tick = 100mb/sec)
-                float baseFluidRegenPerTick = 5.0f;
 
-                // 2. 풍부함(richness)과 재생력(regeneration)에 따른 보너스 계산
-                // richness는 최대 +50% 보너스, regeneration은 최대 +50% 보너스를 줌
-                float bonusMultiplier = (this.richness - 0.8f) + (this.regeneration / 0.005f * 0.5f);
-
-                // 3. 최종 재생량 계산 (기본값에 보너스를 더함)
-                float finalFluidRegenPerTick = baseFluidRegenPerTick * (1.0f + bonusMultiplier);
-
-                this.currentFluidAmount = Math.min(this.maxFluidCapacity, this.currentFluidAmount + finalFluidRegenPerTick);
-            }
-
-            // 1초에 한 번만 동기화
-            if(level.getGameTime() % 20 == 0) {
-                setChanged();
-            }
-
-
-            // 균열 타이머 처리
-            if (this.cracked && this.crackTimer > 0) {
-                this.crackTimer--;
-
-                // 타이머가 1초(20틱) 지날 때마다 클라이언트에 동기화 신호를 보냅니다.
-                // 매 틱마다 보내면 부하가 크므로, 1초에 한 번만 갱신해도 충분합니다.
-                if (this.crackTimer % 20 == 0) {
-                    setChanged();
-                    sendData(); // sendData()는 setChanged()와 함께 쓰여 동기화를 확실하게 합니다.
-                }
-
-                if (this.crackTimer == 0) {
-                    // 타이머가 다 되면 균열 상태를 해제 (이때 setCracked 내부에서 sendBlockUpdated가 호출됨)
-                    setCracked(false);
-                }
-            }
-        }//] 주기적 특수 효과 처리
-        if (auraCheckCooldown > 0) {
-            auraCheckCooldown--;
-        } else {
-            auraCheckCooldown = 40;
+    private void serverTick() {
+        // 주기적 효과 처리 (중복 로직 제거 및 통합)
+        assert level != null;
+        if (quirkCheckOffset == -1) {
+            quirkCheckOffset = (int) (level.getGameTime() % 40);
+        }
+        if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
             applyPeriodicQuirkEffects();
         }
 
-        assert level != null;
-        if(level.getGameTime() % 20 == 0) {
+        // 매장량 재생 로직
+        float regenerationRate = this.regeneration;
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                regenerationRate = quirk.onCalculateRegeneration(regenerationRate, context);
+            }
+        }
+        if (regenerationRate > 0 || this.temporaryRegenBoost > 0) {
+            float baseRegen = regenerationRate + this.temporaryRegenBoost;
+            float baseRegenPerSecond = baseRegen * 20;
+            float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
+            float finalRegenPerTick = (baseRegenPerSecond * finalRegenMultiplier) / 20f;
+
+            if (this.currentYield < this.maxYield) {
+                this.currentYield = Math.min(this.maxYield, this.currentYield + finalRegenPerTick);
+            }
+        }
+
+        // 부스트 감소
+        if (this.temporaryRegenBoost > 0) {
+            this.temporaryRegenBoost = Math.max(0, this.temporaryRegenBoost - 0.0001f);
+        }
+
+        // 유체 재생
+        if (this.maxFluidCapacity > 0 && this.currentFluidAmount < this.maxFluidCapacity) {
+            float baseFluidRegenPerTick = 5.0f;
+            float bonusMultiplier = (this.richness - 0.8f) + (this.regeneration / 0.005f * 0.5f);
+            float finalFluidRegenPerTick = baseFluidRegenPerTick * (1.0f + bonusMultiplier);
+            this.currentFluidAmount = Math.min(this.maxFluidCapacity, this.currentFluidAmount + finalFluidRegenPerTick);
+        }
+
+        // 균열 타이머
+        if (this.cracked && this.crackTimer > 0) {
+            this.crackTimer--;
+            if (this.crackTimer % 20 == 0) {
+                setChanged();
+                sendData();
+            }
+            if (this.crackTimer == 0) {
+                setCracked(false);
+            }
+        }
+
+        // 1초에 한 번 동기화
+        if (level.getGameTime() % 20 == 0) {
             setChanged();
         }
     }
+
     // 주기적 효과를 처리하는 새 메서드
     private void applyPeriodicQuirkEffects() {
         if (!(this instanceof ArtificialNodeBlockEntity artificialNode)) return;
 
-        // 주기적 효과가 있는 특성들을 위해 컨텍스트 생성
         Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
-
-        // 양극성 보너스는 매번 체크하기 전에 초기화
         this.setPolarityBonusActive(false);
-
-        // 이 노드가 가진 모든 특성에 대해 onPeriodicTick 이벤트 호출
         for (Quirk quirk : artificialNode.getQuirks()) {
             quirk.onPeriodicTick(context);
         }

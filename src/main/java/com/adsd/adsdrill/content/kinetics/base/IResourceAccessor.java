@@ -25,7 +25,7 @@ public interface IResourceAccessor {
     IFluidHandler getInternalFluidBuffer();
 
     /**
-     * [신규] 내부 버퍼에서 에너지를 지정된 양만큼 소모합니다.
+     * 내부 버퍼에서 에너지를 지정된 양만큼 소모합니다.
      * @param amount 소모할 에너지의 양 (FE)
      * @param simulate 시뮬레이션 여부 (true이면 실제로 소모하지 않음)
      * @return 실제로 소모된 에너지 양

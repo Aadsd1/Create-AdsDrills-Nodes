@@ -56,9 +56,16 @@ public class AdsDrillConfigs {
         }
     }
 
+    public record FluidPoolEntry(
+            String fluidId,
+            double weight
+    ) {}
+
     public record BiomeOverride(
             List<String> biomes, // 적용할 바이옴 ID 및 태그 리스트 (예: ["minecraft:desert", "#minecraft:is_jungle"])
-            List<DimensionGenerationProfile.OrePoolEntry> orePool
+            List<DimensionGenerationProfile.OrePoolEntry> orePool,
+
+            List<FluidPoolEntry> fluidPool
     ) {
     }
 
@@ -67,6 +74,7 @@ public class AdsDrillConfigs {
             ResourceLocation dimensionId,
             Stats stats,
             List<OrePoolEntry> orePool,
+            List<FluidPoolEntry> fluidPool,
             List<BiomeOverride> biomeOverrides
     ) {
         public record Stats(
@@ -133,6 +141,7 @@ public class AdsDrillConfigs {
         public final ModConfigSpec.DoubleValue rotarySpeedDivisor;
         public final ModConfigSpec.IntValue hydraulicWaterConsumption;
         public final ModConfigSpec.IntValue pumpRatePer64RPM;
+        public final ModConfigSpec.IntValue maxDrillStructureSize;
 
         public final Map<Quirk, ModConfigSpec.BooleanValue> quirkEnabled = new EnumMap<>(Quirk.class);
         public final Map<Quirk, ModConfigSpec.DoubleValue> quirkChance = new EnumMap<>(Quirk.class);
@@ -148,6 +157,7 @@ public class AdsDrillConfigs {
 
 
             builder.push("drill_core");
+            maxDrillStructureSize = builder.comment("Maximum number of modules that can be attached to a single side of a Drill Core. Higher values may impact performance.").defineInRange("maxDrillStructureSize", 24, 8, 256);
             brassDrillMaxModules = builder.comment("Maximum modules for the Brass Drill Core.").defineInRange("brassDrillMaxModules", 8, 1, 64);
             steelDrillMaxModules = builder.comment("Maximum modules for the Steel Drill Core.").defineInRange("steelDrillMaxModules", 16, 1, 64);
             netheriteDrillMaxModules = builder.comment("Maximum modules for the Netherite Drill Core.").defineInRange("netheriteDrillMaxModules", 24, 1, 64);
@@ -406,7 +416,6 @@ public class AdsDrillConfigs {
             quirkConfigCache.clear();
             for (Quirk quirk : Quirk.values()) {
                 try {
-                    // [!!! 수정됨 !!!] get()만 사용하여 값을 가져옴. Optional/getOrDefault 제거
                     boolean enabled = SERVER.quirkEnabled.get(quirk).get();
 
                     double chance = SERVER.quirkChance.containsKey(quirk) ? SERVER.quirkChance.get(quirk).get() : 0.0;
@@ -464,16 +473,20 @@ public class AdsDrillConfigs {
 
                     List<BiomeOverride> biomeOverrides = new ArrayList<>();
                     List<? extends Config> overrideConfigs = profileConfig.getOrElse("biome_overrides", List.of());
-                    for (Config overrideConfig : overrideConfigs) {
+                    List<FluidPoolEntry> globalFluidPool = parseFluidPool(profileConfig.getOrElse("fluid_pool", List.of()));
+
+                   for (Config overrideConfig : overrideConfigs) {
                         List<String> biomes = overrideConfig.getOrElse("biomes", List.of());
                         List<DimensionGenerationProfile.OrePoolEntry> biomeOrePool = parseOrePool(overrideConfig.getOrElse("ore_pool", List.of()));
-                        if (!biomes.isEmpty() && !biomeOrePool.isEmpty()) {
-                            biomeOverrides.add(new BiomeOverride(biomes, biomeOrePool));
+
+                        List<FluidPoolEntry> biomeFluidPool = parseFluidPool(overrideConfig.getOrElse("fluid_pool", List.of()));
+
+                        if (!biomes.isEmpty() && (!biomeOrePool.isEmpty() || !biomeFluidPool.isEmpty())) {
+                            biomeOverrides.add(new BiomeOverride(biomes, biomeOrePool, biomeFluidPool));
                         }
                     }
 
-
-                    dimensionProfileCache.put(dimId, new DimensionGenerationProfile(dimId, stats, globalOrePool, biomeOverrides));
+                    dimensionProfileCache.put(dimId, new DimensionGenerationProfile(dimId, stats, globalOrePool, globalFluidPool, biomeOverrides));
                 } catch (Exception e) {
                     AdsDrillAddon.LOGGER.warn("Failed to parse a dimension profile from config: {}", e.getMessage());
                 }
@@ -556,6 +569,27 @@ public class AdsDrillConfigs {
     }
 
 
+    //fluid_pool 파싱을 위한 헬퍼 메서드
+    private static List<FluidPoolEntry> parseFluidPool(List<?> rawList) {
+        List<FluidPoolEntry> fluidPool = new ArrayList<>();
+        for (Object obj : rawList) {
+            if (obj instanceof Config fluidConfig) {
+                fluidPool.add(new FluidPoolEntry(
+                        fluidConfig.get("fluid_id"),
+                        fluidConfig.getOrElse("weight", 1.0)
+                ));
+            }
+        }
+        return fluidPool;
+    }
+
+    //액체 풀 엔트리 생성을 위한 헬퍼 메서드
+    private static Config createFluidEntry(String fluidId, double weight) {
+        Config fluid = Config.inMemory();
+        fluid.set("fluid_id", fluidId);
+        fluid.set("weight", weight);
+        return fluid;
+    }
     // 수동 매핑 항목을 쉽게 만드는 헬퍼 메서드
     private static Config createManualOreMapping(String blockId, String itemId) {
         Config mapping = Config.inMemory();
@@ -596,6 +630,10 @@ public class AdsDrillConfigs {
         stats.set("min_fluid_capacity", 5000);
         stats.set("max_fluid_capacity", 20000);
         profile.set("stats", stats);
+        profile.set("fluid_pool", List.of(
+                createFluidEntry("minecraft:water", 100.0),
+                createFluidEntry("minecraft:lava", 5.0)
+        ));
 
         // 기본 광물 목록 설정 (오스뮴 포함)
         List<Config> orePool = new ArrayList<>();
@@ -618,6 +656,9 @@ public class AdsDrillConfigs {
         jungleOverride.set("biomes", List.of("#minecraft:is_jungle")); // '#'은 태그를 의미
         jungleOverride.set("ore_pool", List.of(
                 createOreEntry("minecraft:raw_copper", "minecraft:copper_ore", 0.0, 1.0)
+        ));
+        jungleOverride.set("fluid_pool", List.of(
+                createFluidEntry("minecraft:water", 0.8) // 정글에서는 80% 물만 나옴
         ));
         biomeOverrides.add(jungleOverride);
 

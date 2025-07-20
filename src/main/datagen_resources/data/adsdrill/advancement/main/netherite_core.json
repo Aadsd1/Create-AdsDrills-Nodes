@@ -17,12 +17,7 @@
       "conditions": {
         "items": [
           {
-            "items": ["adsdrill:drill_core"],
-            "components": {
-              "minecraft:block_entity_data": {
-                "CoreTier": "NETHERITE"
-              }
-            }
+            "items": ["adsdrill:core_upgrade_netherite"]
           }
         ]
       }

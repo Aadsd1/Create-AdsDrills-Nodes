@@ -36,6 +36,9 @@ import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -44,6 +47,13 @@ import javax.annotation.Nullable;
 public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockEntity>, IWrenchable {
 
     private final ModuleType moduleType;
+
+    protected static final VoxelShape SHAPE = Shapes.box(0.125, 0.125, 0.125, 0.875, 0.875, 0.875);
+
+    @Override
+    protected @NotNull VoxelShape getShape(@NotNull BlockState pState, net.minecraft.world.level.@NotNull BlockGetter pLevel, @NotNull BlockPos pPos, @NotNull CollisionContext pContext) {
+        return SHAPE;
+    }
 
     public GenericModuleBlock(Properties properties, ModuleType moduleType) {
         super(properties);
@@ -142,7 +152,7 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         return handleNonFrameModuleInteraction(stack, state, level, pos, player, hand, hit);
     }
 
-    // [수정] useItemOn 메서드를 오버라이드하여 필터 상호작용 추가
+    // useItemOn 메서드를 오버라이드하여 필터 상호작용 추가
     private ItemInteractionResult handleNonFrameModuleInteraction(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (getModuleType() == ModuleType.RESONATOR) {
             if (!level.isClientSide) {

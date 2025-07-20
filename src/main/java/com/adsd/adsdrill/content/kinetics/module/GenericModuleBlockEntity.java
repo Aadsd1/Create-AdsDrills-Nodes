@@ -36,14 +36,14 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     // 렌더링 관련 필드
     private Set<Direction> visualConnections = new HashSet<>();
     private float visualSpeed = 0f;
-    private Set<Direction> energyConnections = new HashSet<>(); // [신규] 에너지 연결 방향 저장
-    // --- [신규] 독립 저장소 필드 ---
+    private Set<Direction> energyConnections = new HashSet<>(); // 에너지 연결 방향 저장
+    // --- 독립 저장소 필드 ---
     protected @Nullable ItemStackHandler itemHandler;
     protected @Nullable FluidTank fluidHandler;
-    protected @Nullable DrillEnergyStorage energyInputBuffer; // [핵심 수정] 타입 변경
+    protected @Nullable DrillEnergyStorage energyInputBuffer; //  타입 변경
 
-    private Item resonatorFilter = null; // [신규] 공명 필터 아이템 저장
-    // [추가] 우선순위 필드. 기본값은 99 (가장 낮음)
+    private Item resonatorFilter = null; // 공명 필터 아이템 저장
+    // 우선순위 필드. 기본값은 99 (가장 낮음)
     private int processingPriority = 99;
     private static final int MAX_PRIORITY = 10;
 
@@ -51,7 +51,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         // 필터 모듈은 최우선 순위(0)를 가짐
         return processingPriority;
     }
-    // [신규] 필터 슬롯에 쉽게 접근하기 위한 헬퍼 메서드
+    //  필터 슬롯에 쉽게 접근하기 위한 헬퍼 메서드
     public ItemStack getFilter() {
         if (getModuleType() == ModuleType.FILTER && itemHandler != null) {
             return itemHandler.getStackInSlot(0);
@@ -66,7 +66,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         }
     }
 
-    // [신규] 공명 필터 설정 메서드
+    // 공명 필터 설정 메서드
     public void setResonatorFilter(ItemStack stack, Player player) {
         if (stack.isEmpty()) {
             this.resonatorFilter = null;
@@ -79,7 +79,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
         sendData();
     }
 
-    // [신규] 코어가 사용할 getter
+    // 코어가 사용할 getter
     public Optional<Item> getResonatorFilterItem() {
         return Optional.ofNullable(this.resonatorFilter);
     }
@@ -92,7 +92,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
     }
 
     /**
-     * [신규] 주변 블록을 스캔하여 에너지 연결이 가능한 방향을 업데이트합니다.
+     * 주변 블록을 스캔하여 에너지 연결이 가능한 방향을 업데이트합니다.
      */
     public void updateEnergyConnections() {
         if (level == null || level.isClientSide() || getModuleType() != ModuleType.ENERGY_INPUT) {
@@ -159,7 +159,7 @@ public class GenericModuleBlockEntity extends KineticBlockEntity implements IHav
 
         ModuleType moduleType = getModuleType();
 
-        if (moduleType == ModuleType.FILTER || moduleType == ModuleType.RESONATOR) {
+        if (moduleType == ModuleType.FILTER) {
             this.itemHandler = new FilterModuleItemStackHandler(1, this);
         }
         else if (moduleType.getItemCapacity() > 0) {

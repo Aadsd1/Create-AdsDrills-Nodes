@@ -132,6 +132,7 @@ public class AdsDrillItems {
             .tag(AdsDrillTags.CATALYSTS)
             .register();
     public static final ItemEntry<Item> STEEL_INGOT = REGISTRATE.item("steel_ingot", Item::new)
+            .tag(AdsDrillTags.STEEL_INGOTS)
             .register();
     public static final ItemEntry<Item> XOMV = REGISTRATE.item("xomv", Item::new)
             .tag(AdsDrillTags.CATALYSTS)

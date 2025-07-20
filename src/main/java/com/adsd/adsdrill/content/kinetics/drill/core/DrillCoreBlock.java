@@ -1,8 +1,5 @@
 package com.adsd.adsdrill.content.kinetics.drill.core;
 
-
-import com.adsd.adsdrill.content.kinetics.drill.head.IDrillHead;
-import com.adsd.adsdrill.content.kinetics.module.GenericModuleBlock;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
 import com.adsd.adsdrill.registry.AdsDrillItems;
@@ -46,9 +43,9 @@ import java.util.Objects;
 
 public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<DrillCoreBlockEntity> {
 
+    public static final EnumProperty<Tier> TIER = EnumProperty.create("tier", Tier.class);
     protected static final VoxelShape SHAPE = Shapes.box(0.0625, 0.0625, 0.0625, 0.9375, 0.9375, 0.9375);
 
-    public static final EnumProperty<Tier> TIER = EnumProperty.create("tier", Tier.class);
     @Override
     protected @NotNull VoxelShape getShape(@NotNull BlockState pState, net.minecraft.world.level.@NotNull BlockGetter pLevel, @NotNull BlockPos pPos, @NotNull CollisionContext pContext) {
         return SHAPE;
@@ -75,7 +72,6 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     }
     @Override
     protected @NotNull List<ItemStack> getDrops(@NotNull BlockState state, LootParams.@NotNull Builder builder) {
-        // [핵심 수정] builder에서 직접 파라미터를 가져옵니다.
         // 이 시점의 getParameter는 null을 반환할 수 있습니다.
         BlockEntity be = builder.getParameter(LootContextParams.BLOCK_ENTITY);
 
@@ -152,17 +148,11 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
     protected void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         if (!level.isClientSide) {
-            // [!!! 수정됨 !!!]
-            withBlockEntityDo(level, pos, coreBE -> {
-                // 변경을 유발한 블록이 구조 블록이거나, 끊어진 위치가 기존 구조에 포함되어 있었다면 재검사
-                if (block instanceof GenericModuleBlock || block instanceof DrillCoreBlock || block instanceof IDrillHead || coreBE.getStructureCache().contains(fromPos)) {
-                    coreBE.scheduleStructureCheck();
-                }
-            });
+            withBlockEntityDo(level, pos, DrillCoreBlockEntity::scheduleStructureCheck);
             level.sendBlockUpdated(pos, state, state, 3);
         }
     }
-    // [신규] 업그레이드를 위한 상호작용 로직
+    // 업그레이드를 위한 상호작용 로직
     @Override
     protected @NotNull ItemInteractionResult useItemOn(
             @NotNull ItemStack stack, @NotNull BlockState state, @NotNull Level level,
@@ -182,7 +172,7 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
                 return ItemInteractionResult.SUCCESS;
             }
 
-            // [핵심 수정] withBlockEntityDo 대신 직접 BlockEntity를 가져옵니다.
+            // withBlockEntityDo 대신 직접 BlockEntity를 가져옵니다.
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof DrillCoreBlockEntity coreBE) {
                 // BlockEntity의 tryUpgrade 메서드를 호출하고, 그 boolean 결과를 받습니다.

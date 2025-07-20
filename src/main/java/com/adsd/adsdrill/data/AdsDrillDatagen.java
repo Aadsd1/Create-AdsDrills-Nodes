@@ -19,10 +19,13 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.data.BlockTagsProvider;
 import net.neoforged.neoforge.common.data.DatapackBuiltinEntriesProvider;
+import net.neoforged.neoforge.common.data.ExistingFileHelper;
 import net.neoforged.neoforge.common.world.BiomeModifier;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +41,7 @@ public class AdsDrillDatagen {
         DataGenerator generator = event.getGenerator();
         PackOutput packOutput = generator.getPackOutput();
         CompletableFuture<HolderLookup.Provider> lookupProvider = event.getLookupProvider();
+        ExistingFileHelper existingFileHelper = event.getExistingFileHelper();
 
         addCustomLang(REGISTRATE);
 
@@ -49,6 +53,15 @@ public class AdsDrillDatagen {
         generator.addProvider(event.includeServer(), new MixRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new SequencialRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new AdvancementProvider(packOutput));
+
+
+        BlockTagsProvider blockTagsProvider = new BlockTagsProvider(packOutput, lookupProvider, AdsDrillAddon.MOD_ID, existingFileHelper) {
+            @Override
+            protected void addTags(HolderLookup.@NotNull Provider p_256380_) {}
+        };
+        generator.addProvider(event.includeServer(), blockTagsProvider);
+        generator.addProvider(event.includeServer(), new AdsDrillTagsProvider(packOutput, lookupProvider, blockTagsProvider.contentsGetter(), existingFileHelper));
+
         generator.addProvider(event.includeServer(), new DatapackBuiltinEntriesProvider(
                 packOutput, lookupProvider,
                 new RegistrySetBuilder()
@@ -94,6 +107,7 @@ public class AdsDrillDatagen {
         // 노드 조합 텍스트
         registrate.addRawLang("adsdrill.jei.in_cracked_node", "In a Cracked Ore Node");
 
+        registrate.addRawLang("adsdrill.jei.tooltip.minimum_ratio", "Min. Ratio: %s");
         // 모루 튜닝 정보
         registrate.addRawLang("adsdrill.jei.info.anvil_tuning", "The Netherite Node Locator can be tuned in an Anvil.\n\n- Combine with any Ore to make the locator target that specific resource.\n- Combine with Flint to clear any existing target.");
 
@@ -106,8 +120,8 @@ public class AdsDrillDatagen {
         registrate.addRawLang("goggle.adsdrill.drill_core.reason.too_many_modules", "Error: Module limit exceeded (%s).");
         registrate.addRawLang("goggle.adsdrill.drill_core.reason.duplicate_processing_module", "Error: Duplicate processing module detected.");
         registrate.addRawLang("goggle.adsdrill.drill_core.speed_bonus", "Speed Bonus");
-        registrate.addRawLang("goggle.adsdrill.drill_core.stress_impact", "Stress Impact"); // "Added Stress"에서 변경
-        registrate.addRawLang("goggle.adsdrill.drill_core.heat_reduction", "Heat Reduction"); // [신규]
+        registrate.addRawLang("goggle.adsdrill.drill_core.stress_impact", "Stress Impact");
+        registrate.addRawLang("goggle.adsdrill.drill_core.heat_reduction", "Heat Reduction");
         registrate.addRawLang("goggle.adsdrill.drill_core.reason.head_missing", "Warning: Drill Head missing.");
         registrate.addRawLang("goggle.adsdrill.drill_core.heat_label", "Heat: ");
         registrate.addRawLang("goggle.adsdrill.drill_core.efficiency_label", "Efficiency: ");
@@ -135,7 +149,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("goggle.adsdrill.drill_core.storage_header", "Internal Storage");
         registrate.addRawLang("goggle.adsdrill.drill_core.storage.items", "Items");
         registrate.addRawLang("goggle.adsdrill.drill_core.storage.fluid", "Fluid");
-        registrate.addRawLang("goggle.adsdrill.drill_core.storage.energy", "Energy"); // [신규]
+        registrate.addRawLang("goggle.adsdrill.drill_core.storage.energy", "Energy");
         registrate.addRawLang("goggle.adsdrill.drill_core.storage.empty", "Empty");
         registrate.addRawLang("adsdrill.priority_changed", "Processing Priority set to: %s");
         registrate.addRawLang("goggle.adsdrill.sneak_for_details", "(Hold Sneak for details)");
@@ -149,7 +163,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.laser_head.mode.wide_beam", "Mode: Wide-Beam");
         registrate.addRawLang("adsdrill.laser_head.mode.resonance", "Mode: Resonance");
         registrate.addRawLang("adsdrill.laser_head.mode.decomposition", "Mode: Decomposition");
-        registrate.addRawLang("goggle.adsdrill.drill_core.energy_cost", "Energy Cost: %s FE/t"); // [신규]
+        registrate.addRawLang("goggle.adsdrill.drill_core.energy_cost", "Energy Cost: %s FE/t");
         registrate.addRawLang("adsdrill.node_designator.linked", "Laser Head linked.");
         registrate.addRawLang("adsdrill.node_designator.not_linked", "Link to a Laser Head first! (Sneak + Right-Click)");
         registrate.addRawLang("adsdrill.node_designator.linked_to", "Linked to: %s, %s, %s");
@@ -292,8 +306,8 @@ public class AdsDrillDatagen {
         registrate.addRawLang("advancements.adsdrill.modules.processing.title", "Automated Factory");
         registrate.addRawLang("advancements.adsdrill.modules.processing.description", "Add a processing module, like a Furnace or Crusher, to handle everything from mining to smelting.");
 
-        registrate.addRawLang("advancements.adsdrill.modules.power_management.json.title", "Unlimited Power!");
-        registrate.addRawLang("advancements.adsdrill.modules.power_management.json.description", "Construct an energy module to generate, store, or receive FE for advanced drill heads.");
+        registrate.addRawLang("advancements.adsdrill.modules.power_management.title", "Unlimited Power!");
+        registrate.addRawLang("advancements.adsdrill.modules.power_management.description", "Construct an energy module to generate, store, or receive FE for advanced drill heads.");
 
         registrate.addRawLang("advancements.adsdrill.modules.redstone_control.title", "Red Light, Green Light");
         registrate.addRawLang("advancements.adsdrill.modules.redstone_control.description", "Add a Redstone Brake Module to your assembly for remote control capabilities.");

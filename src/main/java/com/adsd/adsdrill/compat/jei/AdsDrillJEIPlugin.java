@@ -45,6 +45,7 @@ public class AdsDrillJEIPlugin implements IModPlugin {
                 new NodeFrameCategory(helper),
                 new ModuleUpgradeCategory(helper),
                 new DrillHeadUpgradeCategory(helper),
+                new DrillCoreUpgradeCategory(helper),
                 new NodeCombinationCategory(helper),
                 new LaserDecompositionCategory(helper)
         );
@@ -55,6 +56,7 @@ public class AdsDrillJEIPlugin implements IModPlugin {
         registration.addRecipes(NodeFrameCategory.TYPE, NodeFrameCategory.getRecipes());
         registration.addRecipes(ModuleUpgradeCategory.TYPE, ModuleUpgradeCategory.getRecipes());
         registration.addRecipes(DrillHeadUpgradeCategory.TYPE, DrillHeadUpgradeCategory.getRecipes());
+        registration.addRecipes(DrillCoreUpgradeCategory.TYPE, DrillCoreUpgradeCategory.getRecipes());
         registration.addRecipes(NodeCombinationCategory.TYPE, NodeCombinationCategory.getRecipes());
         registration.addRecipes(LaserDecompositionCategory.TYPE, LaserDecompositionCategory.getRecipes());
 
@@ -78,6 +80,7 @@ public class AdsDrillJEIPlugin implements IModPlugin {
         Stream.of(AdsDrillBlocks.IRON_ROTARY_DRILL_HEAD, AdsDrillBlocks.DIAMOND_ROTARY_DRILL_HEAD, AdsDrillBlocks.NETHERITE_ROTARY_DRILL_HEAD)
                 .forEach(drill -> registration.addRecipeCatalyst(new ItemStack(drill.get()), DrillHeadUpgradeCategory.TYPE));
 
+        registration.addRecipeCatalyst(new ItemStack(AdsDrillBlocks.DRILL_CORE.get()), DrillCoreUpgradeCategory.TYPE);
         registration.addRecipeCatalyst(new ItemStack(AdsDrillBlocks.EXPLOSIVE_DRILL_HEAD.get()), NodeCombinationCategory.TYPE);
         registration.addRecipeCatalyst(new ItemStack(AdsDrillBlocks.LASER_DRILL_HEAD.get()), LaserDecompositionCategory.TYPE);
     }

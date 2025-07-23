@@ -90,6 +90,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.jei.category.node_assembly", "Node Assembly");
         registrate.addRawLang("adsdrill.jei.category.module_upgrading", "Module Upgrading");
         registrate.addRawLang("adsdrill.jei.category.drill_upgrading", "Drill Head Upgrading");
+        registrate.addRawLang("adsdrill.jei.category.drill_core_upgrading", "Drill Core Upgrading");
         registrate.addRawLang("adsdrill.jei.category.node_combination", "Node Combination");
         registrate.addRawLang("adsdrill.jei.category.laser_decomposition", "Laser Decomposition");
 
@@ -345,5 +346,57 @@ public class AdsDrillDatagen {
 
         registrate.addRawLang("advancements.adsdrill.hidden.fine_tuning.title", "Fine-Tuning");
         registrate.addRawLang("advancements.adsdrill.hidden.fine_tuning.description", "Tune a Netherite Node Locator in an Anvil to seek out a specific resource.");
+        // --- Item Tooltips ---
+
+        // Drill Cores
+        registrate.addRawLang("tooltip.adsdrill.drill_core.description", "The heart of a modular drill assembly. Right-click with an Upgrade Kit to enhance.");
+        registrate.addRawLang("tooltip.adsdrill.drill_core.stats_header", "Base Stats:");
+        registrate.addRawLang("tooltip.adsdrill.drill_core.stats.max_modules", "Max Modules: %s");
+        registrate.addRawLang("tooltip.adsdrill.drill_core.stats.speed_bonus", "Speed Bonus: %s");
+        registrate.addRawLang("tooltip.adsdrill.drill_core.stats.base_stress", "Base Stress: %s SU");
+
+        // Drill Heads
+        registrate.addRawLang("tooltip.adsdrill.rotary_drill_head.description", "A standard drill head for mining Ore Nodes. Can be enchanted by right-clicking with specific items.");
+        registrate.addRawLang("tooltip.adsdrill.rotary_drill_head.stats", "Stress: %s SU, Heat: +%s/t, Cooling: +%s/t");
+        registrate.addRawLang("tooltip.adsdrill.hydraulic_drill_head.description", "Consumes water to selectively mine raw materials (ores, gems, etc.).");
+        registrate.addRawLang("tooltip.adsdrill.hydraulic_drill_head.stats", "Water Consumption: %d mB/t");
+        registrate.addRawLang("tooltip.adsdrill.pump_head.description", "Directly extracts fluids from the internal tank of an Ore Node.");
+        registrate.addRawLang("tooltip.adsdrill.pump_head.stats", "Base Pumping Rate: %d mB/t at 64 RPM");
+        registrate.addRawLang("tooltip.adsdrill.explosive_drill_head.description", "Consumes an item on overheat to fracture an Ore Node, enabling special combination recipes.");
+        registrate.addRawLang("tooltip.adsdrill.explosive_drill_head.consumable", "Consumable: %s");
+        registrate.addRawLang("tooltip.adsdrill.laser_drill_head.description", "An advanced, FE-powered drill head. Controlled with the Laser Designator.");
+        registrate.addRawLang("tooltip.adsdrill.laser_drill_head.stats", "Energy Cost: %s FE (Mining), %s FE/t (Decomposition)");
+
+        // Modules
+        registrate.addRawLang("tooltip.adsdrill.frame_module.description", "The basic chassis for all functional modules.");
+        registrate.addRawLang("tooltip.adsdrill.speed_module.description", "Increases drill speed, but also raises Stress Impact and Heat Generation.");
+        registrate.addRawLang("tooltip.adsdrill.speed_module.stats", "Speed: %s%%, Stress: %s%%, Heat: %s%%");
+        registrate.addRawLang("tooltip.adsdrill.reinforcement_module.description", "Reduces Stress Impact, allowing more modules to be attached.");
+        registrate.addRawLang("tooltip.adsdrill.reinforcement_module.stats", "Stress: %s%%");
+        registrate.addRawLang("tooltip.adsdrill.efficiency_module.description", "Improves heat efficiency, mitigating overheating and optimizing performance.");
+        registrate.addRawLang("tooltip.adsdrill.efficiency_module.stats", "Speed: %s%%, Stress: %s%%, Heat: %s%%");
+        registrate.addRawLang("tooltip.adsdrill.item_buffer_module.description", "Adds an internal item storage buffer of 16 slots to the drill.");
+        registrate.addRawLang("tooltip.adsdrill.fluid_buffer_module.description", "Adds an internal fluid storage buffer of 16,000 mB to the drill.");
+        registrate.addRawLang("tooltip.adsdrill.redstone_brake_module.description", "Halts all drill operations when receiving a redstone signal.");
+        registrate.addRawLang("tooltip.adsdrill.furnace_module.description", "Automatically smelts mined items. Consumes the core's heat.");
+        registrate.addRawLang("tooltip.adsdrill.blast_furnace_module.description", "Smelts mined items faster than a Furnace Module. Consumes more heat.");
+        registrate.addRawLang("tooltip.adsdrill.crusher_module.description", "Automatically crushes mined items into dusts.");
+        registrate.addRawLang("tooltip.adsdrill.washer_module.description", "Automatically washes mined items, consuming water from the drill's buffer.");
+        registrate.addRawLang("tooltip.adsdrill.compactor_module.description", "Automatically compacts items from the internal buffer using 3x3 recipes.");
+        registrate.addRawLang("tooltip.adsdrill.heatsink_module.description", "Increases the drill's base heat dissipation rate.");
+        registrate.addRawLang("tooltip.adsdrill.heatsink_module.stats", "Heat Dissipation Bonus: +%s%%");
+        registrate.addRawLang("tooltip.adsdrill.coolant_module.description", "Rapidly cools the drill by consuming water from the internal buffer.");
+        registrate.addRawLang("tooltip.adsdrill.coolant_module.stats", "Heat Reduction: %s/t, Water Cost: %s mB/t");
+        registrate.addRawLang("tooltip.adsdrill.filter_module.description", "Controls the item processing flow by filtering items.");
+        registrate.addRawLang("tooltip.adsdrill.resonator_module.description", "Guides the Laser Drill to mine only a specific resource.");
+        registrate.addRawLang("tooltip.adsdrill.energy_input_module.description", "Receives FE from external sources and supplies it to the drill.");
+        registrate.addRawLang("tooltip.adsdrill.energy_buffer_module.description", "Adds an internal FE energy storage buffer to the drill.");
+        registrate.addRawLang("tooltip.adsdrill.kinetic_dynamo_module.description", "Generates FE directly from the drill's rotational force.");
+        registrate.addRawLang("tooltip.adsdrill.kinetic_dynamo_module.stats", "Energy Generation: 1 FE per %s RPM");
+        registrate.addRawLang("tooltip.adsdrill.module_upgrade_remover.description", "Right-click on a module to revert it to a Frame Module.");
+
+        // Node Related
+        registrate.addRawLang("tooltip.adsdrill.artificial_node.description", "An artificial Ore Node crafted in the Node Frame. Can be retrieved with a Wrench.");
+        registrate.addRawLang("tooltip.adsdrill.ore_node_neutralizer.description", "Use on a natural Ore Node to permanently remove it.");
     }
 }

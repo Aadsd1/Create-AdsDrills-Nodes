@@ -224,9 +224,9 @@ public class AnyCraftRecipeGen extends RecipeProvider {
                 .pattern("AFA")
                 .define('A',Items.OBSIDIAN)
                 .define('B', AdsDrillItems.ROSE_GOLD.get())
-                .define('C', AdsDrillBlocks.REINFORCEMENT_MODULE.get())
+                .define('C', AdsDrillItems.MODULE_REIN_UPGRADE.get())
                 .define('D', AdsDrillItems.STEEL_INGOT.get())
-                .define('E', AdsDrillBlocks.HEATSINK_MODULE.get())
+                .define('E', AdsDrillItems.MODULE_HEATSINK_UPGRADE.get())
                 .define('F', AdsDrillItems.SILKY_JEWEL.get())
                 .unlockedBy("has_brass_ingot",has(AllItems.BRASS_INGOT.get()))
                 .save(recipeOutput);
@@ -286,7 +286,7 @@ public class AnyCraftRecipeGen extends RecipeProvider {
                 .define('A',Items.OBSIDIAN)
                 .define('B',Items.BLAST_FURNACE)
                 .define('C', AdsDrillItems.ROSE_GOLD.get())
-                .define('D', AdsDrillBlocks.FURNACE_MODULE.get())
+                .define('D', AdsDrillItems.MODULE_FURNACE_UPGRADE.get())
                 .define('E',AllItems.BLAZE_CAKE.get())
                 .unlockedBy("has_brass_ingot",has(AllItems.BRASS_INGOT.get()))
                 .save(recipeOutput);

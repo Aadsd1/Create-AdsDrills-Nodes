@@ -3,17 +3,23 @@ package com.adsd.adsdrill.content.item;
 
 import com.adsd.adsdrill.content.kinetics.node.ArtificialNodeBlock;
 import com.adsd.adsdrill.content.kinetics.node.OreNodeBlock;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 public class NeutralizerItem extends Item {
 
@@ -50,5 +56,11 @@ public class NeutralizerItem extends Item {
         }
 
         return super.useOn(context);
+    }
+
+    @Override
+    public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
+        tooltip.add(Component.translatable("tooltip.adsdrill.ore_node_neutralizer.description").withStyle(ChatFormatting.GRAY));
     }
 }

@@ -2,6 +2,7 @@ package com.adsd.adsdrill.config;
 
 
 import com.adsd.adsdrill.AdsDrillAddon;
+import com.adsd.adsdrill.content.kinetics.module.ModuleType;
 import com.adsd.adsdrill.crafting.NodeRecipe;
 import com.adsd.adsdrill.crafting.Quirk;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -33,6 +34,7 @@ public class AdsDrillConfigs {
 
     private static final Map<Quirk, QuirkConfig> quirkConfigCache = new ConcurrentHashMap<>();
 
+    private static final Map<ModuleType, ModuleConfig> moduleConfigCache = new EnumMap<>(ModuleType.class);
     static {
         final ModConfigSpec.Builder serverBuilder = new ModConfigSpec.Builder();
         SERVER = new MyAddonServerConfig(serverBuilder);
@@ -54,6 +56,14 @@ public class AdsDrillConfigs {
         public QuirkConfig() {
             this(true, 0.05, List.of(BuiltInLootTables.SIMPLE_DUNGEON.location()), List.of(), 0.6, 0.7, 0.8,1.33);
         }
+    }
+
+
+    public record ModuleConfig(double speedBonus, double stressImpact, double heatModifier) {}
+
+    public static ModuleConfig getModuleConfig(ModuleType type) {
+        // 설정이 로드되지 않았거나 해당 타입이 없는 경우, 기본값(0)을 가진 객체를 반환하여 NullPointerException 방지
+        return moduleConfigCache.getOrDefault(type, new ModuleConfig(0.0, 0.0, 0.0));
     }
 
     public record FluidPoolEntry(
@@ -142,7 +152,12 @@ public class AdsDrillConfigs {
         public final ModConfigSpec.IntValue hydraulicWaterConsumption;
         public final ModConfigSpec.IntValue pumpRatePer64RPM;
         public final ModConfigSpec.IntValue maxDrillStructureSize;
-
+        public final ModConfigSpec.ConfigValue<List<? extends String>> hydraulicBonusTags;
+        public final ModConfigSpec.DoubleValue hydraulicBonusMultiplier;
+        public final ModConfigSpec.DoubleValue coolantHeatReduction;
+        public final ModConfigSpec.IntValue coolantWaterConsumption;
+        public final ModConfigSpec.DoubleValue kineticDynamoConversionRate;
+        public final ModConfigSpec.ConfigValue<String> explosiveDrillConsumable;
         public final Map<Quirk, ModConfigSpec.BooleanValue> quirkEnabled = new EnumMap<>(Quirk.class);
         public final Map<Quirk, ModConfigSpec.DoubleValue> quirkChance = new EnumMap<>(Quirk.class);
         public final Map<Quirk, ModConfigSpec.ConfigValue<List<? extends String>>> quirkLootTables = new EnumMap<>(Quirk.class);
@@ -151,6 +166,9 @@ public class AdsDrillConfigs {
         public final Map<Quirk, ModConfigSpec.DoubleValue> quirkMaxFluidPercentage = new EnumMap<>(Quirk.class);
         public final Map<Quirk, ModConfigSpec.DoubleValue> quirkHardnessMultiplier = new EnumMap<>(Quirk.class);
         public final Map<Quirk, ModConfigSpec.DoubleValue> quirkValueMultiplier = new EnumMap<>(Quirk.class);
+        public final Map<ModuleType, ModConfigSpec.DoubleValue> moduleSpeedBonuses = new EnumMap<>(ModuleType.class);
+        public final Map<ModuleType, ModConfigSpec.DoubleValue> moduleStressImpacts = new EnumMap<>(ModuleType.class);
+        public final Map<ModuleType, ModConfigSpec.DoubleValue> moduleHeatModifiers = new EnumMap<>(ModuleType.class);
 
         public MyAddonServerConfig(ModConfigSpec.Builder builder) {
             builder.comment("My Create Addon Server-Side Configurations").push("general");
@@ -172,8 +190,18 @@ public class AdsDrillConfigs {
             // 드릴 헤드 설정 섹션
             builder.push("drill_heads");
             laserMiningAmount = builder.comment("Mining amount per operation for the Laser Drill Head.").defineInRange("laserMiningAmount", 20, 1, 256);
-            rotarySpeedDivisor = builder.comment("Divisor to calculate mining amount from RPM for Rotary Drill Heads. Lower value means more output per RPM.").defineInRange("rotarySpeedDivisor", 20.0, 1.0, 512.0);
+            rotarySpeedDivisor = builder.comment("Divisor to calculate mining amount from RPM for Rotary Drill Heads. Lower value means more output per RPM.").defineInRange("rotarySpeedDivisor", 16.0, 1.0, 512.0);
             hydraulicWaterConsumption = builder.comment("Water (mB) consumed per tick by the Hydraulic Drill Head.").defineInRange("hydraulicWaterConsumption", 50, 1, 1000);
+            explosiveDrillConsumable = builder.comment("The item ID of the consumable used by the Explosive Drill Head on overheat.")
+                    .define("explosiveDrillConsumable", "minecraft:tnt");
+
+            hydraulicBonusTags = builder.comment("List of item tags that receive a mining amount bonus when mined by the Hydraulic Drill Head.")
+                    .defineList(List.of("hydraulicBonusTags"),
+                            () -> List.of("c:gems", "c:dusts"),
+                            () -> "",
+                            obj -> obj instanceof String);
+            hydraulicBonusMultiplier = builder.comment("The mining amount multiplier applied to items in the bonus tags list.")
+                    .defineInRange("hydraulicBonusMultiplier", 1.5, 1.0, 10.0);
             pumpRatePer64RPM = builder.comment("Base fluid pumping rate (mB/t) for the Pump Head at 64 RPM.").defineInRange("pumpRatePer64RPM", 250, 10, 10000);
             builder.pop();
 
@@ -191,6 +219,41 @@ public class AdsDrillConfigs {
             laserDecompositionTime = builder.comment("Time in ticks for the laser's Decomposition mode to finish (20 ticks = 1 second).").defineInRange("laserDecompositionTime", 200, 20, 72000);
             laserEnergyPerDecompositionTick = builder.comment("Energy (FE) consumed per tick in Decomposition mode.").defineInRange("laserEnergyPerDecompositionTick", 500, 1, Integer.MAX_VALUE);
             laserEnergyPerMiningTick = builder.comment("Energy (FE) consumed per mining operation in Wide-Beam or Resonance mode.").defineInRange("laserEnergyPerMiningTick", 100, 1, Integer.MAX_VALUE);
+            builder.pop();
+
+            builder.push("modules");
+            builder.comment("Configure the specific stats of each performance-related module.");
+
+            for (ModuleType type : ModuleType.values()) {
+                if (!type.isPerformanceModule())
+                    continue;
+
+                builder.push(type.getSerializedName());
+
+                moduleSpeedBonuses.put(type, builder.comment("Speed bonus multiplier provided by this module (e.g., 0.1 for +10%).")
+                        .defineInRange("speed_bonus", type.getDefaultSpeedBonus(), -1.0, 10.0));
+
+                moduleStressImpacts.put(type, builder.comment("Stress impact multiplier (e.g., 0.05 for +5%, -0.1 for -10%).")
+                        .defineInRange("stress_impact", type.getDefaultStressImpact(), -1.0, 10.0));
+
+                moduleHeatModifiers.put(type, builder.comment("Heat generation multiplier (e.g., 0.05 for +5%, -0.15 for -15%).")
+                        .defineInRange("heat_modifier", type.getDefaultHeatModifier(), -1.0, 10.0));
+
+                builder.pop();
+            }
+
+            builder.push("coolant_module");
+            coolantHeatReduction = builder.comment("Base heat reduction per tick when the Coolant Module is active.")
+                    .defineInRange("heatReductionPerTick", 0.4, 0.0, 100.0);
+            coolantWaterConsumption = builder.comment("Water (mB) consumed per tick by the Coolant Module.")
+                    .defineInRange("waterConsumptionPerTick", 5, 1, 1000);
+            builder.pop();
+
+            builder.push("kinetic_dynamo_module");
+            kineticDynamoConversionRate = builder.comment("Amount of RPM required to generate 1 FE/t (e.g., 4.0 means 256 RPM = 64 FE/t).")
+                    .defineInRange("rpmPerFE", 4.0, 0.1, 1024.0);
+            builder.pop();
+
             builder.pop();
 
             builder.push("node_crafting");
@@ -559,6 +622,18 @@ public class AdsDrillConfigs {
                 }
             }
             AdsDrillAddon.LOGGER.info("Loaded {} Node Combination Recipes from config.", NodeRecipe.RECIPES.size());
+
+
+            moduleConfigCache.clear();
+            for (ModuleType type : ModuleType.values()) {
+                if (!type.isPerformanceModule()) continue;
+
+                double speed = SERVER.moduleSpeedBonuses.get(type).get();
+                double stress = SERVER.moduleStressImpacts.get(type).get();
+                double heat = SERVER.moduleHeatModifiers.get(type).get();
+                moduleConfigCache.put(type, new ModuleConfig(speed, stress, heat));
+            }
+            AdsDrillAddon.LOGGER.info("Loaded {} Module configurations from config.", moduleConfigCache.size());
         }
     }
 
@@ -618,20 +693,28 @@ public class AdsDrillConfigs {
         profile.set("dimension_id", "minecraft:overworld");
 
         Config stats = Config.inMemory();
+
         stats.set("min_yield", 1000);
         stats.set("max_yield", 3000);
+
         stats.set("min_hardness", 0.5);
         stats.set("max_hardness", 1.5);
+
         stats.set("min_richness", 0.8);
         stats.set("max_richness", 1.5);
+
         stats.set("min_regeneration", 0.0005);
         stats.set("max_regeneration", 0.0045);
+
         stats.set("fluid_chance", 0.4);
+
         stats.set("min_fluid_capacity", 5000);
         stats.set("max_fluid_capacity", 20000);
+
         profile.set("stats", stats);
+
         profile.set("fluid_pool", List.of(
-                createFluidEntry("minecraft:water", 100.0),
+                createFluidEntry("minecraft:water", 10.0),
                 createFluidEntry("minecraft:lava", 5.0)
         ));
 

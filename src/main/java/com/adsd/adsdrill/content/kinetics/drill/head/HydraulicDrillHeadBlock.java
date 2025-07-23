@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -55,15 +56,29 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
 
             core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.EXECUTE);
 
-            int totalMiningAmount = (int) (Math.abs(core.getFinalSpeed()) / 16f);
+            int totalMiningAmount = (int) (Math.abs(core.getFinalSpeed()) / 16f); // 이 값도 설정으로 뺄 수 있습니다.
             if (totalMiningAmount <= 0) return;
+
+            List<? extends String> bonusTagsStr = AdsDrillConfigs.SERVER.hydraulicBonusTags.get();
+            List<TagKey<Item>> bonusTags = bonusTagsStr.stream()
+                    .map(s -> TagKey.create(net.minecraft.core.registries.Registries.ITEM, ResourceLocation.parse(s)))
+                    .toList();
+            double bonusMultiplier = AdsDrillConfigs.SERVER.hydraulicBonusMultiplier.get();
 
             for (Map.Entry<Item, Float> entry : composition.entrySet()) {
                 Item item = entry.getKey();
-                float ratio = entry.getValue();
+                ItemStack itemStack = new ItemStack(item);
 
-                if (new ItemStack(item).is(ItemTags.create(SLUICE_TARGET_TAG))) {
-                    int specificMiningAmount = (int) Math.ceil(totalMiningAmount * ratio);
+                // 이 아이템이 '원자재' 태그를 가지고 있는지 확인 (기존 로직)
+                if (itemStack.is(ItemTags.create(SLUICE_TARGET_TAG))) {
+                    int specificMiningAmount = (int) Math.ceil(totalMiningAmount * entry.getValue());
+
+                    // 이 아이템이 보너스 태그 목록 중 하나에 속하는지 확인
+                    boolean hasBonus = bonusTags.stream().anyMatch(itemStack::is);
+                    if (hasBonus) {
+                        specificMiningAmount *= (int) bonusMultiplier;
+                    }
+
                     if (specificMiningAmount > 0) {
                         List<ItemStack> drops = core.mineSpecificNode(nodeBE, specificMiningAmount, 0, false, item);
                         for (ItemStack drop : drops) {
@@ -84,8 +99,6 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
             }
         }
     }
-
-    // --- IDrillHead 및 IBE 구현은 그대로 유지 ---
 
     @Override public float getHeatGeneration() { return HEAT_GENERATION; }
     @Override public float getCoolingRate() { return 0.2f; }

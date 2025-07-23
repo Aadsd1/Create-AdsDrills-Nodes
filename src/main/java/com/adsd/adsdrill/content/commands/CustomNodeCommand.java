@@ -44,8 +44,8 @@ public class CustomNodeCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("myaddon")
-                .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("create_node")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("simple")
                                 .then(Commands.argument("composition", StringArgumentType.greedyString())
                                         .executes(context -> createSimpleNode(context, StringArgumentType.getString(context, "composition"), 10000)) // 기본 매장량

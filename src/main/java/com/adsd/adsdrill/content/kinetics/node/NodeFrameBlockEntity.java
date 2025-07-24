@@ -204,7 +204,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         // 코어나 데이터가 없으면 진행도를 점차 감소시킴
         if (coreStack.isEmpty() || !hasData) {
             if (progress > 0) {
-                progress = Math.max(0, progress - 128);
+                progress = Math.max(0, progress - 1024);
             }
         } else {
             // 2. 코어 등급에 따른 파라미터 설정
@@ -250,6 +250,8 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                                 worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5,
                                 10, 0.4, 0.2, 0.4, 0.0);
                         level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
+                        setChanged();
+                        sendData();
                     } else {
                         progress = Math.max(0, progress - progressDecay);
                         // 일반 실패 피드백 (약함)
@@ -258,6 +260,9 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                                     worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5,
                                     5, 0.4, 0.2, 0.4, 0.01);
                         }
+
+                        setChanged();
+                        sendData();
                     }
                 }
             }

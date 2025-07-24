@@ -4,8 +4,10 @@ import com.adsd.adsdrill.AdsDrillAddon;
 import com.adsd.adsdrill.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.adsd.adsdrill.content.kinetics.node.OreNodeBlockEntity;
 import com.adsd.adsdrill.etc.AdsDrillPartialModels;
+import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
 import com.adsd.adsdrill.registry.AdsDrillBlocks;
 import com.adsd.adsdrill.registry.AdsDrillItems;
+import com.adsd.adsdrill.content.kinetics.node.OreNodeBlockEntityRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColor;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -24,6 +26,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 
@@ -121,7 +124,19 @@ public class ClientSetup {
 
     }
 
-    // 모델 등록 이벤트 핸들러는 그대로 유지합니다.
+    // BlockEntityRenderer 등록 이벤트 핸들러
+    @SubscribeEvent
+    public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(
+                AdsDrillBlockEntity.ORE_NODE.get(),
+                OreNodeBlockEntityRenderer::new
+        );
+        event.registerBlockEntityRenderer(
+                AdsDrillBlockEntity.ARTIFICIAL_NODE.get(),
+                OreNodeBlockEntityRenderer::new
+        );
+    }
+
     @SubscribeEvent
     public static void onModelRegister(ModelEvent.RegisterAdditional event) {
 

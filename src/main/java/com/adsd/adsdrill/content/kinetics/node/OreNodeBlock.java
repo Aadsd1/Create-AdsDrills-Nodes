@@ -2,6 +2,9 @@ package com.adsd.adsdrill.content.kinetics.node;
 
 import com.simibubi.create.foundation.block.IBE;
 import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -41,7 +44,23 @@ public class OreNodeBlock extends Block implements IBE<OreNodeBlockEntity> {
     protected @NotNull List<net.minecraft.world.item.ItemStack> getDrops(@NotNull BlockState pState, LootParams.@NotNull Builder pParams) {
         return Collections.emptyList();
     }
+    @Override
+    public boolean hasAnalogOutputSignal(@NotNull BlockState state) {
+        return true;
+    }
 
+    @Override
+    public int getAnalogOutputSignal(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof OreNodeBlockEntity nodeBE) {
+            float maxYield = nodeBE.getMaxYield();
+            if (maxYield == 0) return 0;
+            float currentYield = nodeBE.getCurrentYield();
+            float ratio = currentYield / maxYield;
+            // 내용물이 조금이라도 있으면 최소 1, 가득 차면 15를 반환하는 바닐라 표준 계산식
+            return Mth.floor(ratio * 14.0F) + (currentYield > 0 ? 1 : 0);
+        }
+        return 0;
+    }
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> pBuilder) {
         pBuilder.add(MINED);

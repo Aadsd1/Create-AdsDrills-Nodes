@@ -2,6 +2,8 @@ package com.adsd.adsdrill.data;
 
 
 import com.adsd.adsdrill.AdsDrillAddon;
+import com.adsd.adsdrill.config.AdsDrillConfigs;
+import com.adsd.adsdrill.crafting.Quirk;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.tterrag.registrate.providers.RegistrateDataProvider;
 import com.adsd.adsdrill.content.worldgen.ConditionalFeatureAdditionModifier;
@@ -15,6 +17,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.worldgen.BootstrapContext;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -85,34 +88,6 @@ public class AdsDrillDatagen {
 
 
     public static void addCustomLang(CreateRegistrate registrate) {
-        registrate.addRawLang("adsdrill.jei.info.stabilizer_cores", "Stabilizer Cores are used in the Node Frame to begin the Artificial Node crafting process. The tier of the core heavily influences the final node's stats, potential Quirks, and the required crafting speed.");
-
-        registrate.addRawLang("adsdrill.jei.category.node_assembly", "Node Assembly");
-        registrate.addRawLang("adsdrill.jei.category.module_upgrading", "Module Upgrading");
-        registrate.addRawLang("adsdrill.jei.category.drill_upgrading", "Drill Head Upgrading");
-        registrate.addRawLang("adsdrill.jei.category.drill_core_upgrading", "Drill Core Upgrading");
-        registrate.addRawLang("adsdrill.jei.category.node_combination", "Node Combination");
-        registrate.addRawLang("adsdrill.jei.category.laser_decomposition", "Laser Decomposition");
-
-        // Node Frame 툴팁 및 텍스트
-        registrate.addRawLang("adsdrill.jei.tooltip.node_data", "Insert 1 to 9 Unfinished Node Data items. More data increases the final node's yield.");
-        registrate.addRawLang("adsdrill.jei.tooltip.stabilizer_core", "A Stabilizer Core is required. The tier of the core determines the potential stats and Quirks of the final node.");
-        registrate.addRawLang("adsdrill.jei.tooltip.catalyst", "Optional. Catalysts increase the chance of specific Quirks appearing.");
-        registrate.addRawLang("adsdrill.jei.requires_drill", "Requires a Rotary Drill Head above, powered by a Drill Core.");
-
-        // 드릴 헤드 강화 텍스트
-        registrate.addRawLang("adsdrill.jei.fortune_1", "Fortune I");
-        registrate.addRawLang("adsdrill.jei.fortune_up_to_3", "Fortune (Up to III)");
-        registrate.addRawLang("adsdrill.jei.silk_touch", "Silk Touch");
-
-        // 노드 조합 텍스트
-        registrate.addRawLang("adsdrill.jei.in_cracked_node", "In a Cracked Ore Node");
-
-        registrate.addRawLang("adsdrill.jei.tooltip.minimum_ratio", "Min. Ratio: %s");
-        // 모루 튜닝 정보
-        registrate.addRawLang("adsdrill.jei.info.anvil_tuning", "The Netherite Node Locator can be tuned in an Anvil.\n\n- Combine with any Ore to make the locator target that specific resource.\n- Combine with Flint to clear any existing target.");
-
-        registrate.addRawLang("adsdrill.jei.tooltip.chance", "%s%% Chance");
 
         registrate.addRawLang("goggle.adsdrill.drill_core.header", "Drill Assembly");
         registrate.addRawLang("goggle.adsdrill.drill_core.invalid", "Structure Invalid");
@@ -398,5 +373,172 @@ public class AdsDrillDatagen {
         // Node Related
         registrate.addRawLang("tooltip.adsdrill.artificial_node.description", "An artificial Ore Node crafted in the Node Frame. Can be retrieved with a Wrench.");
         registrate.addRawLang("tooltip.adsdrill.ore_node_neutralizer.description", "Use on a natural Ore Node to permanently remove it.");
+
+        // ==================================================
+        //            JEI Categories & Basic UI Text
+        // ==================================================
+        registrate.addRawLang("adsdrill.jei.category.node_assembly", "Node Assembly");
+        registrate.addRawLang("adsdrill.jei.category.module_upgrading", "Module Upgrading");
+        registrate.addRawLang("adsdrill.jei.category.drill_upgrading", "Drill Head Upgrading");
+        registrate.addRawLang("adsdrill.jei.category.drill_core_upgrading", "Drill Core Upgrading");
+        registrate.addRawLang("adsdrill.jei.category.node_combination", "Node Combination");
+        registrate.addRawLang("adsdrill.jei.category.laser_decomposition", "Laser Decomposition");
+
+        registrate.addRawLang("adsdrill.jei.tooltip.node_data", "Insert 1 to 9 Unfinished Node Data items. More data increases the final node's yield.");
+        registrate.addRawLang("adsdrill.jei.tooltip.stabilizer_core", "A Stabilizer Core is required. The tier of the core determines the potential stats and Quirks of the final node.");
+        registrate.addRawLang("adsdrill.jei.tooltip.catalyst", "Optional. Catalysts increase the chance of specific Quirks appearing.");
+        registrate.addRawLang("adsdrill.jei.requires_drill", "Requires a Rotary Drill Head above, powered by a Drill Core.");
+        registrate.addRawLang("adsdrill.jei.in_cracked_node", "In a Cracked Ore Node");
+        registrate.addRawLang("adsdrill.jei.tooltip.minimum_ratio", "Min. Ratio: %s");
+        registrate.addRawLang("adsdrill.jei.info.anvil_tuning", "The Netherite Node Locator can be tuned in an Anvil.\n\n- Combine with any Ore to make the locator target that specific resource.\n- Combine with Flint to clear any existing target.");
+        registrate.addRawLang("adsdrill.jei.tooltip.chance", "%s%% Chance");
+
+        // 드릴 헤드 강화 텍스트
+        registrate.addRawLang("adsdrill.jei.fortune_1", "Fortune I");
+        registrate.addRawLang("adsdrill.jei.fortune_up_to_3", "Fortune (Up to III)");
+        registrate.addRawLang("adsdrill.jei.silk_touch", "Silk Touch");
+
+        // ==================================================
+        //               JEI Information Pages
+        // ==================================================
+
+        // --- Page 1: Introduction ---
+        registrate.addRawLang("adsdrill.jei.info.introduction.title", "§lIntroduction to Advanced Drilling");
+        registrate.addRawLang("adsdrill.jei.info.introduction.1",
+                "AdsDrill adds a modular, multi-block drilling system based on the Create mod. This guide will help you build, optimize, and unleash the full potential of your drills.");
+        registrate.addRawLang("adsdrill.jei.info.introduction.2",
+                "The core component is the 'Drill Core'. Attach a 'Drill Head' to begin mining, and connect various 'Modules' to its sides to enhance performance or add new functionality.");
+        registrate.addRawLang("adsdrill.jei.info.introduction.3",
+                "§6§lEngineer's Goggles§r are an essential tool for viewing real-time information about your drill's status, ore node statistics, and more.");
+        registrate.addRawLang("adsdrill.jei.info.introduction.4",
+                "§8Most detailed settings can be adjusted in the `adsdrill-server.toml` config file. The values in this guide are based on the default configuration.");
+
+        // --- Page 2: Drill Assembly ---
+        registrate.addRawLang("adsdrill.jei.info.structure.title", "§lDrill Assembly Basics");
+        registrate.addRawLang("adsdrill.jei.info.structure.1",
+                "A valid drill structure consists of one 'Drill Core', one 'Drill Head', and multiple 'Modules'. Wearing §6Goggles§r while looking at the core allows you to instantly check the structure's validity and its current stats.");
+        registrate.addRawLang("adsdrill.jei.info.structure.2",
+                "§71. Power Input:§r Rotational force from Create must be supplied to the 'back' of the Drill Core (the face with the arrow).");
+        registrate.addRawLang("adsdrill.jei.info.structure.3",
+                "§72. Head Attachment:§r The Drill Head must be placed on the 'front' of the Drill Core (opposite the back). The head's orientation must also face away from the core.");
+        registrate.addRawLang("adsdrill.jei.info.structure.4",
+                "§73. Module Connection:§r Modules can be attached to the 'sides' of the Drill Core (the four faces that are not the front or back), either directly or by chaining them off of other modules.");
+        registrate.addRawLang("adsdrill.jei.info.structure.5",
+                "§7Common reasons for an invalid structure include:§r");
+        registrate.addRawLang("adsdrill.jei.info.structure.error.loop",
+                "  - §cLoop Detected:§r Modules are connected in a way that forms a closed loop.");
+        registrate.addRawLang("adsdrill.jei.info.structure.error.multiple_cores",
+                "  - §cMultiple Cores:§r A single drill assembly can only have one Drill Core.");
+        registrate.addRawLang("adsdrill.jei.info.structure.error.limit",
+                "  - §cModule Limit Exceeded:§r The core's tier determines the maximum number of modules. (Config: brassDrillMaxModules, etc.)");
+        registrate.addRawLang("adsdrill.jei.info.structure.error.duplicate_processing",
+                "  - §cDuplicate Processing Module:§r Only one of each type of processing module (e.g., Furnace, Crusher) can be installed.");
+
+        // --- Page 3: Heat Management System ---
+        registrate.addRawLang("adsdrill.jei.info.heat.title", "§lHeat Management System");
+        registrate.addRawLang("adsdrill.jei.info.heat.1",
+                "Drills generate heat during operation, which directly impacts their efficiency. You can monitor the current heat, efficiency, and overheat status in real-time with §6Goggles§r.");
+        registrate.addRawLang("adsdrill.jei.info.heat.2",
+                "§7Heat Generation & Cooling:§r Heat increases based on the Drill Head type and rotational speed. When idle, the drill cools down. 'Heatsink' or 'Coolant' modules can accelerate cooling.");
+        registrate.addRawLang("adsdrill.jei.info.heat.3",
+                "§7Efficiency Ranges (Default Config):§r");
+        registrate.addRawLang("adsdrill.jei.info.heat.range.normal",
+                "  - §7Normal (0 - %s%%):§r Operates at 100%% efficiency.");
+        registrate.addRawLang("adsdrill.jei.info.heat.range.boost",
+                "  - §6Optimal Boost (%s%% - %s%%):§r Efficiency gradually increases up to a maximum of §e%sx§r.");
+        registrate.addRawLang("adsdrill.jei.info.heat.range.overload",
+                "  - §cOverloading (%s%% - 99.9%%):§r Efficiency begins to drop off sharply.");
+        registrate.addRawLang("adsdrill.jei.info.heat.range.overheated",
+                "  - §4Overheated (100%%):§r The drill shuts down immediately. It will not restart until the heat drops below §9%s%%§r.");
+
+        // --- Page 4: Mining Logic Explained ---
+        registrate.addRawLang("adsdrill.jei.info.mining.title", "§lMining Logic Explained");
+        registrate.addRawLang("adsdrill.jei.info.mining.1",
+                "Mining occurs whenever the drill's 'Mining Power' overcomes a node's 'Mining Resistance'. This is called a 'Mining Cycle'.");
+        registrate.addRawLang("adsdrill.jei.info.mining.step1_power",
+                "§7Step 1: Calculate Base Mining Power§r");
+        registrate.addRawLang("adsdrill.jei.info.mining.step1_detail",
+                "  - For rotary heads, this is the drill's final speed (RPM) divided by a config value (`rotarySpeedDivisor`: %s). Laser Heads have a fixed power (`laserMiningAmount`: %d).");
+        registrate.addRawLang("adsdrill.jei.info.mining.step2_effective_power",
+                "§7Step 2: Calculate Effective Mining Power§r");
+        registrate.addRawLang("adsdrill.jei.info.mining.step2_detail",
+                "  - The node's §bHardness§r acts as a divisor. Effective Mining Power is `Base Mining Power / Hardness`. A node with 2.0 Hardness will halve your mining power.");
+        registrate.addRawLang("adsdrill.jei.info.mining.step3_progress",
+                "§7Step 3: Accumulate Mining Progress§r");
+        registrate.addRawLang("adsdrill.jei.info.mining.step3_detail",
+                "  - Each tick (1/20s), 'Effective Mining Power' is added to 'Mining Progress'. Every node has a fixed 'Mining Resistance' of 1000.");
+        registrate.addRawLang("adsdrill.jei.info.mining.step4_cycle",
+                "§7Step 4: Cycle Completion & Rewards§r");
+        registrate.addRawLang("adsdrill.jei.info.mining.step4_detail",
+                "  - When 'Mining Progress' exceeds 'Mining Resistance' (1000), one §aMining Cycle§r is completed. The node's 'Yield' is consumed by 1, and an ore item is dropped. Any leftover progress carries over to the next cycle.");
+
+        // --- Page 5: Module System & Priority ---
+        registrate.addRawLang("adsdrill.jei.info.modules.title", "§lModule System & Priority");
+        registrate.addRawLang("adsdrill.jei.info.modules.1",
+                "Modules alter the drill's performance or add automation. Mined items pass through a chain of 'Processing Modules' in a specific order.");
+        registrate.addRawLang("adsdrill.jei.info.modules.2",
+                "§7Processing Order:§r Items are processed by modules with a lower priority number first. You can view the established processing order by looking at the core with §6Goggles§r.");
+        registrate.addRawLang("adsdrill.jei.info.modules.3",
+                "§7Setting Priority:§r Use a Wrench on a processing module (Furnace, Crusher, Filter, etc.) to cycle its priority from 1 to 10.");
+        registrate.addRawLang("adsdrill.jei.info.modules.4",
+                "§7System & Compactor Modules:§r Modules like the Coolant and Kinetic Dynamo affect the core directly each tick, while the Compactor acts after all other processing, so they do not have a set priority.");
+
+        // --- Page 6: Artificial Nodes & Quirks ---
+        registrate.addRawLang("adsdrill.jei.info.quirks.title", "§lArtificial Nodes & Quirks");
+        registrate.addRawLang("adsdrill.jei.info.quirks.1",
+                "Artificial Nodes, crafted in a Node Frame, can possess unique 'Quirks' that grant special effects, altering how they are mined or how they interact with the environment.");
+        registrate.addRawLang("adsdrill.jei.info.quirks.list_header",
+                "§7Known Quirks:§r");
+        for (Quirk quirk : Quirk.values()) {
+            String key = "adsdrill.jei.info.quirk." + quirk.getId();
+            String tierColor = quirk.getTier().getColor().toString();
+            String tierName = quirk.getTier().getName();
+            String quirkName = Component.translatable("quirk.adsdrill." + quirk.getId()).getString();
+            String description = Component.translatable("quirk.adsdrill." + quirk.getId() + ".description").getString();
+            registrate.addRawLang(key + ".base", "  - " + tierColor + "[" + tierName + "] " + quirkName + ":§7 " + description);
+            registrate.addRawLang(key + ".with_chance", "  - " + tierColor + "[" + tierName + "] " + quirkName + ":§7 " + description + " (Default Chance: %s%%)");
+        }
+
+        // --- Page 7: Advanced Node Crafting ---
+        registrate.addRawLang("adsdrill.jei.info.crafting.title", "§lAdvanced Node Crafting");
+        registrate.addRawLang("adsdrill.jei.info.crafting.1",
+                "The final properties of an Artificial Node are determined by the combination of 'Unfinished Node Data', a 'Stabilizer Core', and 'Catalysts'.");
+        registrate.addRawLang("adsdrill.jei.info.crafting.2",
+                "§7Ore Composition & Yield:§r");
+        registrate.addRawLang("adsdrill.jei.info.crafting.sub.composition",
+                "  - §bComposition:§r The final ore ratios are a weighted average based on the composition and yield of all input 'Node Data'.");
+        registrate.addRawLang("adsdrill.jei.info.crafting.sub.yield",
+                "  - §bYield:§r The final max yield is the sum of all input 'Node Data' yields, multiplied by a factor from the 'Stabilizer Core' (Brass: 0.8x, Steel: 1.0x, Netherite: 1.25x).");
+        registrate.addRawLang("adsdrill.jei.info.crafting.3",
+                "§7Base Stats (Hardness, Richness, Regeneration):§r");
+        registrate.addRawLang("adsdrill.jei.info.crafting.sub.stats",
+                "  - These are determined §drandomly§r within a range set by the 'Stabilizer Core' tier and are §cnot§r affected by the input data. Higher tier cores result in better average stats.");
+        registrate.addRawLang("adsdrill.jei.info.crafting.4",
+                "§7Fluid Content:§r");
+        registrate.addRawLang("adsdrill.jei.info.crafting.sub.fluid",
+                "  - The fluid with the highest total capacity among all input 'Node Data' will be chosen as the final fluid.");
+        registrate.addRawLang("adsdrill.jei.info.crafting.5",
+                "§7Quirks:§r");
+        registrate.addRawLang("adsdrill.jei.info.crafting.sub.quirk_core",
+                "  - §bStabilizer Core:§r Determines the §dnumber§r and §dtier§r (Common/Rare/Epic) of Quirks that can be generated.");
+        registrate.addRawLang("adsdrill.jei.info.crafting.sub.quirk_catalyst",
+                "  - §bCatalyst:§r Greatly increases the §dprobability§r of a specific, related Quirk appearing.");
+        registrate.addRawLang("adsdrill.jei.info.crafting.6",
+                "§lSummary:§r Use §eData§r to design your ore blend, a §eCore§r to set the overall power level, and §eCatalysts§r to target specific Quirks.");
+
+        // --- Page 8: Natural Ore Nodes ---
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.title", "§lNatural Ore Nodes");
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.1",
+                "Natural Ore Nodes are massive, indestructible ore deposits found deep underground. They can only be harvested by the AdsDrill system.");
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.2",
+                "§7Exploration:§r As these nodes do not generate exposed to air, a 'Node Locator' is required to find them.");
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.3",
+                "§7Composition:§r A node's ore content is influenced by the biome and dimension it spawns in. These rules can be configured in `dimension_profiles`.");
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.4",
+                "§7Information:§r Wearing §6Engineer's Goggles§r and looking at a node will display its detailed statistics, including yield, hardness, richness, regeneration, and fluid content.");
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.5",
+                "§7Utilization:§r You can either mine resources directly or use a 'Laser Drill Head' in Decomposition mode to break the node down into 'Unfinished Node Data' for crafting artificial nodes.");
+        registrate.addRawLang("adsdrill.jei.info.natural_nodes.6",
+                "§7Removal:§r The 'Ore Node Neutralizer' can be used to permanently destroy a natural ore node. This item will not work on artificial nodes.");
     }
 }

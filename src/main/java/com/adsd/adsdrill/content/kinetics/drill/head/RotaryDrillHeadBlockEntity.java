@@ -5,6 +5,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -60,6 +63,31 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
         this.clientHeat = heat;
         setChanged();
         sendData();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level != null && level.isClientSide) {
+            handleSound();
+        }
+    }
+
+    private void handleSound() {
+        if (getVisualSpeed() == 0) {
+            return;
+        }
+
+        assert level != null;
+        if (level.getGameTime() % 5 != 0) {
+            return;
+        }
+
+        float speed = Math.abs(getVisualSpeed());
+        float volume = Mth.clamp(speed / 256f, 0.01f, 0.25f);
+        float pitch = 0.8f + Mth.clamp(speed / 256f, 0.0f, 0.7f);
+
+        level.playLocalSound(worldPosition, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, volume, pitch, false);
     }
 
     @Override

@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public class FindOreModsCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralArgumentBuilder<CommandSourceStack> command = Commands.literal("myaddon")
+        LiteralArgumentBuilder<CommandSourceStack> command = Commands.literal("adsdrill")
                 .then(Commands.literal("findOreMods")
                         .requires(source -> source.hasPermission(2))
                         .executes(context -> listMods(context.getSource())) // 서브명령어 없이 실행 시 모드 목록 표시
@@ -63,7 +63,7 @@ public class FindOreModsCommand {
 
         source.sendSuccess(() -> Component.literal("Detected mods with Ore Features:").withStyle(ChatFormatting.GOLD), true);
         source.sendSuccess(() -> Component.literal(modList).withStyle(ChatFormatting.AQUA), false);
-        source.sendSuccess(() -> Component.literal("Use '/myaddon findOreMods details <modid>' for more info.").withStyle(ChatFormatting.GRAY), true);
+        source.sendSuccess(() -> Component.literal("Use '/adsdrill findOreMods details <modid>' for more info.").withStyle(ChatFormatting.GRAY), true);
 
         return modIdsWithOres.size();
     }

@@ -5,13 +5,16 @@ import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -19,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 // OreNodeBlock을 상속받고 IWrenchable를 구현합니다.
 public class ArtificialNodeBlock extends OreNodeBlock implements IWrenchable {
@@ -58,6 +62,18 @@ public class ArtificialNodeBlock extends OreNodeBlock implements IWrenchable {
         return super.getDrops(state, params);
     }
 
+    @Override
+    public @NotNull ItemStack getCloneItemStack(@NotNull BlockState state, @NotNull HitResult target, @NotNull LevelReader level, @NotNull BlockPos pos, @NotNull Player player) {
+        ItemStack stack = new ItemStack(this);
+        BlockEntity be = level.getBlockEntity(pos);
+
+        if (be instanceof OreNodeBlockEntity nodeBE) {
+            if (nodeBE.hasLevel()) {
+                nodeBE.saveToItem(stack, Objects.requireNonNull(nodeBE.getLevel()).registryAccess());
+            }
+        }
+        return stack;
+    }
     @Override
     public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
 

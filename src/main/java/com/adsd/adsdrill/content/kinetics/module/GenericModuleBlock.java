@@ -23,6 +23,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -39,6 +40,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -59,6 +61,25 @@ public class GenericModuleBlock extends Block implements IBE<GenericModuleBlockE
         super(properties);
         this.moduleType = moduleType;
     }
+
+    @Override
+    public boolean hasAnalogOutputSignal(@NotNull BlockState state) {
+        // 모듈 타입이 아이템 버퍼일 때만 신호를 출력한다고 알림
+        return getModuleType() == ModuleType.ITEM_BUFFER;
+    }
+
+    @Override
+    public int getAnalogOutputSignal(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos) {
+        // 아이템 버퍼가 아닐 경우를 대비하여 한 번 더 확인
+        if (getModuleType() == ModuleType.ITEM_BUFFER) {
+            if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity moduleBE && moduleBE.getItemHandler() != null) {
+                // 아이템 핸들러(인벤토리)의 내용물을 기반으로 레드스톤 신호를 계산하는 NeoForge의 헬퍼 메서드 사용
+                return ItemHandlerHelper.calcRedstoneFromInventory(moduleBE.getItemHandler());
+            }
+        }
+        return 0;
+    }
+
     @Override
     public InteractionResult onWrenched(BlockState state, UseOnContext context) {
         Level level = context.getLevel();

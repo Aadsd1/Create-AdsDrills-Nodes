@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -55,7 +56,21 @@ public class DrillCoreBlock extends DirectionalKineticBlock implements IBE<Drill
         super(properties);
         registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.SOUTH).setValue(TIER, Tier.BRASS));
     }
+    @Override
+    public boolean hasAnalogOutputSignal(@NotNull BlockState state) {
+        return true;
+    }
 
+    @Override
+    public int getAnalogOutputSignal(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof DrillCoreBlockEntity coreBE) {
+            // 열은 0~100의 값을 가지므로, 100으로 나누어 0~1 비율로 만듦
+            float ratio = coreBE.getHeat() / 100.0f;
+            // 비율에 15를 곱하여 신호 강도로 변환
+            return Mth.floor(ratio * 15.0f);
+        }
+        return 0;
+    }
     @Override
     public Class<DrillCoreBlockEntity> getBlockEntityClass() {
         return DrillCoreBlockEntity.class;

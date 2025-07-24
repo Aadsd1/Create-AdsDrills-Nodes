@@ -111,8 +111,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
     }
 
-
-
     private Tier coreTier = Tier.BRASS;
 
     public static final ModelProperty<DrillCoreBlockEntity> CORE_ENTITY_PROPERTY = new ModelProperty<>();
@@ -159,6 +157,13 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         return this.heat;
     }
 
+    /**
+     * 드릴 코어가 현재 과열로 인해 작동 중지 상태인지 여부를 반환합니다.
+     * @return 과열 상태이면 true
+     */
+    public boolean isOverheated() {
+        return this.isOverheated;
+    }
 
     public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 
@@ -343,6 +348,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         }
         return Optional.empty();
     }
+
     /**
      * 지정된 노드에 대해 채굴 로직을 적용하고 결과물을 반환합니다.
      * 모든 드릴 헤드는 이 메서드를 통해 채굴을 수행합니다.
@@ -351,19 +357,18 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
      * @param miningAmount 채굴량
      * @param fortune      적용할 행운 레벨
      * @param silkTouch    실크터치 적용 여부
+     * @param drillHeadPos 채굴을 수행하는 드릴 헤드의 위치
      * @return 채굴된 아이템 목록
      */
-    public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch) {
-        if (level == null || level.isClientSide() || cachedHeadPos == null) {
+    public List<ItemStack> mineNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch, BlockPos drillHeadPos) {
+        if (level == null || level.isClientSide() || drillHeadPos == null) {
             return Collections.emptyList();
         }
-        // OreNodeBlockEntity의 applyMiningTick 메서드를 직접 호출하여 결과를 반환합니다.
-        return nodeBE.applyMiningTick(miningAmount, fortune, silkTouch);
+        return nodeBE.applyMiningTick(miningAmount, fortune, silkTouch, drillHeadPos);
     }
-    // 특정 자원만 채굴하는 메서드
-    public List<ItemStack> mineSpecificNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch, Item specificItem) {
+    public List<ItemStack> mineSpecificNode(OreNodeBlockEntity nodeBE, int miningAmount, int fortune, boolean silkTouch, Item specificItem, BlockPos drillHeadPos) {
         if (level == null || level.isClientSide()) return List.of();
-        return nodeBE.applySpecificMiningTick(miningAmount, fortune, silkTouch, specificItem);
+        return nodeBE.applySpecificMiningTick(miningAmount, fortune, silkTouch, specificItem, drillHeadPos);
     }
 
     public void scheduleStructureCheck() {
@@ -1044,8 +1049,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
         }
     }
-
-    public Set<BlockPos> getStructureCache() { return this.structureCache; }
 
     /**
      * 채굴된 아이템을 받아 처리 체인을 시작하는 메서드.

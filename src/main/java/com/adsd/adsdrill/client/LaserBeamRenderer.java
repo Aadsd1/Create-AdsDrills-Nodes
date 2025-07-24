@@ -56,13 +56,8 @@ public class LaserBeamRenderer {
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         List<LaserDrillHeadBlockEntity> lasersToRender = new ArrayList<>(ACTIVE_LASERS.values());
 
-        // 2. 이제 원본 맵이 아닌, 안전한 복사본을 순회합니다.
         for (LaserDrillHeadBlockEntity laser : lasersToRender) {
-            // 레이저가 제거되었는지 확인하는 로직은 여전히 필요합니다.
-            // 이 검사는 원본 맵을 수정하는 removeLaser를 호출할 수 있지만,
-            // 현재 순회중인 lasersToRender 리스트에는 영향을 주지 않으므로 안전합니다.
             if (laser.isRemoved() || !laser.hasLevel()) {
-                // 원본 맵에서는 제거하여 다음 프레임부터는 렌더링되지 않도록 합니다.
                 removeLaser(laser.getBlockPos());
                 continue;
             }

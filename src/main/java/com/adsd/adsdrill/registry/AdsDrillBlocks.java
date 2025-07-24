@@ -172,7 +172,7 @@ public class AdsDrillBlocks {
     public static final BlockEntry<GenericModuleBlock> REDSTONE_BRAKE_MODULE = REGISTRATE
             .block("redstone_brake_module", p -> new GenericModuleBlock(p, ModuleType.REDSTONE_BRAKE))
             .initialProperties(SharedProperties::stone)
-            .properties(BlockBehaviour.Properties::noOcclusion)
+            .properties(p->p.noOcclusion().isRedstoneConductor((state,level,pos)->true))
             .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item((block, props) -> new TooltipBlockItem(block, props, "tooltip.adsdrill.redstone_brake_module.description"))
@@ -422,7 +422,7 @@ public class AdsDrillBlocks {
     public static final BlockEntry<GenericModuleBlock> COOLANT_MODULE = REGISTRATE
             .block("coolant_module", p -> new GenericModuleBlock(p, ModuleType.COOLANT))
             .initialProperties(SharedProperties::stone)
-            .properties(BlockBehaviour.Properties::noOcclusion)
+            .properties(p->p.noOcclusion().isRedstoneConductor((state,level,pos)->true))
             .loot(RegistrateBlockLootTables::dropSelf)
             .blockstate((c, p) -> p.simpleBlock(c.get(), AssetLookup.partialBaseModel(c, p)))
             .item((block, props) -> new TooltipBlockItem(block, props, "tooltip.adsdrill.coolant_module.description") {

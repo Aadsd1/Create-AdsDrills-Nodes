@@ -156,6 +156,7 @@ public class AdsDrillConfigs {
         public final ModConfigSpec.DoubleValue hydraulicBonusMultiplier;
         public final ModConfigSpec.DoubleValue coolantHeatReduction;
         public final ModConfigSpec.IntValue coolantWaterConsumption;
+        public final ModConfigSpec.DoubleValue coolantActivationThreshold;
         public final ModConfigSpec.DoubleValue kineticDynamoConversionRate;
         public final ModConfigSpec.ConfigValue<String> explosiveDrillConsumable;
         public final Map<Quirk, ModConfigSpec.BooleanValue> quirkEnabled = new EnumMap<>(Quirk.class);
@@ -171,7 +172,7 @@ public class AdsDrillConfigs {
         public final Map<ModuleType, ModConfigSpec.DoubleValue> moduleHeatModifiers = new EnumMap<>(ModuleType.class);
 
         public AdsdrillAddonServerConfig(ModConfigSpec.Builder builder) {
-            builder.comment("My Create Addon Server-Side Configurations").push("general");
+            builder.comment("Server-Side Configurations").push("general");
 
 
             builder.push("drill_core");
@@ -247,6 +248,8 @@ public class AdsDrillConfigs {
                     .defineInRange("heatReductionPerTick", 0.4, 0.0, 100.0);
             coolantWaterConsumption = builder.comment("Water (mB) consumed per tick by the Coolant Module.")
                     .defineInRange("waterConsumptionPerTick", 5, 1, 1000);
+            coolantActivationThreshold = builder.comment("Heat percentage (%) at which the Coolant Module activates automatically (without a redstone signal).")
+                    .defineInRange("activationHeatThreshold", 5.0, 0.0, 100.0);
             builder.pop();
 
             builder.push("kinetic_dynamo_module");
@@ -259,9 +262,9 @@ public class AdsDrillConfigs {
             builder.push("node_crafting");
             brassCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Brass Stabilizer Core.").defineInRange("brassCoreSpeedRequirement", 512, 32, 4096);
             steelCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Steel Stabilizer Core.").defineInRange("steelCoreSpeedRequirement", 1024, 32, 4096);
-            netheriteCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Netherite Stabilizer Core.").defineInRange("netheriteCoreSpeedRequirement", 2048, 32, 4096);
+            netheriteCoreSpeedRequirement = builder.comment("Minimum RPM required for crafting with a Netherite Stabilizer Core.").defineInRange("netheriteCoreSpeedRequirement", 1280, 32, 4096);
             brassCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Brass Stabilizer Core.").defineInRange("brassCoreFailurePenalty", 64, 0, 1024);
-            steelCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Steel Stabilizer Core.").defineInRange("steelCoreFailurePenalty", 256, 0, 1024);
+            steelCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Steel Stabilizer Core.").defineInRange("steelCoreFailurePenalty", 512, 0, 1024);
             nodeFrameRequiredProgress = builder.comment("Total progress required to craft an Artificial Node in the Node Frame.").defineInRange("nodeFrameRequiredProgress", 240000, 1000, Integer.MAX_VALUE);
             builder.pop();
 

@@ -8,10 +8,14 @@ import com.adsd.adsdrill.crafting.NodeRecipe;
 import com.adsd.adsdrill.crafting.Quirk;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
@@ -38,6 +42,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     public static final ModelProperty<BlockState> BACKGROUND_STATE = new ModelProperty<>();
 
 
+
     // --- 데이터 필드 ---
     private Map<Item, Float> resourceComposition = new HashMap<>();
     private Map<Item, Block> itemToBlockMap = new HashMap<>();
@@ -49,7 +54,13 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private float temporaryRegenBoost = 0;
     private boolean polarityBonusActive = false;
 
+
     private int miningProgress;
+    // 렌더링을 위한 클라이언트 전용 필드
+    private BlockPos miningDrillPos = null;
+    private int ticksSinceLastUpdate = 0;
+    private float clientMiningProgress = 0f;
+
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
     private ResourceLocation oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
 
@@ -78,45 +89,31 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         this.polarityBonusActive = active;
     }
 
-    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine) {
-        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
-            return Collections.emptyList();
-        }
 
-        float effectiveMiningAmount = miningAmount / getHardness();
-        this.miningProgress += (int) effectiveMiningAmount;
-        int miningResistance = 1000;
 
-        if (this.miningProgress >= miningResistance) {
-            this.miningProgress -= miningResistance;
-            this.currentYield--;
+    // 드릴 헤드에서 호출할 메서드
+    public void setMiningDrill(BlockPos drillPos) {
+        if (!Objects.equals(this.miningDrillPos, drillPos)) {
+            this.miningDrillPos = drillPos;
+            this.miningProgress = 0;
             setChanged();
             sendData();
-
-            // 실크터치는 여기서도 작동
-            if (hasSilkTouch) {
-                Block blockToDrop = this.itemToBlockMap.get(specificItemToMine);
-                return Collections.singletonList(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
-            }
-
-            // 행운/풍부함 로직 적용
-            ItemStack finalDrop = new ItemStack(specificItemToMine);
-            int dropCount = 1;
-            if (fortuneLevel > 0) {
-                RandomSource rand = serverLevel.getRandom();
-                for (int i = 0; i < fortuneLevel; i++) {
-                    if (rand.nextInt(fortuneLevel + 2) > 1) dropCount++;
-                }
-            }
-            finalDrop.setCount(dropCount);
-            if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                finalDrop.grow(finalDrop.getCount());
-            }
-
-            return Collections.singletonList(finalDrop);
         }
+    }
 
-        return Collections.emptyList();
+    public void stopMining() {
+        if (level == null || level.isClientSide) return;
+        if (this.miningProgress != 0 || this.miningDrillPos != null) {
+            this.miningProgress = 0;
+            this.miningDrillPos = null;
+            setChanged();
+            sendData();
+        }
+    }
+
+    // 렌더러가 사용할 Getter
+    public float getClientMiningProgress() {
+        return clientMiningProgress;
     }
 
     @Override
@@ -174,6 +171,14 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         // 실제 유체 양을 반영하여 반환
         return new FluidStack(fluidContent.getFluid(), (int) currentFluidAmount);
+    }
+
+    public int getMaxYield() {
+        return this.maxYield;
+    }
+
+    public float getCurrentYield() {
+        return this.currentYield;
     }
 
     /**
@@ -238,7 +243,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 
 
-    public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch) {
+    public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch,BlockPos miningDrillPos) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0) {
             return Collections.emptyList();
         }
@@ -263,10 +268,25 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         this.miningProgress += (int) effectiveMiningAmount;
 
-        int miningResistance = 1000; // 채굴 저항값 (설정으로 뺄 수도 있음)
+        if (level.getGameTime() % 2 == 0) {
+            setChanged();
+            sendData();
+        }
+
+        int miningResistance = 1000; // 채굴 저항값
 
         if (this.miningProgress >= miningResistance) {
             this.miningProgress -= miningResistance;
+
+            if (miningDrillPos != null) {
+                // 채굴된 면의 방향을 계산합니다.
+                Direction miningFace = Direction.getNearest(
+                        (float)(this.worldPosition.getX() - miningDrillPos.getX()),
+                        (float)(this.worldPosition.getY() - miningDrillPos.getY()),
+                        (float)(this.worldPosition.getZ() - miningDrillPos.getZ())
+                );
+                spawnMiningParticles(serverLevel, miningFace);
+            }
 
             // [3. 조합 레시피 확인] 균열 상태일 때만 조합을 시도합니다.
             if (this.isCracked()) {
@@ -313,6 +333,63 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return Collections.emptyList();
     }
 
+    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine, BlockPos miningDrillPos) {
+        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
+            return Collections.emptyList();
+        }
+
+        float effectiveMiningAmount = miningAmount / getHardness();
+        this.miningProgress += (int) effectiveMiningAmount;
+
+
+        if (level.getGameTime() % 2 == 0) {
+            setChanged();
+            sendData();
+        }
+
+        int miningResistance = 1000;
+
+        if (this.miningProgress >= miningResistance) {
+            this.miningProgress -= miningResistance;
+            this.currentYield--;
+            setChanged();
+            sendData();
+
+            if (miningDrillPos != null) {
+                Direction miningFace = Direction.getNearest(
+                        (float)(this.worldPosition.getX() - miningDrillPos.getX()),
+                        (float)(this.worldPosition.getY() - miningDrillPos.getY()),
+                        (float)(this.worldPosition.getZ() - miningDrillPos.getZ())
+                );
+                spawnMiningParticles(serverLevel, miningFace);
+            }
+
+            // 실크터치는 여기서도 작동
+            if (hasSilkTouch) {
+                Block blockToDrop = this.itemToBlockMap.get(specificItemToMine);
+                return Collections.singletonList(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
+            }
+
+            // 행운/풍부함 로직 적용
+            ItemStack finalDrop = new ItemStack(specificItemToMine);
+            int dropCount = 1;
+            if (fortuneLevel > 0) {
+                RandomSource rand = serverLevel.getRandom();
+                for (int i = 0; i < fortuneLevel; i++) {
+                    if (rand.nextInt(fortuneLevel + 2) > 1) dropCount++;
+                }
+            }
+            finalDrop.setCount(dropCount);
+            if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                finalDrop.grow(finalDrop.getCount());
+            }
+
+            return Collections.singletonList(finalDrop);
+        }
+
+        return Collections.emptyList();
+    }
+
 
     private boolean checkRecipeConditions(NodeRecipe recipe) {
         // 1. 유체 조건 확인
@@ -338,7 +415,42 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         return true;
     }
+    /**
+     * 채굴이 완료된 면에 배경 블록 파티클을 생성하는 메서드입니다.
+     * @param level 서버 월드
+     * @param face 채굴이 이루어진 면
+     */
+    private void spawnMiningParticles(ServerLevel level, Direction face) {
+        BlockState backgroundState = getBackgroundStateClient(); // 렌더링용으로 만든 메서드 재활용
+        BlockParticleOption particleOption = new BlockParticleOption(ParticleTypes.BLOCK, backgroundState);
+        RandomSource random = level.getRandom();
 
+        face=face.getOpposite();
+
+        // 파티클을 30개 생성
+        for (int i = 0; i < 30; ++i) {
+            double px = worldPosition.getX() + random.nextDouble();
+            double py = worldPosition.getY() + random.nextDouble();
+            double pz = worldPosition.getZ() + random.nextDouble();
+
+            // 면의 위치에 따라 파티클 생성 위치를 고정
+            switch (face) {
+                case DOWN -> py = worldPosition.getY();
+                case UP -> py = worldPosition.getY() + 1.0;
+                case NORTH -> pz = worldPosition.getZ();
+                case SOUTH -> pz = worldPosition.getZ() + 1.0;
+                case WEST -> px = worldPosition.getX();
+                case EAST -> px = worldPosition.getX() + 1.0;
+            }
+
+            // 면의 바깥쪽으로 약간 튀어나가도록 속도 설정
+            double xd = (random.nextDouble() - 0.5) * 0.2 + face.getStepX() * 0.1;
+            double yd = (random.nextDouble() - 0.5) * 0.2 + face.getStepY() * 0.1;
+            double zd = (random.nextDouble() - 0.5) * 0.2 + face.getStepZ() * 0.1;
+
+            level.sendParticles(particleOption, px, py, pz, 1, xd, yd, zd, 0.1);
+        }
+    }
     /**
      * 일반적인 채굴 규칙에 따라 드롭될 아이템 리스트를 반환합니다.
      * 이 메서드는 조합 레시피가 발동하지 않았을 때 호출됩니다.
@@ -434,14 +546,25 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     public void tick() {
         super.tick();
 
-        if (level == null) return;
 
+        if (level != null && level.isClientSide) {
+            clientTick();
+        }
+        assert level != null;
         if(!level.isClientSide){
             serverTick();
         }
     }
 
-
+    private void clientTick() {
+        if (miningDrillPos != null) {
+            ticksSinceLastUpdate++;
+            // 5틱(0.25초) 이상 업데이트가 없으면 채굴이 멈춘 것으로 간주
+            if (ticksSinceLastUpdate > 5) {
+                miningDrillPos = null;
+            }
+        }
+    }
 
     private void serverTick() {
         // 주기적 효과 처리 (중복 로직 제거 및 통합)
@@ -501,6 +624,11 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         if (level.getGameTime() % 20 == 0) {
             setChanged();
         }
+    }
+
+    // 렌더러가 사용할 Getter
+    public BlockPos getMiningDrillPos() {
+        return miningDrillPos;
     }
 
     // 주기적 효과를 처리하는 새 메서드
@@ -570,6 +698,14 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             tag.putInt("MaxFluidCapacity", maxFluidCapacity);
             tag.putFloat("CurrentFluidAmount", currentFluidAmount);
         }
+
+        if (clientPacket) {
+            tag.putFloat("ClientProgress", (float)this.miningProgress / 1000.0f);
+            if(miningDrillPos!=null){
+                tag.put("MiningDrillPos", NbtUtils.writeBlockPos(miningDrillPos));
+            }
+        }
+
     }
 
     @Override
@@ -630,6 +766,15 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
 
         if (clientPacket) {
+            this.clientMiningProgress=tag.getFloat("ClientProgress");
+            if(tag.contains("MiningDrillPos")){
+                this.miningDrillPos=NbtUtils.readBlockPos(tag,"MiningDrillPos").orElse(null);
+                this.ticksSinceLastUpdate=0;
+            }
+            else{
+                this.miningDrillPos=null;
+            }
+
             requestModelDataUpdate();
             if (level != null) {
                 level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);

@@ -50,7 +50,6 @@ public class LaserBeamRenderer {
         Vec3 cameraPos = camera.getPosition();
 
         MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
-        // [핵심 수정] 우리가 만든 커스텀 렌더 타입을 사용합니다.
         VertexConsumer buffer = bufferSource.getBuffer(AdsDrillRenderTypes.LASER_BEAM);
 
         poseStack.pushPose();
@@ -88,7 +87,7 @@ public class LaserBeamRenderer {
         }
 
         poseStack.popPose();
-        // [핵심 수정] 커스텀 렌더 타입의 그리기를 완료합니다.
+        // 커스텀 렌더 타입의 그리기를 완료합니다.
         bufferSource.endBatch(AdsDrillRenderTypes.LASER_BEAM);
     }
 

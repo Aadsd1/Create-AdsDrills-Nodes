@@ -5,7 +5,7 @@ import com.adsd.adsdrill.AdsDrillAddon;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.tterrag.registrate.providers.RegistrateDataProvider;
 import com.adsd.adsdrill.content.worldgen.ConditionalFeatureAdditionModifier;
-import com.adsd.adsdrill.data.recipe.AnyCraftRecipeGen;
+import com.adsd.adsdrill.data.recipe.GeneralRecipeGen;
 import com.adsd.adsdrill.data.recipe.MixRecipeGen;
 import com.adsd.adsdrill.data.recipe.SequencialRecipeGen;
 import com.adsd.adsdrill.registry.AdsDrillFeatures;
@@ -49,7 +49,7 @@ public class AdsDrillDatagen {
                 true,
                 new RegistrateDataProvider(REGISTRATE, MOD_ID, event)
         );
-        generator.addProvider(event.includeServer(), new AnyCraftRecipeGen(packOutput, lookupProvider));
+        generator.addProvider(event.includeServer(), new GeneralRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new MixRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new SequencialRecipeGen(packOutput, lookupProvider));
         generator.addProvider(event.includeServer(), new AdvancementProvider(packOutput));

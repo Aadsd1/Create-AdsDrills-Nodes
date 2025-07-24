@@ -15,19 +15,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-// [핵심 수정] biomes 필드를 제거하여 레코드를 단순화
 public record ConditionalFeatureAdditionModifier(Holder<PlacedFeature> feature) implements BiomeModifier {
 
     public static MapCodec<ConditionalFeatureAdditionModifier> makeCodec() {
         return RecordCodecBuilder.mapCodec(builder -> builder.group(
-                // [핵심 수정] feature 필드만 인코딩/디코딩
                 PlacedFeature.CODEC.fieldOf("feature").forGetter(ConditionalFeatureAdditionModifier::feature)
         ).apply(builder, ConditionalFeatureAdditionModifier::new));
     }
 
     @Override
     public void modify(@NotNull Holder<Biome> biome, @NotNull Phase phase, ModifiableBiomeInfo.BiomeInfo.@NotNull Builder builder) {
-        // [핵심 수정] biomes.contains() 체크를 완전히 제거. 이 Modifier는 모든 바이옴에 대해 실행됨.
         if (phase == Phase.ADD) {
             List<? extends String> allowedDimensions = AdsDrillConfigs.SERVER.allowedDimensions.get();
 

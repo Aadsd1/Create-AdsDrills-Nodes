@@ -135,6 +135,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     private static final int GOGGLE_UPDATE_DEBOUNCE = 10; // 10틱 (0.5초) 마다 업데이트
     private int tickCounter = 0;
+    private static final int STRUCTURE_CHECK_COOLDOWN_TICKS = 2;
 
     private float visualSpeed = 0f;
 
@@ -415,7 +416,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             this.cachedHeadPos = potentialHeadPos;
             this.totalStressImpact += head.getStressImpact();
 
-            // [신규] 레이저 헤드인지 확인
             if (head instanceof LaserDrillHeadBlock) {
                 isLaserHeadAttached = true;
             }
@@ -506,7 +506,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                                 bulkProcessingModules.add(modulePos);
                             }
 
-                        } else if (type == ModuleType.RESONATOR) { // [핵심 수정]
+                        } else if (type == ModuleType.RESONATOR) {
                             if (!foundProcessingKeys.add(ModuleType.RESONATOR)) {
                                 isDuplicate = true;
                             } else {
@@ -518,7 +518,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                         else if (type == ModuleType.COOLANT || type == ModuleType.KINETIC_DYNAMO || type == ModuleType.ENERGY_INPUT) {
                             activeSystemModules.add(modulePos);
 
-                        } else if (type == ModuleType.REDSTONE_BRAKE) { // [신규]
+                        } else if (type == ModuleType.REDSTONE_BRAKE) {
                             redstoneBrakeModules.add(modulePos);
                         }
 
@@ -593,7 +593,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
-    // [신규] 레드스톤 신호로 정지되었는지 확인하는 헬퍼 메서드
+    // 레드스톤 신호로 정지되었는지 확인하는 헬퍼 메서드
     private boolean isHaltedByRedstone() {
         if (level == null || redstoneBrakeModules.isEmpty()) {
             return false;
@@ -681,7 +681,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public float getSpeed() {
         if (isOverStressed()) return 0;
 
-        // [핵심 수정] 모듈 배율과 함께 티어 보너스 배율을 추가로 곱해줍니다.
         float baseSpeed = super.getTheoreticalSpeed();
         return (float) (baseSpeed * this.speedMultiplier * coreTier.getSpeedBonus());
     }
@@ -691,13 +690,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
-    // [유지] 이 메서드들은 스트레스 관련 문제를 최종적으로 해결하기 위해 여전히 필요합니다.
 
     @Override
     public float calculateStressApplied() {
         if (!structureValid || invalidityReason == InvalidityReason.HEAD_MISSING) return 0;
-        // [핵심 수정] 기본 스트레스(코어+헤드)에 모듈로 인한 스트레스 배율을 곱합니다.
-        // Reinforcement 모듈(-2.0f) 같은 경우엔 stressMultiplier가 음수가 되므로, 0 이상이 되도록 clamp 처리합니다.
         float finalStress = (float) (this.totalStressImpact * Math.max(0, this.stressMultiplier));
         return Math.max(0, finalStress);
     }
@@ -714,8 +710,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         super.write(compound, registries, clientPacket);
         compound.putBoolean("StructureValid", this.structureValid);
 
-        // [핵심 수정] 새로운 배율 변수들을 저장합니다.
-        // 기본값(1.0)이 아닐 때만 저장하여 NBT 데이터를 최적화할 수 있습니다.
         if (this.speedMultiplier != 1.0)
             compound.putDouble("SpeedMultiplier", this.speedMultiplier);
         if (this.stressMultiplier != 1.0)
@@ -724,7 +718,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             compound.putDouble("HeatMultiplier", this.heatMultiplier);
 
         compound.putString("CoreTier", coreTier.name());
-        // totalStressImpact는 이제 모듈 스트레스를 제외한 '기본' 스트레스 합계입니다.
         compound.putFloat("BaseStressImpact", this.totalStressImpact);
         compound.putInt("InvalidityReason", this.invalidityReason.ordinal());
 
@@ -732,7 +725,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         energyTag.putInt("Amount", this.energyBuffer.getEnergyStored());
         energyTag.putInt("Capacity", this.energyBuffer.getMaxEnergyStored());
         compound.put("EnergyData", energyTag);
-        // [핵심 수정] NbtUtils 대신 수동으로 X, Y, Z 저장
         ListTag chainTag = new ListTag();
         for (BlockPos pos : processingModuleChain) {
             CompoundTag posTag = new CompoundTag();
@@ -756,10 +748,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             }
             compound.put("StructureCache", cacheList);
 
-
-
-            // --- [핵심 추가] ---
-            // 공명기 모듈 위치 리스트를 클라이언트에 동기화합니다.
             if (!resonatorModules.isEmpty()) {
                 ListTag resonatorList = new ListTag();
                 for (BlockPos pos : resonatorModules) {
@@ -782,8 +770,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         super.read(compound, registries, clientPacket);
         this.structureValid = compound.getBoolean("StructureValid");
 
-        // [핵심 수정] 새로운 배율 변수들을 NBT에서 읽어옵니다.
-        // 키가 없으면 기본값(1.0)을 사용합니다.
         this.speedMultiplier = compound.contains("SpeedMultiplier") ? compound.getDouble("SpeedMultiplier") : 1.0;
         this.stressMultiplier = compound.contains("StressMultiplier") ? compound.getDouble("StressMultiplier") : 1.0;
         this.heatMultiplier = compound.contains("HeatMultiplier") ? compound.getDouble("HeatMultiplier") : 1.0;
@@ -792,10 +778,10 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             try {
                 this.coreTier = Tier.valueOf(compound.getString("CoreTier"));
             } catch (IllegalArgumentException e) {
-                this.coreTier = Tier.BRASS; // 혹시 모를 오류에 대비한 기본값
+                this.coreTier = Tier.BRASS;
             }
         } else {
-            this.coreTier = Tier.BRASS; // 이전 버전 호환
+            this.coreTier = Tier.BRASS;
         }
         // BaseStressImpact를 읽어와 totalStressImpact에 할당합니다.
         this.totalStressImpact = compound.contains("BaseStressImpact") ? compound.getFloat("BaseStressImpact") : coreTier.getBaseStress();
@@ -810,13 +796,12 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             this.invalidityReason = InvalidityReason.NONE;
         }
 
-        // [핵심 수정] 별도로 저장된 에너지 양과 용량을 읽습니다.
-        if (compound.contains("EnergyData", 10)) { // 10은 CompoundTag 타입
+        if (compound.contains("EnergyData", 10)) {
             CompoundTag energyTag = compound.getCompound("EnergyData");
             this.energyBuffer.setCapacity(energyTag.getInt("Capacity"));
             this.energyBuffer.setEnergy(energyTag.getInt("Amount"));
         }
-        // [핵심 수정] processingModuleChain을 클라이언트와 서버 양쪽에서 모두 로드하도록 변경
+
         processingModuleChain.clear();
         if (compound.contains("ProcessingChain", 9)) {
             ListTag chainTag = compound.getList("ProcessingChain", 10);
@@ -863,9 +848,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 }
             }
         } else {
-            // [핵심 수정] 서버가 월드를 로드할 때, 다음 틱에 구조 재검사를 강제함
-
-            this.structureCheckCooldown = 2;
+            this.structureCheckCooldown = STRUCTURE_CHECK_COOLDOWN_TICKS;
         }
     }
 
@@ -1001,12 +984,11 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 eventHandledByHead = headBlock.onOverheat(level, cachedHeadPos, this);
             }
 
-            // [!!! 수정됨: 전략 패턴 적용 !!!]
             Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
             BlockPos nodePos = cachedHeadPos.relative(headFacing);
             if (level.getBlockEntity(nodePos) instanceof ArtificialNodeBlockEntity artificialNode) {
                 Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, nodePos, artificialNode, this);
-                for (Quirk quirk : artificialNode.getQuirks()) { // artificialNode에 getQuirks() getter 필요
+                for (Quirk quirk : artificialNode.getQuirks()) {
                     quirk.onDrillCoreOverheat(context);
                 }
             }
@@ -1039,19 +1021,19 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // --- 채굴 로직 호출 ---
         if (hasHead() && headBlock != null) {
-            // [핵심 수정] 헤드 BE의 종류에 따라 올바른 처리를 하도록 변경
+            // 헤드 BE의 종류에 따라 올바른 처리를 하도록 변경
             if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(-finalSpeed); // Rotary는 반대로 회전
                 if (needsSync) {
                     headBE.updateClientHeat(this.heat);
                 }
             }
-            // [신규] 펌프 헤드에 대한 속도 전달 로직 추가
+            // 펌프 헤드에 대한 속도 전달 로직
             else if (level.getBlockEntity(cachedHeadPos) instanceof PumpHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(finalSpeed); // 펌프는 정방향 회전
                 // 펌프는 열 시각화가 없으므로 updateClientHeat는 호출하지 않음
 
-            } else if (level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity headBE) { // [신규]
+            } else if (level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity headBE) {
                 headBE.updateVisualSpeed(finalSpeed); // 레이저는 정방향 회전
             }
             else if (level.getBlockEntity(cachedHeadPos) instanceof HydraulicDrillHeadBlockEntity headBE) {
@@ -1077,7 +1059,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         List<ItemStack> stacksToProcess = new ArrayList<>();
         stacksToProcess.add(minedItem);
 
-        // [핵심 수정] 처리 체인을 순회하며 각 모듈의 역할을 수행
+        // 처리 체인을 순회하며 각 모듈의 역할을 수행
         for (BlockPos modulePos : processingModuleChain) {
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
 

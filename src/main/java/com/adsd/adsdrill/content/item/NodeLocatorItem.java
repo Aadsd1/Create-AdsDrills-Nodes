@@ -187,7 +187,7 @@ public class NodeLocatorItem extends Item {
         tooltip.add(Component.literal(""));
         tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.usage").withStyle(ChatFormatting.DARK_GRAY));
 
-        // [핵심 수정] 네더라이트 티어일 때만 모루 강화 툴팁 추가
+        // 네더라이트 티어일 때만 모루 강화 툴팁 추가
         if (this.tier == Tier.NETHERITE) {
             tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.tuning_info").withStyle(ChatFormatting.DARK_GRAY));
         }

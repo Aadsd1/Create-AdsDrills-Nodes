@@ -69,7 +69,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
 
 
     public List<BlockPos> activeTargets = new ArrayList<>();
-    private final List<BlockPos> designatedTargets = new ArrayList<>(); // [신규] 플레이어가 지정한 타겟
+    private final List<BlockPos> designatedTargets = new ArrayList<>(); // 플레이어가 지정한 타겟
 
 
     public LaserDrillHeadBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -91,7 +91,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
             designatedTargets.remove(targetPos);
             player.displayClientMessage(Component.translatable("adsdrill.node_designator.target_removed", targetPos.toShortString()).withStyle(ChatFormatting.RED), true);
         } else {
-            if (currentMode == OperatingMode.WIDE_BEAM && designatedTargets.size() >= 4) {
+            if (currentMode == OperatingMode.WIDE_BEAM && designatedTargets.size() >= AdsDrillConfigs.SERVER.laserWideBeamMaxTargets.get()) {
                 player.displayClientMessage(Component.translatable("adsdrill.node_designator.target_limit").withStyle(ChatFormatting.YELLOW), true);
                 return;
             }
@@ -348,7 +348,6 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         compound.putString("Mode", currentMode.name());
         compound.putInt("DecompositionProgress", decompositionProgress);
 
-        // [핵심 수정] BlockPos 리스트를 IntArrayTag 리스트로 저장합니다.
         ListTag designatedList = new ListTag();
         for (BlockPos pos : designatedTargets) {
             designatedList.add(new IntArrayTag(new int[]{pos.getX(), pos.getY(), pos.getZ()}));
@@ -374,7 +373,6 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
         }
         decompositionProgress = compound.getInt("DecompositionProgress");
 
-        // [핵심 수정] IntArrayTag 리스트에서 BlockPos를 읽어옵니다.
         designatedTargets.clear();
         if (compound.contains("DesignatedTargets", 9)) { // 11 = IntArrayTag
             ListTag designatedList = compound.getList("DesignatedTargets", 11);

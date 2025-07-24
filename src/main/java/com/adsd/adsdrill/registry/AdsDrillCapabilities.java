@@ -35,12 +35,11 @@ public class AdsDrillCapabilities {
                     if (moduleBE.getModuleType() == ModuleType.FLUID_BUFFER) {
                         return moduleBE.getFluidHandler();
                     }
-                    // I/O 모듈 로직...
                     return null; // 그 외 타입은 노출 안 함
                 }
         );
 
-        // [신규] 에너지 핸들러 등록
+        // 에너지 핸들러 등록
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
                 AdsDrillBlockEntity.GENERIC_MODULE.get(),

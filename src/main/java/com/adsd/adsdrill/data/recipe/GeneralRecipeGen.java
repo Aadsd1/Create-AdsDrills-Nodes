@@ -14,10 +14,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
 
-public class AnyCraftRecipeGen extends RecipeProvider {
+public class GeneralRecipeGen extends RecipeProvider {
 
 
-    public AnyCraftRecipeGen(PackOutput output, CompletableFuture<HolderLookup.Provider> registries) {
+    public GeneralRecipeGen(PackOutput output, CompletableFuture<HolderLookup.Provider> registries) {
         super(output, registries);
     }
 

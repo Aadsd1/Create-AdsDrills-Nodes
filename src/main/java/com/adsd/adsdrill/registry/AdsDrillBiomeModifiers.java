@@ -6,7 +6,7 @@ import com.adsd.adsdrill.AdsDrillAddon;
 import com.adsd.adsdrill.content.worldgen.ConditionalFeatureAdditionModifier;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.world.BiomeModifier;
-import net.neoforged.neoforge.registries.DeferredHolder; // [신규] import
+import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 

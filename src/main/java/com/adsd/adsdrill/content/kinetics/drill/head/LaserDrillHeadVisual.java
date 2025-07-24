@@ -32,7 +32,7 @@ public class LaserDrillHeadVisual extends KineticBlockEntityVisual<LaserDrillHea
 
         Direction facing = this.blockState.getValue(LaserDrillHeadBlock.FACING);
 
-        // [핵심 수정] rotateToFace를 사용하여 모델 전체의 방향을 설정합니다.
+        // rotateToFace를 사용하여 모델 전체의 방향을 설정합니다.
         cog1.setPosition(getVisualPosition())
                 .rotateToFace(Direction.UP, facing); // UP을 기준으로 만들어진 모델을 facing 방향으로 회전
 
@@ -46,10 +46,10 @@ public class LaserDrillHeadVisual extends KineticBlockEntityVisual<LaserDrillHea
 
     private void updateRotation() {
         float speed = this.blockEntity.getVisualSpeed();
-        // [핵심 수정] 헤드가 설치된 방향(FACING)을 기준으로 회전축을 동적으로 결정합니다.
+        // 헤드가 설치된 방향(FACING)을 기준으로 회전축을 동적으로 결정합니다.
         // 모델이 UP을 기준으로 만들어졌으므로, FACING 방향의 Y축이 회전축이 됩니다.
         Direction.Axis axis = this.blockState.getValue(DirectionalKineticBlock.FACING).getAxis();
-        // [핵심 수정] rotateToFace를 사용하여 모델 전체의 방향을 설정합니다.
+        // rotateToFace를 사용하여 모델 전체의 방향을 설정합니다.
 
         cog1.setup(blockEntity, axis, speed).setChanged();
         cog2.setup(blockEntity, axis, -speed).setChanged();
@@ -66,8 +66,6 @@ public class LaserDrillHeadVisual extends KineticBlockEntityVisual<LaserDrillHea
 
     @Override
     public void updateLight(float partialTick) {
-        // [핵심 수정] 이제 정적 모델이 없으므로, 회전 모델만 relight합니다.
-        // block.json으로 정의된 기본 프레임은 Flywheel이 자동으로 처리합니다.
         relight(cog1, cog2);
     }
 

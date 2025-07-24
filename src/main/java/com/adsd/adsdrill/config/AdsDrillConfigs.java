@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 public class AdsDrillConfigs {
 
-    public static final MyAddonServerConfig SERVER;
+    public static final AdsdrillAddonServerConfig SERVER;
     private static final ModConfigSpec SERVER_SPEC;
 
     private static final Map<ResourceLocation, DimensionGenerationProfile> dimensionProfileCache = new ConcurrentHashMap<>();
@@ -37,7 +37,7 @@ public class AdsDrillConfigs {
     private static final Map<ModuleType, ModuleConfig> moduleConfigCache = new EnumMap<>(ModuleType.class);
     static {
         final ModConfigSpec.Builder serverBuilder = new ModConfigSpec.Builder();
-        SERVER = new MyAddonServerConfig(serverBuilder);
+        SERVER = new AdsdrillAddonServerConfig(serverBuilder);
         SERVER_SPEC = serverBuilder.build();
     }
 
@@ -107,7 +107,7 @@ public class AdsDrillConfigs {
     }
 
 
-    public static class MyAddonServerConfig {
+    public static class AdsdrillAddonServerConfig {
         public final ModConfigSpec.ConfigValue<List<? extends String>> allowedDimensions;
 
         //월드 생성 관련 설정
@@ -170,7 +170,7 @@ public class AdsDrillConfigs {
         public final Map<ModuleType, ModConfigSpec.DoubleValue> moduleStressImpacts = new EnumMap<>(ModuleType.class);
         public final Map<ModuleType, ModConfigSpec.DoubleValue> moduleHeatModifiers = new EnumMap<>(ModuleType.class);
 
-        public MyAddonServerConfig(ModConfigSpec.Builder builder) {
+        public AdsdrillAddonServerConfig(ModConfigSpec.Builder builder) {
             builder.comment("My Create Addon Server-Side Configurations").push("general");
 
 
@@ -785,13 +785,13 @@ public class AdsDrillConfigs {
 
     public static void onConfigLoad(final ModConfigEvent.Loading event) {
         if (event.getConfig().getSpec() == SERVER_SPEC) {
-            MyAddonServerConfig.onLoad();
+            AdsdrillAddonServerConfig.onLoad();
         }
     }
 
     public static void onConfigReload(final ModConfigEvent.Reloading event) {
         if (event.getConfig().getSpec() == SERVER_SPEC) {
-            MyAddonServerConfig.onLoad();
+            AdsdrillAddonServerConfig.onLoad();
         }
     }
 }

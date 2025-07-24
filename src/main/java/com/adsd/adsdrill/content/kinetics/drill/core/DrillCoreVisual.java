@@ -55,13 +55,12 @@ public class DrillCoreVisual extends KineticBlockEntityVisual<DrillCoreBlockEnti
         Axis primaryAxis = facing.getAxis();
 
         float inputSpeed = blockEntity.getInputSpeed();
-        // [핵심 수정] 클라이언트에서 직접 계산하는 대신, 동기화된 visualSpeed를 사용합니다.
         float finalSpeed = blockEntity.getVisualSpeed();
 
         // 입력 샤프트 렌더링
         coreShafts.get(CoreShaft.INPUT).setup(blockEntity, primaryAxis, (sourceDirection == facing) ? inputSpeed : 0f).setChanged();
 
-        // 출력축 렌더링 (이제 finalSpeed가 0이면 알아서 멈춥니다)
+        // 출력축 렌더링
         coreShafts.get(CoreShaft.OUTPUT).setup(blockEntity, primaryAxis, -finalSpeed).setChanged();
 
         // 모듈 샤프트 렌더링

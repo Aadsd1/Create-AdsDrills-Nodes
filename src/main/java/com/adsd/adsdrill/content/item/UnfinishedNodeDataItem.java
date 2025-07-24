@@ -27,7 +27,6 @@ public class UnfinishedNodeDataItem extends Item {
     public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
 
-        // [핵심 수정] stack.get()의 결과를 null 체크로 처리합니다.
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
         if (customData == null) {
             return; // 커스텀 데이터가 없으면 툴팁을 추가하지 않고 종료

@@ -51,8 +51,6 @@ public abstract class AbstractDrillHeadBlockEntity extends KineticBlockEntity {
     public void updateCoreConnection() {
         if (level == null || level.isClientSide) return;
 
-        // [핵심 수정] DirectionalKineticBlock의 static FACING 프로퍼티를 직접 사용합니다.
-        // 이 BE를 사용하는 모든 블록은 DirectionalKineticBlock을 상속하므로 안전합니다.
         Direction facing = getBlockState().getValue(DirectionalKineticBlock.FACING);
 
         BlockPos potentialCorePos = worldPosition.relative(facing.getOpposite());

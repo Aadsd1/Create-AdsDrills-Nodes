@@ -34,8 +34,8 @@ public class AdsDrillBlockEntity {
             .validBlocks(
                     AdsDrillBlocks.FRAME_MODULE,
                     AdsDrillBlocks.SPEED_MODULE,
-                    AdsDrillBlocks.EFFICIENCY_MODULE, // [신규]
-                    AdsDrillBlocks.REINFORCEMENT_MODULE, // [신규]
+                    AdsDrillBlocks.EFFICIENCY_MODULE,
+                    AdsDrillBlocks.REINFORCEMENT_MODULE,
                     AdsDrillBlocks.ITEM_BUFFER_MODULE,
                     AdsDrillBlocks.FLUID_BUFFER_MODULE,
                     AdsDrillBlocks.HEATSINK_MODULE,
@@ -47,7 +47,7 @@ public class AdsDrillBlockEntity {
                     AdsDrillBlocks.BLAST_FURNACE_MODULE,
                     AdsDrillBlocks.CRUSHER_MODULE,
                     AdsDrillBlocks.WASHER_MODULE,
-                    AdsDrillBlocks.RESONATOR_MODULE, // [신규]
+                    AdsDrillBlocks.RESONATOR_MODULE,
                     AdsDrillBlocks.ENERGY_INPUT_MODULE,
                     AdsDrillBlocks.ENERGY_BUFFER_MODULE,
                     AdsDrillBlocks.KINETIC_DYNAMO_MODULE
@@ -56,7 +56,7 @@ public class AdsDrillBlockEntity {
             .register();
     public static final BlockEntityEntry<LaserDrillHeadBlockEntity> LASER_DRILL_HEAD = REGISTRATE
             .blockEntity("laser_drill_head", LaserDrillHeadBlockEntity::new)
-            .visual(() -> LaserDrillHeadVisual::new) // [핵심 수정] Visual 등록
+            .visual(() -> LaserDrillHeadVisual::new)
             .validBlocks(AdsDrillBlocks.LASER_DRILL_HEAD)
             .register();
 
@@ -73,7 +73,7 @@ public class AdsDrillBlockEntity {
             .blockEntity("artificial_node", ArtificialNodeBlockEntity::new)
             .validBlocks(AdsDrillBlocks.ARTIFICIAL_NODE)
             .register();
-    // [신규] 펌프 헤드 BE 등록
+    //펌프 헤드 BE 등록
     public static final BlockEntityEntry<PumpHeadBlockEntity> PUMP_HEAD = REGISTRATE
             .blockEntity("pump_head", PumpHeadBlockEntity::new)
             .visual(()->PumpHeadVisual::new) // 나중에 만들 파일
@@ -84,7 +84,6 @@ public class AdsDrillBlockEntity {
             .blockEntity("hydraulic_drill_head", HydraulicDrillHeadBlockEntity::new)
             .visual(()->HydraulicDrillHeadVisual::new)
             .validBlocks(AdsDrillBlocks.HYDRAULIC_DRILL_HEAD)
-            // 렌더러는 비워둬도 Visual이 작동합니다.
             .register();
     public static final BlockEntityEntry<RotaryDrillHeadBlockEntity> ROTARY_DRILL_HEAD = REGISTRATE
             .blockEntity("rotary_drill_head", RotaryDrillHeadBlockEntity::new)

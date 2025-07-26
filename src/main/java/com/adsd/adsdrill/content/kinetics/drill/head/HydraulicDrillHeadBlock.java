@@ -28,7 +28,6 @@ import java.util.Map;
 
 public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
 
-    private static final int WATER_CONSUMPTION = 50;
     private static final float STRESS_IMPACT = 6.0f;
     private static final float HEAT_GENERATION = 0.1f;
     private static final ResourceLocation SLUICE_TARGET_TAG = ResourceLocation.fromNamespaceAndPath("c", "raw_materials");
@@ -54,21 +53,18 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
         FluidStack waterRequest = new FluidStack(net.minecraft.world.level.material.Fluids.WATER, waterConsumption);
         boolean hasEnoughWater = core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.SIMULATE).getAmount() >= waterConsumption;
 
-        // 채굴 중지 조건 확인
+        // 채굴 중지 조건: 속도가 0이거나 물이 부족하면 아무것도 하지 않음
         if (finalSpeed == 0 || !hasEnoughWater) {
-            nodeBE.stopMining();
             return;
         }
-
-        // 채굴 시작을 노드에 알림
-        nodeBE.setMiningDrill(headPos);
 
         Map<Item, Float> composition = nodeBE.getResourceComposition();
         if (composition.isEmpty()) return;
 
+        // 조건이 충족되었으므로, 물을 실제로 소모하고 채굴을 진행
         core.getInternalFluidBuffer().drain(waterRequest, IFluidHandler.FluidAction.EXECUTE);
 
-        int totalMiningAmount = (int) (Math.abs(core.getFinalSpeed()) / 16f); // 이 값도 설정으로 뺄 수 있습니다.
+        int totalMiningAmount = (int) (Math.abs(core.getFinalSpeed()) / 16f);
         if (totalMiningAmount <= 0) return;
 
         List<? extends String> bonusTagsStr = AdsDrillConfigs.SERVER.hydraulicBonusTags.get();
@@ -81,11 +77,9 @@ public class HydraulicDrillHeadBlock extends AbstractDrillHeadBlock {
             Item item = entry.getKey();
             ItemStack itemStack = new ItemStack(item);
 
-            // 이 아이템이 '원자재' 태그를 가지고 있는지 확인
             if (itemStack.is(ItemTags.create(SLUICE_TARGET_TAG))) {
                 int specificMiningAmount = (int) Math.ceil(totalMiningAmount * entry.getValue());
 
-                // 이 아이템이 보너스 태그 목록 중 하나에 속하는지 확인
                 boolean hasBonus = bonusTags.stream().anyMatch(itemStack::is);
                 if (hasBonus) {
                     specificMiningAmount *= (int) bonusMultiplier;

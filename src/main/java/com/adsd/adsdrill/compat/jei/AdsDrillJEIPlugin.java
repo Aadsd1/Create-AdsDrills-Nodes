@@ -196,6 +196,20 @@ public class AdsDrillJEIPlugin implements IModPlugin {
                 Component.translatable("adsdrill.jei.info.natural_nodes.5"),
                 Component.translatable("adsdrill.jei.info.natural_nodes.6")
         );
+
+        // 광맥 노드 능력치 심화 정보 페이지
+        registration.addIngredientInfo(artificialNode, VanillaTypes.ITEM_STACK,
+                Component.translatable("adsdrill.jei.info.stats.title"),
+                Component.translatable("adsdrill.jei.info.stats.1"),
+                Component.translatable("adsdrill.jei.info.stats.hardness"),
+                Component.translatable("adsdrill.jei.info.stats.richness"),
+                Component.translatable("adsdrill.jei.info.stats.regeneration"),
+                Component.translatable("adsdrill.jei.info.stats.2"),
+                Component.translatable("adsdrill.jei.info.stats.3"),
+                Component.translatable("adsdrill.jei.info.stats.formula_hardness"),
+                Component.translatable("adsdrill.jei.info.stats.formula_regeneration"),
+                Component.translatable("adsdrill.jei.info.stats.4")
+        );
     }
 
     @Override

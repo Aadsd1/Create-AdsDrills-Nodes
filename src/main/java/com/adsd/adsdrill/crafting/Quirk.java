@@ -9,6 +9,7 @@ import com.adsd.adsdrill.registry.AdsDrillItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
@@ -54,32 +55,38 @@ public enum Quirk {
         }
     },
     SIGNAL_AMPLIFICATION("signal_amplification", Tier.COMMON, AdsDrillItems.CINNABAR) {
+        /**
+         * 레드스톤 신호를 받을 때, 채굴량을 10% 증폭시킵니다.
+         */
         @Override
-        public void onAfterDropsCalculated(List<ItemStack> drops, QuirkContext context) {
+        public double onCalculateMiningAmount(double originalAmount, QuirkContext context) {
             if (context.level().hasNeighborSignal(context.nodePos())) {
-                boolean applied = false;
-                for (ItemStack stack : drops) {
-                    int bonus = (int) Math.ceil(stack.getCount() * 0.1);
-                    if (bonus > 0) {
-                        stack.grow(bonus);
-                        applied = true;
-                    }
+                // 조건이 충족되면 이펙트 재생
+                if (context.level().getRandom().nextInt(5) == 0) {
+
+                    context.playEffects(DustParticleOptions.REDSTONE, SoundEvents.NOTE_BLOCK_PLING.value(), 0.0f, 1.8f, 10, 0.1);
                 }
-                if (applied) {
-                    context.playEffects((ParticleOptions) ParticleTypes.DUST, SoundEvents.NOTE_BLOCK_PLING.value(), 0.6f, 1.8f, 10, 0.1);
-                }
+                return originalAmount * 1.10; // 채굴량을 10% 증가
             }
+            return originalAmount;
+        }
+    },
+
+    // [수정] PETRIFIED_HEART
+    PETRIFIED_HEART("petrified_heart", Tier.COMMON, AdsDrillItems.SILKY_JEWEL) {
+        /**
+         * 노드의 '기본' 경도에 비례하여 재생력을 증폭시킵니다.
+         */
+        @Override
+        public float onCalculateRegeneration(float originalRegen, QuirkContext context) {
+            float baseHardness = context.nodeBE().getBaseHardness();
+            return originalRegen + (originalRegen * (baseHardness * 0.25f));
         }
     },
 
     WILD_MAGIC("wild_magic", Tier.COMMON, AdsDrillItems.XOMV) {},
 
-    PETRIFIED_HEART("petrified_heart", Tier.COMMON, AdsDrillItems.SILKY_JEWEL) {
-        @Override
-        public float onCalculateRegeneration(float originalRegen, QuirkContext context) {
-            return originalRegen + (originalRegen * (context.nodeBE().getHardness() * 0.25f));
-        }
-    },
+
     AQUIFER("aquifer", Tier.COMMON, AdsDrillItems.ULTRAMARINE) {
         @Override
         public float onCalculateHardness(float originalHardness, QuirkContext context) {
@@ -279,64 +286,32 @@ public enum Quirk {
 
         @Override
         public void onPeriodicTick(QuirkContext context) {
-            // --- 1. 플레이어 버프 로직 ---
+            // --- 플레이어 버프 로직 ---
             AABB playerScanArea = new AABB(context.nodePos()).inflate(5);
             List<Player> players = context.level().getEntitiesOfClass(Player.class, playerScanArea);
 
-            if (!players.isEmpty()) {
-                if (context.level().getRandom().nextInt(5) == 0) {
-                    context.playEffects(ParticleTypes.HEART, SoundEvents.NOTE_BLOCK_BELL.value(), 0.3f, 1.8f, 2, 0.05);
-                }
+            if (!players.isEmpty() && context.level().getRandom().nextInt(5) == 0) {
+                context.playEffects(ParticleTypes.HEART, SoundEvents.NOTE_BLOCK_BELL.value(), 0.3f, 1.8f, 2, 0.05);
             }
             for (Player player : players) {
-                player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 45, 0, true, false));
+                player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 45, 0, true, false, false));
             }
 
-            // --- 2. AOV 시너지 이펙트 로직 ---
-            // 80틱(4초)마다 한 번씩, 서버 부하 분산을 위해 노드마다 다른 타이밍에 체크
-            if (context.level().getGameTime() % 80 != (context.nodePos().hashCode() & 79)) {
-                return;
-            }
-
+            // --- AOV 시너지 이펙트 로직 ---
             final int scanRadius = 3;
 
-            // 주변에서 가장 가까운 다른 AOV 노드를 찾습니다.
-            Optional<BlockPos> closestAovNodeOpt = BlockPos.betweenClosedStream(
+            // 주변에 다른 AOV 노드가 하나라도 있는지 확인
+            boolean synergyActive = BlockPos.betweenClosedStream(
                             context.nodePos().offset(-scanRadius, -scanRadius, -scanRadius),
                             context.nodePos().offset(scanRadius, scanRadius, scanRadius)
                     )
-                    .filter(pos -> !pos.equals(context.nodePos()))
-                    .filter(pos -> {
-                        BlockEntity be = context.level().getBlockEntity(pos);
-                        return be instanceof ArtificialNodeBlockEntity otherNode && otherNode.hasQuirk(Quirk.AURA_OF_VITALITY);
-                    })
-                    .map(BlockPos::immutable)
-                    .min(Comparator.comparingDouble(pos -> pos.distSqr(context.nodePos())));
+                    .anyMatch(pos -> !pos.equals(context.nodePos()) &&
+                            context.level().getBlockEntity(pos) instanceof ArtificialNodeBlockEntity otherNode &&
+                            otherNode.hasQuirk(Quirk.AURA_OF_VITALITY));
 
-            // 가장 가까운 AOV 노드를 찾았다면, 이펙트를 재생합니다.
-            if (closestAovNodeOpt.isPresent()) {
-                BlockPos targetPos = closestAovNodeOpt.get();
-                Vec3 startVec = Vec3.atCenterOf(context.nodePos());
-                Vec3 endVec = Vec3.atCenterOf(targetPos);
-
-                // 두 노드 사이를 잇는 마법 파티클을 생성합니다.
-                Vec3 direction = endVec.subtract(startVec);
-                double distance = direction.length();
-                if (distance < 1.0) return; // 바로 붙어있으면 이펙트 생략
-
-                Vec3 step = direction.normalize().scale(0.4); // 파티클 간격
-                int particleCount = (int)(distance / 0.4);
-
-                for (int i = 0; i < particleCount; i++) {
-                    Vec3 particlePos = startVec.add(step.scale(i));
-                    double offsetX = (context.level().getRandom().nextDouble() - 0.5) * 0.2;
-                    double offsetY = (context.level().getRandom().nextDouble() - 0.5) * 0.2;
-                    double offsetZ = (context.level().getRandom().nextDouble() - 0.5) * 0.2;
-                    context.level().sendParticles(ParticleTypes.ENCHANT, particlePos.x() + offsetX, particlePos.y() + offsetY, particlePos.z() + offsetZ, 1, 0, 0, 0, 0);
-                }
-
-                // 시작 노드에서만 소리를 재생하여 중복을 피합니다.
-                context.level().playSound(null, context.nodePos(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.5f, 2.0f);
+            // 시너지가 활성화되어 있고, 2초에 한 번(40틱 주기) 이펙트 재생
+            if (synergyActive) {
+                context.playEffects(ParticleTypes.END_ROD, SoundEvents.AMETHYST_BLOCK_CHIME, 0.4f, 2.0f, 3, 0.05);
             }
         }
 

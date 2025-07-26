@@ -44,7 +44,7 @@ public class LaserDesignatorItem extends Item {
                 nbt.put("HeadPos", NbtUtils.writeBlockPos(clickedPos));
                 stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
                 if (!level.isClientSide) {
-                    player.displayClientMessage(Component.translatable("adsdrill.node_designator.linked").withStyle(ChatFormatting.GREEN), true);
+                    player.displayClientMessage(Component.translatable("adsdrill.laser_designator.linked").withStyle(ChatFormatting.GREEN), true);
                 }
             }
             // 2. 그냥 우클릭: 이 헤드의 모드를 변경합니다.
@@ -62,7 +62,7 @@ public class LaserDesignatorItem extends Item {
         if (level.getBlockState(clickedPos).getBlock() instanceof OreNodeBlock) {
             CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
             if (!nbt.contains("HeadPos")) {
-                if (!level.isClientSide) player.displayClientMessage(Component.translatable("adsdrill.node_designator.not_linked").withStyle(ChatFormatting.RED), true);
+                if (!level.isClientSide) player.displayClientMessage(Component.translatable("adsdrill.laser_designator.not_linked").withStyle(ChatFormatting.RED), true);
                 return InteractionResult.FAIL;
             }
 
@@ -82,11 +82,12 @@ public class LaserDesignatorItem extends Item {
     public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
         CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        tooltip.add(Component.translatable("tooltip.adsdrill.laser_designator.mode_change").withStyle(ChatFormatting.GRAY));
         if (nbt.contains("HeadPos")) {
             BlockPos headPos = NbtUtils.readBlockPos(nbt, "HeadPos").orElse(BlockPos.ZERO);
-            tooltip.add(Component.translatable("adsdrill.node_designator.linked_to", headPos.getX(), headPos.getY(), headPos.getZ()).withStyle(ChatFormatting.GRAY));
+            tooltip.add(Component.translatable("adsdrill.laser_designator.linked_to", headPos.getX(), headPos.getY(), headPos.getZ()).withStyle(ChatFormatting.GRAY));
         } else {
-            tooltip.add(Component.translatable("adsdrill.node_designator.tooltip").withStyle(ChatFormatting.DARK_GRAY));
+            tooltip.add(Component.translatable("adsdrill.laser_designator.tooltip").withStyle(ChatFormatting.DARK_GRAY));
         }
     }
 }

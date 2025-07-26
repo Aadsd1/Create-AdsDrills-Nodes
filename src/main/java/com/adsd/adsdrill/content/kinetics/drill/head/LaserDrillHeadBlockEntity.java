@@ -89,10 +89,10 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
     public void toggleTarget(BlockPos targetPos, Player player) {
         if (designatedTargets.contains(targetPos)) {
             designatedTargets.remove(targetPos);
-            player.displayClientMessage(Component.translatable("adsdrill.node_designator.target_removed", targetPos.toShortString()).withStyle(ChatFormatting.RED), true);
+            player.displayClientMessage(Component.translatable("adsdrill.laser_designator.target_removed", targetPos.toShortString()).withStyle(ChatFormatting.RED), true);
         } else {
             if (currentMode == OperatingMode.WIDE_BEAM && designatedTargets.size() >= AdsDrillConfigs.SERVER.laserWideBeamMaxTargets.get()) {
-                player.displayClientMessage(Component.translatable("adsdrill.node_designator.target_limit").withStyle(ChatFormatting.YELLOW), true);
+                player.displayClientMessage(Component.translatable("adsdrill.laser_designator.target_limit").withStyle(ChatFormatting.YELLOW), true);
                 return;
             }
             if (currentMode != OperatingMode.WIDE_BEAM && !designatedTargets.isEmpty()) {
@@ -100,7 +100,7 @@ public class LaserDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity impl
                 designatedTargets.clear();
             }
             designatedTargets.add(targetPos);
-            player.displayClientMessage(Component.translatable("adsdrill.node_designator.target_set", targetPos.toShortString()).withStyle(ChatFormatting.GREEN), true);
+            player.displayClientMessage(Component.translatable("adsdrill.laser_designator.target_set", targetPos.toShortString()).withStyle(ChatFormatting.GREEN), true);
         }
         updateActiveTargets(); // 즉시 타겟 재탐색
         setChanged();

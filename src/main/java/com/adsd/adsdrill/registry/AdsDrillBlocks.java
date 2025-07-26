@@ -434,6 +434,7 @@ public class AdsDrillBlocks {
                                     AdsDrillConfigs.SERVER.coolantHeatReduction.get(),
                                     AdsDrillConfigs.SERVER.coolantWaterConsumption.get())
                             .withStyle(ChatFormatting.GOLD));
+                    tooltip.add(Component.translatable("tooltip.adsdrill.coolant_module.after_cooling").withStyle(ChatFormatting.DARK_GREEN));
                 }
             })
             .model((context, provider) ->

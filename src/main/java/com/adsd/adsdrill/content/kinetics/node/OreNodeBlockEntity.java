@@ -26,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -51,17 +52,19 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private int maxFluidCapacity;
     private float currentFluidAmount;
 
-    private float temporaryRegenBoost = 0;
     private boolean polarityBonusActive = false;
 
 
     private float effectiveHardness;
     private float effectiveRegeneration;
     private boolean isPolarityBonusActiveForClient = false;
-    private int miningProgress;
+
+    // --- 채굴 관련 필드 ---
+    private float sharedMiningProgress = 0f;
+    private BlockPos lastMiningDrillPos = null; // 시각 효과를 위한 마지막 채굴자 위치
+    private int ticksSinceLastMine = 0;         // 채굴 중단 감지를 위한 타임아웃 타이머
+
     // 렌더링을 위한 클라이언트 전용 필드
-    private BlockPos miningDrillPos = null;
-    private int ticksSinceLastUpdate = 0;
     private float clientMiningProgress = 0f;
 
     private ResourceLocation backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
@@ -92,26 +95,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         this.polarityBonusActive = active;
     }
 
-
-
-    // 드릴 헤드에서 호출할 메서드
-    public void setMiningDrill(BlockPos drillPos) {
-        if (!Objects.equals(this.miningDrillPos, drillPos)) {
-            this.miningDrillPos = drillPos;
-            this.miningProgress = 0;
-            setChanged();
-            sendData();
-        }
-    }
-
-    public void stopMining() {
-        if (level == null || level.isClientSide) return;
-        if (this.miningProgress != 0 || this.miningDrillPos != null) {
-            this.miningProgress = 0;
-            this.miningDrillPos = null;
-            setChanged();
-            sendData();
-        }
+    // 렌더러가 사용할 Getter
+    public BlockPos getMiningDrillPos() {
+        return lastMiningDrillPos;
     }
 
     // 렌더러가 사용할 Getter
@@ -154,10 +140,15 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
     public float getHardness() {
-        if (level != null && !level.isClientSide) {
-            recalculateEffectiveStats();
-        }
         return Math.max(0.1f, this.effectiveHardness);
+    }
+
+    /**
+     * Quirk 클래스에서 순환 참조 없이 안전하게 경도 값을 참조하기 위해 사용됩니다.
+     * @return 원본 경도 값
+     */
+    public float getBaseHardness() {
+        return this.hardness;
     }
 
     public ResourceLocation getBackgroundBlockId() {
@@ -243,20 +234,15 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 
 
-    public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch,BlockPos miningDrillPos) {
+    public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, BlockPos miningDrillPos) {
         if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0) {
             return Collections.emptyList();
         }
 
-        // [1. 특성 적용] 행운 레벨을 특성에 따라 먼저 계산합니다.
-        int effectiveFortune = fortuneLevel;
-        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            for (Quirk quirk : artificialNode.getQuirks()) {
-                effectiveFortune = quirk.onCalculateFortune(effectiveFortune);
-            }
-        }
+        // 채굴 신호가 들어올 때마다 타임아웃과 마지막 채굴자 위치를 갱신합니다.
+        this.ticksSinceLastMine = 0;
+        this.lastMiningDrillPos = miningDrillPos;
 
-        // [2. 채굴량 계산] 경도와 양극성 보너스를 적용합니다.
         double effectiveMiningAmount = (miningAmount / getHardness());
 
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
@@ -266,81 +252,8 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             }
         }
 
-        this.miningProgress += (int) effectiveMiningAmount;
-
-        if (level.getGameTime() % 2 == 0) {
-            setChanged();
-            sendData();
-        }
-
-        int miningResistance = 1000; // 채굴 저항값
-
-        if (this.miningProgress >= miningResistance) {
-            this.miningProgress -= miningResistance;
-
-            if (miningDrillPos != null) {
-                // 채굴된 면의 방향을 계산합니다.
-                Direction miningFace = Direction.getNearest(
-                        (float)(this.worldPosition.getX() - miningDrillPos.getX()),
-                        (float)(this.worldPosition.getY() - miningDrillPos.getY()),
-                        (float)(this.worldPosition.getZ() - miningDrillPos.getZ())
-                );
-                spawnMiningParticles(serverLevel, miningFace);
-            }
-
-            // [3. 조합 레시피 확인] 균열 상태일 때만 조합을 시도합니다.
-            if (this.isCracked()) {
-                for (NodeRecipe recipe : NodeRecipe.RECIPES) {
-                    if (checkRecipeConditions(recipe)) {
-                        if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
-                            this.currentYield -= recipe.consumptionMultiplier();
-                            setChanged();
-                            sendData();
-                            // 조합 성공 시, 조합 결과물만 반환하고 즉시 종료
-                            return Collections.singletonList(recipe.output().copy());
-                        }
-                    }
-                }
-            }
-
-            // [4. 일반 채굴 진행]
-            this.currentYield--;
-
-            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-                Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
-                for (Quirk quirk : artificialNode.getQuirks()) {
-                    quirk.onYieldConsumed(context);
-                }
-            }
-
-            setChanged();
-            sendData();
-
-            // [5. 일반 드롭 아이템 생성]
-            List<ItemStack> drops = getNormalDrops(effectiveFortune, hasSilkTouch);
-
-            // [6. 드롭 후 발동하는 특성 적용]
-            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-                Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
-                for (Quirk quirk : artificialNode.getQuirks()) {
-                    quirk.onAfterDropsCalculated(drops, context);
-                }
-            }
-
-            return drops;
-        }
-
-        return Collections.emptyList();
-    }
-
-    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine, BlockPos miningDrillPos) {
-        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
-            return Collections.emptyList();
-        }
-
-        float effectiveMiningAmount = miningAmount / getHardness();
-        this.miningProgress += (int) effectiveMiningAmount;
-
+        // 공유 진행도에 누적합니다. (초기화 없음)
+        this.sharedMiningProgress += (float) effectiveMiningAmount;
 
         if (level.getGameTime() % 2 == 0) {
             setChanged();
@@ -348,46 +261,107 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
 
         int miningResistance = 1000;
+        List<ItemStack> allDrops = new ArrayList<>();
 
-        if (this.miningProgress >= miningResistance) {
-            this.miningProgress -= miningResistance;
-            this.currentYield--;
-            setChanged();
-            sendData();
+        // 진행도가 저항을 초과하는 동안 계속해서 채굴 주기를 실행합니다.
+        while (this.sharedMiningProgress >= miningResistance) {
+            this.sharedMiningProgress -= miningResistance;
 
-            if (miningDrillPos != null) {
-                Direction miningFace = Direction.getNearest(
-                        (float)(this.worldPosition.getX() - miningDrillPos.getX()),
-                        (float)(this.worldPosition.getY() - miningDrillPos.getY()),
-                        (float)(this.worldPosition.getZ() - miningDrillPos.getZ())
-                );
-                spawnMiningParticles(serverLevel, miningFace);
-            }
+            Direction miningFace = Direction.getNearest(
+                    (float)(this.worldPosition.getX() - this.lastMiningDrillPos.getX()),
+                    (float)(this.worldPosition.getY() - this.lastMiningDrillPos.getY()),
+                    (float)(this.worldPosition.getZ() - this.lastMiningDrillPos.getZ())
+            );
+            spawnMiningParticles(serverLevel, miningFace);
 
-            // 실크터치는 여기서도 작동
-            if (hasSilkTouch) {
-                Block blockToDrop = this.itemToBlockMap.get(specificItemToMine);
-                return Collections.singletonList(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
-            }
-
-            // 행운/풍부함 로직 적용
-            ItemStack finalDrop = new ItemStack(specificItemToMine);
-            int dropCount = 1;
-            if (fortuneLevel > 0) {
-                RandomSource rand = serverLevel.getRandom();
-                for (int i = 0; i < fortuneLevel; i++) {
-                    if (rand.nextInt(fortuneLevel + 2) > 1) dropCount++;
+            if (this.isCracked()) {
+                for (NodeRecipe recipe : NodeRecipe.RECIPES) {
+                    if (checkRecipeConditions(recipe)) {
+                        if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
+                            this.currentYield -= recipe.consumptionMultiplier();
+                            setChanged();
+                            sendData();
+                            allDrops.add(recipe.output().copy());
+                            if (this.currentYield <= 0) break;
+                        }
+                    }
                 }
             }
-            finalDrop.setCount(dropCount);
-            if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                finalDrop.grow(finalDrop.getCount());
-            }
+            if (this.currentYield <= 0) break;
 
-            return Collections.singletonList(finalDrop);
+            List<ItemStack> dropsThisCycle = getNormalDrops(fortuneLevel, hasSilkTouch);
+            allDrops.addAll(dropsThisCycle);
+
+            this.currentYield--;
+            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+                Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
+                for (Quirk quirk : artificialNode.getQuirks()) {
+                    quirk.onYieldConsumed(context);
+                }
+            }
+            if (this.currentYield <= 0) break;
         }
 
-        return Collections.emptyList();
+        setChanged();
+        sendData();
+        return allDrops;
+    }
+
+    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine, BlockPos miningDrillPos) {
+        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
+            return Collections.emptyList();
+        }
+
+        this.ticksSinceLastMine = 0;
+        this.lastMiningDrillPos = miningDrillPos;
+
+        float effectiveMiningAmount = miningAmount / getHardness();
+        this.sharedMiningProgress += effectiveMiningAmount;
+
+        if (level.getGameTime() % 2 == 0) {
+            setChanged();
+            sendData();
+        }
+
+        int miningResistance = 1000;
+        List<ItemStack> allDrops = new ArrayList<>();
+
+        while (this.sharedMiningProgress >= miningResistance) {
+            this.sharedMiningProgress -= miningResistance;
+            this.currentYield--;
+
+            Direction miningFace = Direction.getNearest(
+                    (float)(this.worldPosition.getX() - miningDrillPos.getX()),
+                    (float)(this.worldPosition.getY() - miningDrillPos.getY()),
+                    (float)(this.worldPosition.getZ() - miningDrillPos.getZ())
+            );
+            spawnMiningParticles(serverLevel, miningFace);
+
+            if (hasSilkTouch) {
+                Block blockToDrop = this.itemToBlockMap.get(specificItemToMine);
+                allDrops.add(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
+            } else {
+                ItemStack finalDrop = new ItemStack(specificItemToMine);
+                int dropCount = 1;
+                if (fortuneLevel > 0) {
+                    RandomSource rand = serverLevel.getRandom();
+                    for (int i = 0; i < fortuneLevel; i++) {
+                        if (rand.nextInt(fortuneLevel + 2) > 1) dropCount++;
+                    }
+                }
+                if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
+                    finalDrop.grow(finalDrop.getCount());
+                }
+                finalDrop.setCount(dropCount);
+                allDrops.add(finalDrop);
+            }
+
+            if (this.currentYield <= 0) break;
+        }
+
+        setChanged();
+        sendData();
+        return allDrops;
     }
 
 
@@ -545,63 +519,51 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Override
     public void tick() {
         super.tick();
-
-
-        if (level != null && level.isClientSide) {
-            clientTick();
-        }
-        assert level != null;
-        if(!level.isClientSide){
+        if (level != null && !level.isClientSide) {
             serverTick();
         }
     }
 
-    private void clientTick() {
-        if (miningDrillPos != null) {
-            ticksSinceLastUpdate++;
-            // 5틱(0.25초) 이상 업데이트가 없으면 채굴이 멈춘 것으로 간주
-            if (ticksSinceLastUpdate > 5) {
-                miningDrillPos = null;
-            }
-        }
-    }
-
     private void serverTick() {
-
-        // 주기적 효과 처리 (중복 로직 제거 및 통합)
-        assert level != null;
-        if (quirkCheckOffset == -1) {
-            quirkCheckOffset = (int) (level.getGameTime() % 40);
+        // 1. 채굴 타임아웃 로직: 0.5초간 채굴 신호가 없으면 채굴 관련 상태를 초기화합니다.
+        ticksSinceLastMine++;
+        if (ticksSinceLastMine > 10 && (lastMiningDrillPos != null || sharedMiningProgress > 0)) {
+            lastMiningDrillPos = null;
+            sharedMiningProgress = 0f;
+            setChanged();
+            sendData();
         }
-        if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
-            applyPeriodicQuirkEffects();
-        }
 
-        // 매장량 재생 로직
-        float regenerationRate = this.regeneration;
+        // 2. 주기적 특성 효과 발동: 40틱(2초)마다 Polarity, AOV 이펙트 등의 특성을 발동시킵니다.
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
-            for (Quirk quirk : artificialNode.getQuirks()) {
-                regenerationRate = quirk.onCalculateRegeneration(regenerationRate, context);
-            }
-        }
-        if (regenerationRate > 0 || this.temporaryRegenBoost > 0) {
-            float baseRegen = regenerationRate + this.temporaryRegenBoost;
-            float baseRegenPerSecond = baseRegen * 20;
-            float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
-            float finalRegenPerTick = (baseRegenPerSecond * finalRegenMultiplier) / 20f;
-
-            if (this.currentYield < this.maxYield) {
-                this.currentYield = Math.min(this.maxYield, this.currentYield + finalRegenPerTick);
+            if (level != null) {
+                if (quirkCheckOffset == -1) {
+                    quirkCheckOffset = (int) (level.getGameTime() % 40);
+                }
+                if ((level.getGameTime() + quirkCheckOffset) % 40 == 0) {
+                    applyPeriodicQuirkEffects(artificialNode);
+                }
             }
         }
 
-        // 부스트 감소
-        if (this.temporaryRegenBoost > 0) {
-            this.temporaryRegenBoost = Math.max(0, this.temporaryRegenBoost - 0.0001f);
+        // 3. 1초(20틱)마다 서버에서 모든 능력치를 재계산하고, 변경 시 클라이언트에 동기화합니다.
+        if (level != null && level.getGameTime() % 20 == 0) {
+            boolean changed = recalculateEffectiveStats();
+            if (changed) {
+                setChanged();
+                sendData();
+            }
         }
 
-        // 유체 재생
+        // 4. 매장량 재생 로직: 'effectiveRegeneration' 필드를 사용하여 실제 매장량을 회복시킵니다.
+        // 이 값은 1초마다 재계산되므로, 툴팁과 실제 회복량이 항상 일치합니다.
+        float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
+        float finalRegenPerTick = (this.effectiveRegeneration * 20) * finalRegenMultiplier / 20f;
+        if (this.currentYield < this.maxYield) {
+            this.currentYield = Math.min(this.maxYield, this.currentYield + finalRegenPerTick);
+        }
+
+        // 5. 유체 재생 및 균열 타이머
         if (this.maxFluidCapacity > 0 && this.currentFluidAmount < this.maxFluidCapacity) {
             float baseFluidRegenPerTick = 5.0f;
             float bonusMultiplier = (this.richness - 0.8f) + (this.regeneration / 0.005f * 0.5f);
@@ -609,7 +571,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             this.currentFluidAmount = Math.min(this.maxFluidCapacity, this.currentFluidAmount + finalFluidRegenPerTick);
         }
 
-        // 균열 타이머
         if (this.cracked && this.crackTimer > 0) {
             this.crackTimer--;
             if (this.crackTimer % 20 == 0) {
@@ -620,54 +581,59 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 setCracked(false);
             }
         }
-
-        // 1초에 한 번 동기화
-        if (level!=null&&level.getGameTime() % 20 == 0) {
-            recalculateEffectiveStats();
-            setChanged();
-            sendData();
-        }
     }
-    // 특성 효과를 재계산하고 필드에 저장하는 메서드
-    private void recalculateEffectiveStats() {
-        if (level == null || level.isClientSide() || !(this instanceof ArtificialNodeBlockEntity artificialNode)) {
-            // 기본값으로 초기화
-            this.effectiveHardness = this.hardness;
-            this.effectiveRegeneration = this.regeneration;
-            this.isPolarityBonusActiveForClient = false;
-            return;
+
+
+    /**
+     * 서버 측에서만 호출되어 특성 효과가 적용된 최종 능력치를 계산하고,
+     * 값이 변경되었는지 여부를 반환합니다.
+     * @return 능력치 값이 변경되었으면 true
+     */
+    private boolean recalculateEffectiveStats() {
+        if (level == null || level.isClientSide()) return false;
+
+        // 원본 값으로 시작
+        float currentEffectiveHardness = this.hardness;
+        float currentEffectiveRegen = this.regeneration;
+        boolean currentPolarityState = this.isPolarityBonusActive();
+
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                currentEffectiveHardness = quirk.onCalculateHardness(currentEffectiveHardness, context);
+                currentEffectiveRegen = quirk.onCalculateRegeneration(currentEffectiveRegen, context);
+            }
         }
 
-        // 서버 레벨이 확실한 컨텍스트에서만 QuirkContext 생성
+        boolean changed = false;
+        if (Math.abs(this.effectiveHardness - currentEffectiveHardness) > 1e-6) {
+            this.effectiveHardness = currentEffectiveHardness;
+            changed = true;
+        }
+        if (Math.abs(this.effectiveRegeneration - currentEffectiveRegen) > 1e-9) {
+            this.effectiveRegeneration = currentEffectiveRegen;
+            changed = true;
+        }
+        if (this.isPolarityBonusActiveForClient != currentPolarityState) {
+            this.isPolarityBonusActiveForClient = currentPolarityState;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+
+    /**
+     * 주기적으로 발동하는 특성들의 로직을 실행합니다.
+     * ArtificialNodeBlockEntity 인스턴스를 직접 받아 처리합니다.
+     */
+    private void applyPeriodicQuirkEffects(ArtificialNodeBlockEntity artificialNode) {
+        if (level == null) return;
         Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
 
-        float finalHardness = this.hardness;
-        for (Quirk quirk : artificialNode.getQuirks()) {
-            finalHardness = quirk.onCalculateHardness(finalHardness, context);
-        }
-        this.effectiveHardness = finalHardness;
-
-        float finalRegen = this.regeneration;
-        for (Quirk quirk : artificialNode.getQuirks()) {
-            finalRegen = quirk.onCalculateRegeneration(finalRegen, context);
-        }
-        this.effectiveRegeneration = finalRegen;
-
-        // 양극성 보너스는 주기적으로 onPeriodicTick에서 계산되므로, 그 결과를 가져와 저장
-        this.isPolarityBonusActiveForClient = this.isPolarityBonusActive();
-    }
-
-    // 렌더러가 사용할 Getter
-    public BlockPos getMiningDrillPos() {
-        return miningDrillPos;
-    }
-
-    // 주기적 효과를 처리하는 새 메서드
-    private void applyPeriodicQuirkEffects() {
-        if (!(this instanceof ArtificialNodeBlockEntity artificialNode)) return;
-
-        Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+        // Polarity는 자신의 상태를 바꾸므로 먼저 초기화합니다.
         this.setPolarityBonusActive(false);
+
         for (Quirk quirk : artificialNode.getQuirks()) {
             quirk.onPeriodicTick(context);
         }
@@ -681,21 +647,21 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     @Override
     protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(tag, registries, clientPacket);
-        tag.putInt("MiningProgress", this.miningProgress);
+
+        tag.putFloat("SharedMiningProgress", this.sharedMiningProgress);
+        if (lastMiningDrillPos != null) {
+            tag.put("LastMiningDrillPos", NbtUtils.writeBlockPos(lastMiningDrillPos));
+        }
+
         tag.putString("BackgroundBlock", backgroundBlockId.toString());
         tag.putString("OreBlock", oreBlockId.toString());
         tag.putBoolean("PolarityBonus", this.polarityBonusActive);
-        if (quirkCheckOffset != -1) {
-            tag.putInt("QuirkOffset", quirkCheckOffset);
-        }
-
+        if (quirkCheckOffset != -1) tag.putInt("QuirkOffset", quirkCheckOffset);
         tag.putInt("MaxYield", this.maxYield);
         tag.putFloat("CurrentYield", this.currentYield);
         tag.putFloat("Hardness", this.hardness);
         tag.putFloat("Richness", this.richness);
         tag.putFloat("Regeneration", this.regeneration);
-
-
         if (cracked) {
             tag.putBoolean("Cracked", true);
             tag.putInt("CrackTimer", crackTimer);
@@ -708,7 +674,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             compositionList.add(entryTag);
         }
         tag.put("Composition", compositionList);
-
         ListTag itemToBlockList = new ListTag();
         for (Map.Entry<Item, Block> entry : itemToBlockMap.entrySet()) {
             CompoundTag entryTag = new CompoundTag();
@@ -717,60 +682,47 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             itemToBlockList.add(entryTag);
         }
         tag.put("ItemToBlockMap", itemToBlockList);
-
-
         if (!fluidContent.isEmpty()) {
             tag.put("FluidContent", fluidContent.save(registries));
             tag.putInt("MaxFluidCapacity", maxFluidCapacity);
             tag.putFloat("CurrentFluidAmount", currentFluidAmount);
         }
-
         if (clientPacket) {
-            tag.putFloat("ClientProgress", (float)this.miningProgress / 1000.0f);
-            if(miningDrillPos!=null){
-                tag.put("MiningDrillPos", NbtUtils.writeBlockPos(miningDrillPos));
-            }
+            tag.putFloat("ClientProgress", this.sharedMiningProgress / 1000.0f);
             tag.putFloat("EffectiveHardness", this.effectiveHardness);
             tag.putFloat("EffectiveRegen", this.effectiveRegeneration);
             tag.putBoolean("PolarityBonusClient", this.isPolarityBonusActiveForClient);
         }
-
     }
+
 
     @Override
     protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(tag, registries, clientPacket);
-        this.miningProgress = tag.getInt("MiningProgress");
+
+        this.sharedMiningProgress = tag.getFloat("SharedMiningProgress");
+        this.lastMiningDrillPos = tag.contains("LastMiningDrillPos") ? NbtUtils.readBlockPos(tag, "LastMiningDrillPos").orElse(null) : null;
+
         this.backgroundBlockId = ResourceLocation.tryParse(tag.getString("BackgroundBlock"));
         if (this.backgroundBlockId == null) this.backgroundBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.STONE);
         this.oreBlockId = ResourceLocation.tryParse(tag.getString("OreBlock"));
         if (this.oreBlockId == null) this.oreBlockId = BuiltInRegistries.BLOCK.getKey(Blocks.IRON_ORE);
-
         this.polarityBonusActive = tag.getBoolean("PolarityBonus");
-        if (tag.contains("QuirkOffset")) {
-            this.quirkCheckOffset = tag.getInt("QuirkOffset");
-        }
+        if (tag.contains("QuirkOffset")) this.quirkCheckOffset = tag.getInt("QuirkOffset");
         this.maxYield = tag.getInt("MaxYield");
         this.currentYield = tag.getFloat("CurrentYield");
         this.hardness = tag.getFloat("Hardness");
         this.richness = tag.getFloat("Richness");
         this.regeneration = tag.getFloat("Regeneration");
-
         cracked = tag.getBoolean("Cracked");
-        if (cracked) {
-            crackTimer = tag.getInt("CrackTimer");
-        }
-
+        if (cracked) crackTimer = tag.getInt("CrackTimer");
         this.resourceComposition.clear();
         if (tag.contains("Composition", 9)) {
             ListTag compositionList = tag.getList("Composition", 10);
             for (int i = 0; i < compositionList.size(); i++) {
                 CompoundTag entryTag = compositionList.getCompound(i);
                 BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(entryTag.getString("Item")))
-                        .ifPresent(item -> {
-                            float ratio = entryTag.getFloat("Ratio");
-                            this.resourceComposition.put(item, ratio);
-                        });
+                        .ifPresent(item -> this.resourceComposition.put(item, entryTag.getFloat("Ratio")));
             }
         }
         this.itemToBlockMap.clear();
@@ -780,12 +732,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
                 CompoundTag entryTag = itemToBlockList.getCompound(i);
                 Optional<Item> itemOpt = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(entryTag.getString("Item")));
                 Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(entryTag.getString("Block")));
-                if (itemOpt.isPresent() && blockOpt.isPresent()) {
-                    this.itemToBlockMap.put(itemOpt.get(), blockOpt.get());
-                }
+                if (itemOpt.isPresent() && blockOpt.isPresent()) this.itemToBlockMap.put(itemOpt.get(), blockOpt.get());
             }
         }
-
         if (tag.contains("FluidContent")) {
             this.fluidContent = FluidStack.parse(registries, tag.getCompound("FluidContent")).orElse(FluidStack.EMPTY);
             this.maxFluidCapacity = tag.getInt("MaxFluidCapacity");
@@ -793,25 +742,13 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         } else {
             this.fluidContent = FluidStack.EMPTY;
         }
-
         if (clientPacket) {
-            this.clientMiningProgress=tag.getFloat("ClientProgress");
-            if(tag.contains("MiningDrillPos")){
-                this.miningDrillPos=NbtUtils.readBlockPos(tag,"MiningDrillPos").orElse(null);
-                this.ticksSinceLastUpdate=0;
-            }
-            else{
-                this.miningDrillPos=null;
-            }
-
-            requestModelDataUpdate();
-            if (level != null) {
-                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
-            }
-
+            this.clientMiningProgress = tag.getFloat("ClientProgress");
             this.effectiveHardness = tag.getFloat("EffectiveHardness");
             this.effectiveRegeneration = tag.getFloat("EffectiveRegen");
             this.isPolarityBonusActiveForClient = tag.getBoolean("PolarityBonusClient");
+            requestModelDataUpdate();
+            if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
         }
     }
 
@@ -928,34 +865,92 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         return true;
     }
 
+    /**
+     * 고글 툴팁에 표시될 능력치 변화 정보를 생성합니다.
+     * 이 메서드는 클라이언트에서 호출되며, 서버로부터 동기화된 'effective' 필드 값을 사용하여
+     * 어떤 특성이 능력치를 어떻게 변화시켰는지 명확하게 보여줍니다.
+     */
     private List<Component> getStatModifiersTooltip() {
         List<Component> modifiers = new ArrayList<>();
-        if (!(this instanceof ArtificialNodeBlockEntity)) {
+        // 이 노드가 특성을 가질 수 있는 ArtificialNodeBlockEntity가 아니면 아무것도 표시하지 않습니다.
+        if (!(this instanceof ArtificialNodeBlockEntity artificialNode)) {
             return modifiers;
         }
 
-        // 1. 경도(Hardness) 변화 확인
+        // --- 1. 경도(Hardness) 변화 툴팁 ---
+        // 원본 경도와 특성 효과가 적용된 최종 경도 사이에 유의미한 차이가 있을 때만 표시합니다.
         if (Math.abs(this.hardness - this.effectiveHardness) > 0.01f) {
             MutableComponent line = Component.literal(" ")
+                    // "Hardness: "
                     .append(Component.translatable("goggle.adsdrill.ore_node.hardness").withStyle(ChatFormatting.GRAY))
                     .append(": ")
+                    // "1.50 -> 1.20"
                     .append(Component.literal(String.format("%.2f -> %.2f", this.hardness, this.effectiveHardness)).withStyle(ChatFormatting.AQUA))
+                    // "(Aquifer)"
                     .append(Component.literal(" (Aquifer)").withStyle(ChatFormatting.DARK_AQUA));
             modifiers.add(line);
         }
 
-        // 2. 재생력(Regeneration) 변화 확인
-        if (Math.abs(this.regeneration - this.effectiveRegeneration) > 0.00001f) {
-            MutableComponent line = Component.literal(" ")
+        // --- 2. 재생력(Regeneration) 변화 툴팁 ---
+        // 원본 재생력과 최종 재생력 사이에 유의미한 차이가 있을 때만 표시합니다.
+        if (Math.abs(this.regeneration - this.effectiveRegeneration) > 1e-9) {
+            // 풍부함(Richness)까지 고려한 최종 초당 재생량을 계산합니다.
+            float finalRegenMultiplier = 0.8f + (this.richness * 0.8f);
+            float originalRegenPerSecond = (this.regeneration * 20) * finalRegenMultiplier;
+            float effectiveRegenPerSecond = (this.effectiveRegeneration * 20) * finalRegenMultiplier;
+
+            // 메인 라인: "Regeneration: 0.0100 -> 0.0150 Yield/s"
+            MutableComponent mainLine = Component.literal(" ")
                     .append(Component.translatable("goggle.adsdrill.ore_node.regeneration").withStyle(ChatFormatting.GRAY))
                     .append(": ")
-                    .append(Component.literal("Boosted").withStyle(ChatFormatting.LIGHT_PURPLE))
-                    .append(Component.literal(" (Petrified Heart / Aura of Vitality)").withStyle(ChatFormatting.DARK_PURPLE));
-            modifiers.add(line);
+                    .append(Component.literal(String.format("%.4f -> %.4f Yield/s", originalRegenPerSecond, effectiveRegenPerSecond)).withStyle(ChatFormatting.LIGHT_PURPLE));
+            modifiers.add(mainLine);
+
+            // --- 2a. 각 특성의 기여도를 세부적으로 표시 ---
+            // Petrified Heart 특성이 있는지 확인하고, 있다면 기여도를 표시합니다.
+            if (artificialNode.hasQuirk(Quirk.PETRIFIED_HEART)) {
+                float petrifiedHeartBonus = this.regeneration * (this.hardness * 0.25f);
+                float bonusPerSecond = (petrifiedHeartBonus * 20) * finalRegenMultiplier;
+                if (bonusPerSecond > 0) {
+                    modifiers.add(Component.literal("   └ ")
+                            .append(Component.literal(String.format("+%.4f from Petrified Heart", bonusPerSecond)).withStyle(ChatFormatting.DARK_PURPLE)));
+                }
+            }
+
+            // Aura of Vitality 특성이 있는지 확인하고, 있다면 기여도를 표시합니다.
+            if (artificialNode.hasQuirk(Quirk.AURA_OF_VITALITY)) {
+                // AOV의 순수 보너스량을 계산합니다.
+                // 이 로직은 Quirk.java의 onCalculateRegeneration과 동일해야 합니다.
+                final int scanRadius = 3;
+                List<OreNodeBlockEntity> nearbyNodes = new ArrayList<>();
+                if (level != null) { // 클라이언트에서도 월드 접근이 가능합니다.
+                    BlockPos.betweenClosedStream(this.worldPosition.offset(-scanRadius, -scanRadius, -scanRadius), this.worldPosition.offset(scanRadius, scanRadius, scanRadius))
+                            .filter(pos -> !pos.equals(this.worldPosition))
+                            .forEach(pos -> {
+                                BlockEntity be = level.getBlockEntity(pos);
+                                if (be instanceof OreNodeBlockEntity node) {
+                                    nearbyNodes.add(node);
+                                }
+                            });
+                }
+                float bonusMultiplier = (float) (nearbyNodes.size() * 0.10);
+                long synergyCount = nearbyNodes.stream()
+                        .filter(node -> node instanceof ArtificialNodeBlockEntity an && an.hasQuirk(Quirk.AURA_OF_VITALITY))
+                        .count();
+                bonusMultiplier += (float) (synergyCount * 0.25);
+
+                float aovBonus = this.regeneration * bonusMultiplier;
+                float bonusPerSecond = (aovBonus * 20) * finalRegenMultiplier;
+                if (bonusPerSecond > 0) {
+                    modifiers.add(Component.literal("   └ ")
+                            .append(Component.literal(String.format("+%.4f from Aura of Vitality", bonusPerSecond)).withStyle(ChatFormatting.DARK_PURPLE)));
+                }
+            }
         }
 
         return modifiers;
     }
+
 
     /**
      * 클라이언트 측에서 배경 블록의 BlockState를 안전하게 가져옵니다.

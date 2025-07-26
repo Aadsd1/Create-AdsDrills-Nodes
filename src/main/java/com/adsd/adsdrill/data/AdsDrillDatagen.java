@@ -139,13 +139,14 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.laser_head.mode.resonance", "Mode: Resonance");
         registrate.addRawLang("adsdrill.laser_head.mode.decomposition", "Mode: Decomposition");
         registrate.addRawLang("goggle.adsdrill.drill_core.energy_cost", "Energy Cost: %s FE/t");
-        registrate.addRawLang("adsdrill.node_designator.linked", "Laser Head linked.");
-        registrate.addRawLang("adsdrill.node_designator.not_linked", "Link to a Laser Head first! (Sneak + Right-Click)");
-        registrate.addRawLang("adsdrill.node_designator.linked_to", "Linked to: %s, %s, %s");
-        registrate.addRawLang("adsdrill.node_designator.tooltip", "Links to a Laser Head to designate targets.");
-        registrate.addRawLang("adsdrill.node_designator.target_set", "Target set: %s");
-        registrate.addRawLang("adsdrill.node_designator.target_removed", "Target removed: %s");
-        registrate.addRawLang("adsdrill.node_designator.target_limit", "Target limit reached (4).");
+        registrate.addRawLang("tooltip.adsdrill.laser_designator.mode_change", "Right-click a Laser Head to cycle its mode.");
+        registrate.addRawLang("adsdrill.laser_designator.linked", "Laser Head linked.");
+        registrate.addRawLang("adsdrill.laser_designator.not_linked", "Link to a Laser Head first! (Sneak + Right-Click)");
+        registrate.addRawLang("adsdrill.laser_designator.linked_to", "Linked to: %s, %s, %s");
+        registrate.addRawLang("adsdrill.laser_designator.tooltip", "Links to a Laser Head to designate targets.");
+        registrate.addRawLang("adsdrill.laser_designator.target_set", "Target set: %s");
+        registrate.addRawLang("adsdrill.laser_designator.target_removed", "Target removed: %s");
+        registrate.addRawLang("adsdrill.laser_designator.target_limit", "Target limit reached (4).");
         registrate.addRawLang("adsdrill.resonator.set", "Resonance frequency set to: %s");
         registrate.addRawLang("adsdrill.resonator.cleared", "Resonance frequency cleared.");
         registrate.addRawLang("goggle.adsdrill.laser_head.header", "Laser Drill Head Status");
@@ -361,6 +362,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("tooltip.adsdrill.heatsink_module.stats", "Heat Dissipation Bonus: +%s%%");
         registrate.addRawLang("tooltip.adsdrill.coolant_module.description", "Rapidly cools the drill by consuming water from the internal buffer.");
         registrate.addRawLang("tooltip.adsdrill.coolant_module.stats", "Heat Reduction: %s/t, Water Cost: %s mB/t");
+        registrate.addRawLang("tooltip.adsdrill.coolant_module.after_cooling", "When receiving a Redstone signal, it activates after an overheat.");
         registrate.addRawLang("tooltip.adsdrill.filter_module.description", "Controls the item processing flow by filtering items.");
         registrate.addRawLang("tooltip.adsdrill.resonator_module.description", "Guides the Laser Drill to mine only a specific resource.");
         registrate.addRawLang("tooltip.adsdrill.energy_input_module.description", "Receives FE from external sources and supplies it to the drill.");
@@ -539,5 +541,17 @@ public class AdsDrillDatagen {
                 "§7Utilization:§r You can either mine resources directly or use a 'Laser Drill Head' in Decomposition mode to break the node down into 'Unfinished Node Data' for crafting artificial nodes.");
         registrate.addRawLang("adsdrill.jei.info.natural_nodes.6",
                 "§7Removal:§r The 'Ore Node Neutralizer' can be used to permanently destroy a natural ore node. This item will not work on artificial nodes.");
+
+        // --- 페이지 9: 광맥 노드 능력치 심화 ---
+        registrate.addRawLang("adsdrill.jei.info.stats.title", "§lUnderstanding Node Stats");
+        registrate.addRawLang("adsdrill.jei.info.stats.1", "Ore Nodes have three base stats that determine their performance. You can view these base stats at any time using Engineer's Goggles.");
+        registrate.addRawLang("adsdrill.jei.info.stats.hardness", "  - §bHardness (H):§r Acts as a divisor for mining power. Higher hardness means slower mining.");
+        registrate.addRawLang("adsdrill.jei.info.stats.richness", "  - §bRichness (R):§r Increases the chance of getting extra drops per mining cycle and significantly boosts regeneration speed.");
+        registrate.addRawLang("adsdrill.jei.info.stats.regeneration", "  - §bRegeneration (G):§r The base rate at which the node's Yield replenishes per second (Yield/s).");
+        registrate.addRawLang("adsdrill.jei.info.stats.2", "§7Effective Stats & Formulas:§r");
+        registrate.addRawLang("adsdrill.jei.info.stats.3", "Quirks can modify these base stats. The goggle tooltip will show the final 'effective' values in the modifier section. The formulas are as follows:");
+        registrate.addRawLang("adsdrill.jei.info.stats.formula_hardness", "  - §eEffective Hardness§r = `Base H * Quirk Multipliers` (e.g., Aquifer reduces this value).");
+        registrate.addRawLang("adsdrill.jei.info.stats.formula_regeneration", "  - §eEffective G (Yield/s)§r = `(Base G * 20 * Quirk Bonuses) * (0.8 + (Richness * 0.8))`");
+        registrate.addRawLang("adsdrill.jei.info.stats.4", "When sneaking, the goggle tooltip shows the base `(H, R, G)` values for quick reference, without these formulas applied.");
     }
 }

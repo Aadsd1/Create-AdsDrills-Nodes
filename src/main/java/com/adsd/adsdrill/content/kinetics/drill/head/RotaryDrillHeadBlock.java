@@ -47,25 +47,14 @@ public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock {
         BlockEntity be = level.getBlockEntity(nodePos);
 
         if (!(be instanceof OreNodeBlockEntity nodeBE)) {
-            // 노드가 없다면, 이전에 채굴 중이던 노드가 있을 경우를 대비해 채굴 중지 신호를 보냅니다.
-            BlockEntity lastBE = level.getBlockEntity(nodePos);
-            if (lastBE instanceof OreNodeBlockEntity lastNodeBE) {
-                lastNodeBE.stopMining();
-            }
-            return;
+            return; // 앞에 노드가 없으면 아무것도 하지 않음
         }
 
-        // 드릴 속도가 0이면 채굴 중지
+        // 드릴 속도가 0이거나, 균열된 노드를 캘 수 없는 등급이면 아무것도 하지 않음
         if (finalSpeed == 0) {
-            nodeBE.stopMining();
             return;
         }
-
-        // 채굴 시작을 노드에 알립니다.
-        nodeBE.setMiningDrill(headPos);
-
         if (nodeBE.isCracked() && this.miningLevel < 2) {
-            nodeBE.stopMining(); // 조건 안맞으면 채굴 중지
             return;
         }
 

@@ -152,10 +152,16 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private double heatMultiplier = 1.0;
     private float totalStressImpact = 0f;
 
+    private boolean polarityBonusActive = false;
 
-    public float getHeat() {
-        return this.heat;
+
+
+    public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+
+        super(type, pos, state);
+
     }
+
 
     /**
      * 드릴 코어가 현재 과열로 인해 작동 중지 상태인지 여부를 반환합니다.
@@ -164,13 +170,9 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public boolean isOverheated() {
         return this.isOverheated;
     }
-
-    public DrillCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-
-        super(type, pos, state);
-
+    public float getHeat() {
+        return this.heat;
     }
-
 
     public boolean tryUpgrade(Item upgradeMaterial) {
         if (level == null || level.isClientSide) return false;
@@ -308,7 +310,14 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         if (!this.structureValid || isOverStressed()) {
             return 0;
         }
-        return getSpeed() * getHeatEfficiency();
+        float finalSpeed=getSpeed()*getHeatEfficiency();
+
+
+        if (this.polarityBonusActive) {
+            finalSpeed *= (float) AdsDrillConfigs.getQuirkConfig(Quirk.POLARITY_POSITIVE).valueMultiplier();
+        }
+
+        return finalSpeed;
     }
     // 효율 계산 메서드
     public float getHeatEfficiency() {
@@ -614,7 +623,6 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
 
-    // [복원] searchStructureRecursive가 moduleConnections 맵을 다시 사용하도록 수정
     private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction cameFrom, Set<BlockPos> visited, Set<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
         if (depth > MAX_STRUCTURE_RANGE) return new StructureCheckResult(false, false);
         if (!visited.add(currentPos)) return new StructureCheckResult(true, false);
@@ -649,7 +657,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                     if(searchDir.getAxis() == coreFacing.getAxis()) continue;
                 }
 
-                // [복원] 연결 정보 기록
+                // 연결 정보 기록
                 moduleConnections.computeIfAbsent(currentPos, k -> new HashSet<>()).add(searchDir);
                 moduleConnections.computeIfAbsent(neighborPos, k -> new HashSet<>()).add(searchDir.getOpposite());
 
@@ -920,6 +928,17 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
                 scanAndValidateStructure();
             }
         }
+        this.polarityBonusActive = false; // 매 틱 초기화
+        if (hasHead()) {
+            Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
+            BlockPos nodePos = cachedHeadPos.relative(headFacing);
+            if (level != null && level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
+                if (nodeBE.isPolarityBonusActive()) {
+                    this.polarityBonusActive = true;
+                }
+            }
+        }
+        assert level != null;
 
         for (BlockPos modulePos : activeSystemModules) {
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity module) {
@@ -1135,6 +1154,8 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
         // 2. 과열 및 레드스톤 정지 경고 추가
         addWarningTooltips(tooltip);
+        //2.5. 채굴력 정보 툴팁
+        addMiningPowerTooltip(tooltip);
 
         // 3. 플레이어의 입력(isPlayerSneaking)에 따라 요약 또는 상세 정보 추가
         if (isPlayerSneaking) {
@@ -1217,6 +1238,37 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             tooltip.add(Component.literal(" ")
                     .append(Component.translatable("goggle.adsdrill.drill_core.cooling_down", String.format("%.0f%%", COOLDOWN_RESET_THRESHOLD))
                             .withStyle(ChatFormatting.DARK_GRAY)));
+        }
+    }
+
+    // 채굴력 정보를 표시하는 헬퍼 메서드
+    private void addMiningPowerTooltip(List<Component> tooltip) {
+        if (!structureValid || !hasHead()) return;
+
+        tooltip.add(Component.literal(""));
+        tooltip.add(Component.literal("Mining Power:").withStyle(ChatFormatting.GRAY));
+
+        Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
+        BlockPos nodePos = cachedHeadPos.relative(headFacing);
+
+        if (level != null && level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
+            float finalSpeed = getFinalSpeed(); // 양극성 보너스가 적용된 최종 속도
+            double basePower = Math.abs(finalSpeed) / AdsDrillConfigs.SERVER.rotarySpeedDivisor.get();
+            double effectivePower = basePower / nodeBE.getHardness();
+
+            // 툴팁 라인 생성
+            MutableComponent line = Component.literal(" ")
+                    .append(Component.literal(String.format("%.2f", effectivePower)).withStyle(ChatFormatting.AQUA))
+                    .append(Component.literal(" / 1000 per Cycle").withStyle(ChatFormatting.DARK_GRAY));
+
+            // 양극성 보너스가 활성화되었을 때만 추가 텍스트 표시
+            if (this.polarityBonusActive) {
+                line.append(Component.literal(" (Polarity Active!)").withStyle(ChatFormatting.GOLD));
+            }
+
+            tooltip.add(line);
+        } else {
+            tooltip.add(Component.literal(" ").append(Component.translatable("goggle.adsdrill.drill_core.reason.head_missing").withStyle(ChatFormatting.YELLOW)));
         }
     }
 

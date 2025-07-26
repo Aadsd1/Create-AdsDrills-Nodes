@@ -13,9 +13,11 @@ import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -149,15 +151,24 @@ public class AdsDrillJEIPlugin implements IModPlugin {
         quirkComponents.add(Component.translatable("adsdrill.jei.info.quirks.1"));
         quirkComponents.add(Component.translatable("adsdrill.jei.info.quirks.list_header"));
         for (Quirk quirk : Quirk.values()) {
+            // 티어, 이름, 설명을 각각의 번역 키를 통해 가져옵니다.
+            Component tierComponent = Component.literal("[" + quirk.getTier().getName() + "] ").withStyle(quirk.getTier().getColor());
+            Component nameComponent = Component.translatable("quirk.adsdrill." + quirk.getId());
+            Component descriptionComponent = Component.translatable("quirk.adsdrill." + quirk.getId() + ".description");
+
+            // 최종적으로 표시될 한 줄을 조합합니다.
             var config = AdsDrillConfigs.getQuirkConfig(quirk);
+            MutableComponent line = Component.literal("  - ").append(tierComponent).append(nameComponent)
+                    .append(Component.literal(":§7 ").append(descriptionComponent));
+
+            // 설정 파일에서 확률 값을 읽어와 설명에 추가합니다.
             if (config.chance() > 0) {
-                quirkComponents.add(Component.translatable("adsdrill.jei.info.quirk." + quirk.getId() + ".with_chance", String.format("%.0f", config.chance() * 100)));
-            } else {
-                quirkComponents.add(Component.translatable("adsdrill.jei.info.quirk." + quirk.getId() + ".base"));
+                line.append(Component.literal(" (Default Chance: " + String.format("%.0f%%", config.chance() * 100) + ")").withStyle(ChatFormatting.DARK_GRAY));
             }
+
+            quirkComponents.add(line);
         }
         registration.addIngredientInfo(artificialNode, VanillaTypes.ITEM_STACK, quirkComponents.toArray(new Component[0]));
-
         // Page 7: Advanced Node Crafting
         registration.addIngredientInfo(nodeFrame, VanillaTypes.ITEM_STACK,
                 Component.translatable("adsdrill.jei.info.crafting.title"),

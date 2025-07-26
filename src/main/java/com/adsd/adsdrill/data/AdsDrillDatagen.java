@@ -2,7 +2,6 @@ package com.adsd.adsdrill.data;
 
 
 import com.adsd.adsdrill.AdsDrillAddon;
-import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.crafting.Quirk;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.tterrag.registrate.providers.RegistrateDataProvider;
@@ -236,7 +235,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("message.adsdrill.locator.no_target_stored", "No target stored in this locator.");
         registrate.addRawLang("message.adsdrill.locator.not_found", "No nodes found within %s blocks.");
         registrate.addRawLang("tooltip.adsdrill.node_locator.targeting_result", "Targeting Resource: %s");
-        registrate.addRawLang("tooltip.adsdrill.node_locator.tuning_info", "Tune with an Ore or clear with Flint in an Anvil.");
+        registrate.addRawLang("tooltip.adsdrill.node_locator.tuning_info.combined", "Tune with an Ore or Fluid Container in an Anvil. Can be combined for compound filtering. Clear with Flint.");
 
         //Advancements Root-Main
         registrate.addRawLang("advancements.adsdrill.root.title", "Advanced Drilling");
@@ -390,7 +389,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.jei.requires_drill", "Requires a Rotary Drill Head above, powered by a Drill Core.");
         registrate.addRawLang("adsdrill.jei.in_cracked_node", "In a Cracked Ore Node");
         registrate.addRawLang("adsdrill.jei.tooltip.minimum_ratio", "Min. Ratio: %s");
-        registrate.addRawLang("adsdrill.jei.info.anvil_tuning", "The Netherite Node Locator can be tuned in an Anvil.\n\n- Combine with any Ore to make the locator target that specific resource.\n- Combine with Flint to clear any existing target.");
+        registrate.addRawLang("adsdrill.jei.info.anvil_tuning", "The Netherite Node Locator can be tuned in an Anvil.\n\n- Combine with an Ore or Fluid Container to set a filter.\n- Combine an already tuned locator with the other type for combined filtering.\n- Combine with Flint to clear all filters.");
         registrate.addRawLang("adsdrill.jei.tooltip.chance", "%s%% Chance");
 
         // 드릴 헤드 강화 텍스트

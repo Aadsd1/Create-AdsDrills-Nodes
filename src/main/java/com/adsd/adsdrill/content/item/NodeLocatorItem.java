@@ -1,5 +1,6 @@
 package com.adsd.adsdrill.content.item;
 
+import com.adsd.adsdrill.content.kinetics.node.ArtificialNodeBlockEntity;
 import com.adsd.adsdrill.content.kinetics.node.OreNodeBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -22,11 +23,12 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class NodeLocatorItem extends Item {
 
@@ -44,6 +46,10 @@ public class NodeLocatorItem extends Item {
         }
     }
 
+    private static final Map<UUID, List<BlockPos>> IGNORED_NODES_MAP = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> IGNORE_TIMESTAMP_MAP = new ConcurrentHashMap<>();
+    private static final long IGNORE_DURATION_MS = 10000; // 10초
+
     private final Tier tier;
 
     public NodeLocatorItem(Properties properties, Tier tier) {
@@ -60,13 +66,18 @@ public class NodeLocatorItem extends Item {
             return InteractionResultHolder.pass(stack);
         }
 
-        // --- 1. 쉬프트 + 우클릭 로직: 기존 정보 다시 표시 ---
-        if (player.isShiftKeyDown()) {
-            CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        UUID playerUUID = player.getUUID();
+        long currentTime = System.currentTimeMillis();
 
+        // 1. 쉬프트 + 우클릭: 마지막 탐색 결과 재확인 및 무시 목록 초기화
+        if (player.isShiftKeyDown()) {
+            // 무시 목록과 타임스탬프를 즉시 초기화
+            IGNORED_NODES_MAP.remove(playerUUID);
+            IGNORE_TIMESTAMP_MAP.remove(playerUUID);
+
+            CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
             if (nbt.contains("TargetPos")) {
                 BlockPos targetPos = NbtUtils.readBlockPos(nbt, "TargetPos").orElse(null);
-
                 // NBT에 좌표가 있지만 유효하지 않은 경우 (드문 경우)
                 if (targetPos == null) {
                     player.displayClientMessage(Component.translatable("message.adsdrill.locator.no_target_stored").withStyle(ChatFormatting.YELLOW), true);
@@ -98,16 +109,26 @@ public class NodeLocatorItem extends Item {
             }
 
         }
-        // --- 2. 일반 우클릭 로직: 새로 탐색 ---
+        // 2. 일반 우클릭: 새로 탐색
         else {
+            // 타임스탬프를 확인하여 오래된 무시 목록은 비움
+            if (currentTime > IGNORE_TIMESTAMP_MAP.getOrDefault(playerUUID, 0L)) {
+                IGNORED_NODES_MAP.remove(playerUUID);
+            }
+
             ServerLevel serverLevel = (ServerLevel) level;
             BlockPos playerPos = player.blockPosition();
-            player.getCooldowns().addCooldown(this, 40); // 스팸 방지 쿨다운
+            player.getCooldowns().addCooldown(this, 40);
 
-            Optional<BlockPos> nearestNodePos = findNearestNode(serverLevel, playerPos, stack);
+            Optional<BlockPos> nearestNodePos = findNearestNode(serverLevel, playerPos, stack, playerUUID);
 
             if (nearestNodePos.isPresent()) {
                 BlockPos targetPos = nearestNodePos.get();
+
+                // 찾은 노드를 임시 무시 목록에 추가하고 타임스탬프 갱신
+                IGNORED_NODES_MAP.computeIfAbsent(playerUUID, k -> new ArrayList<>()).add(targetPos);
+                IGNORE_TIMESTAMP_MAP.put(playerUUID, currentTime + IGNORE_DURATION_MS);
+
                 double distance = Math.sqrt(playerPos.distSqr(targetPos));
                 CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
                 nbt.put("TargetPos", NbtUtils.writeBlockPos(targetPos));
@@ -134,37 +155,38 @@ public class NodeLocatorItem extends Item {
 
         return InteractionResultHolder.success(stack);
     }
-
-    private Optional<BlockPos> findNearestNode(ServerLevel level, BlockPos center, ItemStack locatorStack) {
+    private Optional<BlockPos> findNearestNode(ServerLevel level, BlockPos center, ItemStack locatorStack, UUID playerUUID) {
         CompoundTag nbt = locatorStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+
+        List<BlockPos> ignored = IGNORED_NODES_MAP.getOrDefault(playerUUID, Collections.emptyList());
 
         Item targetOreItem = nbt.contains("TargetOre") ?
                 BuiltInRegistries.ITEM.get(ResourceLocation.parse(nbt.getString("TargetOre"))) : Items.AIR;
+        Fluid targetFluid = nbt.contains("TargetFluid") ?
+                BuiltInRegistries.FLUID.get(ResourceLocation.parse(nbt.getString("TargetFluid"))) : Fluids.EMPTY;
 
-        boolean hasTarget = (targetOreItem != Items.AIR);
+        boolean hasOreTarget = (targetOreItem != Items.AIR);
+        boolean hasFluidTarget = (targetFluid != Fluids.EMPTY);
 
         return BlockPos.betweenClosedStream(
                         center.offset(-tier.scanRadius, -tier.scanRadius, -tier.scanRadius),
                         center.offset(tier.scanRadius, tier.scanRadius, tier.scanRadius)
                 )
+                .filter(pos -> !ignored.contains(pos)) // [신규] 임시 무시 목록에 있는 노드 제외
                 .filter(pos -> {
                     BlockEntity be = level.getBlockEntity(pos);
-                    if (!(be instanceof OreNodeBlockEntity nodeBE)) {
-                        return false; // OreNode가 아니면 실패
+                    if (!(be instanceof OreNodeBlockEntity nodeBE) || be instanceof ArtificialNodeBlockEntity) {
+                        return false;
                     }
 
-                    // 타겟이 없으면 모든 노드를 통과
-                    if (!hasTarget) {
-                        return true;
-                    }
+                    boolean oreMatch = !hasOreTarget || nodeBE.getResourceComposition().containsKey(targetOreItem);
+                    boolean fluidMatch = !hasFluidTarget || nodeBE.getFluid().getFluid() == targetFluid;
 
-                    // 타겟이 있으면, 노드의 구성물에 해당 아이템이 포함되어 있는지 확인
-                    return nodeBE.getResourceComposition().containsKey(targetOreItem);
+                    return oreMatch && fluidMatch;
                 })
                 .map(BlockPos::immutable)
                 .min(Comparator.comparingDouble(pos -> pos.distSqr(center)));
     }
-
 
     @Override
     public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
@@ -173,23 +195,32 @@ public class NodeLocatorItem extends Item {
         tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.radius", tier.scanRadius).withStyle(ChatFormatting.GRAY));
 
         CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        boolean hasTarget = false;
+
         if (nbt.contains("TargetOre")) {
             Item targetItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(nbt.getString("TargetOre")));
             if (targetItem != Items.AIR) {
                 tooltip.add(Component.literal(""));
                 tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.targeting_result", targetItem.getDescription().copy().withStyle(ChatFormatting.YELLOW)).withStyle(ChatFormatting.GRAY));
-                if (flag.isAdvanced()) {
-                    tooltip.add(Component.literal("  (ID: " + nbt.getString("TargetOre") + ")").withStyle(ChatFormatting.DARK_GRAY));
-                }
+                hasTarget = true;
+            }
+        }
+
+        if (nbt.contains("TargetFluid")) {
+            Fluid targetFluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(nbt.getString("TargetFluid")));
+            if (targetFluid != Fluids.EMPTY) {
+                if (!hasTarget) tooltip.add(Component.literal(""));
+                tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.targeting_result", targetFluid.getFluidType().getDescription().copy().withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GRAY));
             }
         }
 
         tooltip.add(Component.literal(""));
         tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.usage").withStyle(ChatFormatting.DARK_GRAY));
 
-        // 네더라이트 티어일 때만 모루 강화 툴팁 추가
+
         if (this.tier == Tier.NETHERITE) {
-            tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.tuning_info").withStyle(ChatFormatting.DARK_GRAY));
+            tooltip.add(Component.translatable("tooltip.adsdrill.node_locator.tuning_info.combined").withStyle(ChatFormatting.DARK_GRAY));
         }
+
     }
 }

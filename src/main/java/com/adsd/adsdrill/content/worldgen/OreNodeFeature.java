@@ -9,6 +9,7 @@ import com.adsd.adsdrill.registry.AdsDrillBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -18,10 +19,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SmeltingRecipe;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
@@ -515,41 +514,12 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
     }
 
     private Item getOreItem(Block oreBlock, WorldGenLevel level) {
-        // [!!! 신규: 수동 매핑 우선 확인 !!!]
-        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(oreBlock);
-        Optional<ResourceLocation> manualItemId = AdsDrillConfigs.SERVER.getManualMappingForItem(blockId);
-        if (manualItemId.isPresent()) {
-            return BuiltInRegistries.ITEM.getOptional(manualItemId.get()).orElse(Items.AIR);
-        }
+        // WorldGenLevel에서 RecipeManager와 RegistryAccess를 가져옵니다.
+        RecipeManager recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
+        RegistryAccess registryAccess = level.registryAccess();
 
-        Item oreBlockItem = oreBlock.asItem();
-        if (oreBlockItem == Items.AIR) {
-            return Items.AIR;
-        }
-
-        var recipeManager = Objects.requireNonNull(level.getServer()).getRecipeManager();
-
-        for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
-            SmeltingRecipe recipe = recipeHolder.value();
-
-            if (recipe.getIngredients().getFirst().test(new ItemStack(oreBlockItem))) {
-                ItemStack resultStack = recipe.getResultItem(level.registryAccess());
-                Item resultItem = resultStack.getItem();
-
-                ResourceLocation resultId = BuiltInRegistries.ITEM.getKey(resultItem);
-                if (resultId.getPath().endsWith("_ingot")) {
-                    String rawMaterialName = resultId.getPath().replace("_ingot", "");
-                    ResourceLocation rawId = ResourceLocation.fromNamespaceAndPath(resultId.getNamespace(), "raw_" + rawMaterialName);
-
-                    Item rawItem = BuiltInRegistries.ITEM.get(rawId);
-                    if (rawItem != Items.AIR) {
-                        return rawItem;
-                    }
-                }
-                return resultItem;
-            }
-        }
-        return oreBlockItem;
+        // 중앙 헬퍼 메서드를 호출합니다.
+        return AdsDrillConfigs.getOreItemFromBlock(oreBlock, recipeManager, registryAccess);
     }
 
 }

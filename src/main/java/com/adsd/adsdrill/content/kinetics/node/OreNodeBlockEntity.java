@@ -55,6 +55,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     private boolean polarityBonusActive = false;
 
 
+    private float effectiveHardness;
+    private float effectiveRegeneration;
+    private boolean isPolarityBonusActiveForClient = false;
     private int miningProgress;
     // 렌더링을 위한 클라이언트 전용 필드
     private BlockPos miningDrillPos = null;
@@ -149,15 +152,12 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
         }
     }
+
     public float getHardness() {
-        float finalHardness = this.hardness;
-        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
-            for (Quirk quirk : artificialNode.getQuirks()) {
-                finalHardness = quirk.onCalculateHardness(finalHardness, context);
-            }
+        if (level != null && !level.isClientSide) {
+            recalculateEffectiveStats();
         }
-        return Math.max(0.1f, finalHardness);
+        return Math.max(0.1f, this.effectiveHardness);
     }
 
     public ResourceLocation getBackgroundBlockId() {
@@ -567,6 +567,7 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
     }
 
     private void serverTick() {
+
         // 주기적 효과 처리 (중복 로직 제거 및 통합)
         assert level != null;
         if (quirkCheckOffset == -1) {
@@ -621,9 +622,39 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
 
         // 1초에 한 번 동기화
-        if (level.getGameTime() % 20 == 0) {
+        if (level!=null&&level.getGameTime() % 20 == 0) {
+            recalculateEffectiveStats();
             setChanged();
+            sendData();
         }
+    }
+    // 특성 효과를 재계산하고 필드에 저장하는 메서드
+    private void recalculateEffectiveStats() {
+        if (level == null || level.isClientSide() || !(this instanceof ArtificialNodeBlockEntity artificialNode)) {
+            // 기본값으로 초기화
+            this.effectiveHardness = this.hardness;
+            this.effectiveRegeneration = this.regeneration;
+            this.isPolarityBonusActiveForClient = false;
+            return;
+        }
+
+        // 서버 레벨이 확실한 컨텍스트에서만 QuirkContext 생성
+        Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+
+        float finalHardness = this.hardness;
+        for (Quirk quirk : artificialNode.getQuirks()) {
+            finalHardness = quirk.onCalculateHardness(finalHardness, context);
+        }
+        this.effectiveHardness = finalHardness;
+
+        float finalRegen = this.regeneration;
+        for (Quirk quirk : artificialNode.getQuirks()) {
+            finalRegen = quirk.onCalculateRegeneration(finalRegen, context);
+        }
+        this.effectiveRegeneration = finalRegen;
+
+        // 양극성 보너스는 주기적으로 onPeriodicTick에서 계산되므로, 그 결과를 가져와 저장
+        this.isPolarityBonusActiveForClient = this.isPolarityBonusActive();
     }
 
     // 렌더러가 사용할 Getter
@@ -644,11 +675,6 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
     public boolean isPolarityBonusActive() {
         return polarityBonusActive;
-    }
-    // 활력 오라 효과를 받기 위한 public 메서드
-    public void receiveRegenBoost() {
-        // 부스트 값을 최대치로 설정 (0.001은 초당 0.02개 추가 재생에 해당)
-        this.temporaryRegenBoost = Math.max(this.temporaryRegenBoost, 0.01f);
     }
 
     // --- NBT 및 동기화 ---
@@ -704,6 +730,9 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             if(miningDrillPos!=null){
                 tag.put("MiningDrillPos", NbtUtils.writeBlockPos(miningDrillPos));
             }
+            tag.putFloat("EffectiveHardness", this.effectiveHardness);
+            tag.putFloat("EffectiveRegen", this.effectiveRegeneration);
+            tag.putBoolean("PolarityBonusClient", this.isPolarityBonusActiveForClient);
         }
 
     }
@@ -779,6 +808,10 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             if (level != null) {
                 level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
             }
+
+            this.effectiveHardness = tag.getFloat("EffectiveHardness");
+            this.effectiveRegeneration = tag.getFloat("EffectiveRegen");
+            this.isPolarityBonusActiveForClient = tag.getBoolean("PolarityBonusClient");
         }
     }
 
@@ -813,6 +846,13 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         // 특성
         tooltip.add(Component.literal("")); // 구분선
+
+
+        List<Component> statModifierTooltips = getStatModifiersTooltip();
+        if (!statModifierTooltips.isEmpty()) {
+            tooltip.addAll(statModifierTooltips);
+            tooltip.add(Component.literal("")); // 구분선
+        }
 
         //  단단함(Hardness) 표시
         MutableComponent hardnessLine = Component.literal(" ")
@@ -887,6 +927,36 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
         }
         return true;
     }
+
+    private List<Component> getStatModifiersTooltip() {
+        List<Component> modifiers = new ArrayList<>();
+        if (!(this instanceof ArtificialNodeBlockEntity)) {
+            return modifiers;
+        }
+
+        // 1. 경도(Hardness) 변화 확인
+        if (Math.abs(this.hardness - this.effectiveHardness) > 0.01f) {
+            MutableComponent line = Component.literal(" ")
+                    .append(Component.translatable("goggle.adsdrill.ore_node.hardness").withStyle(ChatFormatting.GRAY))
+                    .append(": ")
+                    .append(Component.literal(String.format("%.2f -> %.2f", this.hardness, this.effectiveHardness)).withStyle(ChatFormatting.AQUA))
+                    .append(Component.literal(" (Aquifer)").withStyle(ChatFormatting.DARK_AQUA));
+            modifiers.add(line);
+        }
+
+        // 2. 재생력(Regeneration) 변화 확인
+        if (Math.abs(this.regeneration - this.effectiveRegeneration) > 0.00001f) {
+            MutableComponent line = Component.literal(" ")
+                    .append(Component.translatable("goggle.adsdrill.ore_node.regeneration").withStyle(ChatFormatting.GRAY))
+                    .append(": ")
+                    .append(Component.literal("Boosted").withStyle(ChatFormatting.LIGHT_PURPLE))
+                    .append(Component.literal(" (Petrified Heart / Aura of Vitality)").withStyle(ChatFormatting.DARK_PURPLE));
+            modifiers.add(line);
+        }
+
+        return modifiers;
+    }
+
     /**
      * 클라이언트 측에서 배경 블록의 BlockState를 안전하게 가져옵니다.
      * 렌더링 및 색상 처리에 사용됩니다.

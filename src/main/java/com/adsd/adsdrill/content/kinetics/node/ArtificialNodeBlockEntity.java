@@ -8,22 +8,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Skeleton;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -77,6 +67,7 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
     public boolean hasQuirk(Quirk quirk) {
         return this.quirks.contains(quirk);
     }
+
     public void incrementVolatileFissureCounter() {
         if (!hasQuirk(Quirk.VOLATILE_FISSURES)) return;
 
@@ -160,7 +151,7 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
 
                         for (String word : words) {
                             // 현재 줄에 다음 단어를 추가했을 때 최대 너비를 초과하는지 확인
-                            if (font.width(currentLine.toString() + word) > maxWidth) {
+                            if (font.width(currentLine + word) > maxWidth) {
                                 // 최대 너비를 초과하면, 현재까지의 줄을 툴팁에 추가
                                 tooltip.add(Component.literal(indentation + currentLine.toString().trim()).withStyle(ChatFormatting.GRAY));
                                 // 새 줄 시작

@@ -5,10 +5,16 @@ import com.adsd.adsdrill.AdsDrillAddon;
 import com.adsd.adsdrill.content.kinetics.module.ModuleType;
 import com.adsd.adsdrill.crafting.NodeRecipe;
 import com.adsd.adsdrill.crafting.Quirk;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.SmeltingRecipe;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -797,4 +803,50 @@ public class AdsDrillConfigs {
             AdsdrillAddonServerConfig.onLoad();
         }
     }
+
+    /**
+     * 광석 블록으로부터 대표 아이템을 결정하는 중앙화된 헬퍼 메서드입니다.
+     * 수동 매핑을 최우선으로 고려하며, 없을 경우 제련 레시피를 기반으로 추정합니다.
+     * @param oreBlock 확인할 광석 블록
+     * @param recipeManager 레시피 검색을 위한 RecipeManager
+     * @param registryAccess 레시피 결과 아이템을 가져오기 위한 RegistryAccess
+     * @return 결정된 대표 아이템. 찾지 못하면 Items.AIR를 반환합니다.
+     */
+    public static Item getOreItemFromBlock(Block oreBlock, RecipeManager recipeManager, RegistryAccess registryAccess) {
+        // 1. 수동 매핑을 최우선으로 확인합니다.
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(oreBlock);
+        Optional<ResourceLocation> manualItemId = SERVER.getManualMappingForItem(blockId);
+        if (manualItemId.isPresent()) {
+            return BuiltInRegistries.ITEM.getOptional(manualItemId.get()).orElse(Items.AIR);
+        }
+
+        // 2. 수동 매핑이 없으면 제련 레시피를 확인합니다.
+        Item oreBlockItem = oreBlock.asItem();
+        if (oreBlockItem == Items.AIR) {
+            return Items.AIR;
+        }
+
+        for (var recipeHolder : recipeManager.getAllRecipesFor(RecipeType.SMELTING)) {
+            SmeltingRecipe recipe = recipeHolder.value();
+            if (recipe.getIngredients().getFirst().test(new ItemStack(oreBlockItem))) {
+                ItemStack resultStack = recipe.getResultItem(registryAccess); // [수정] 인자로 받은 registryAccess 사용
+                Item resultItem = resultStack.getItem();
+                ResourceLocation resultId = BuiltInRegistries.ITEM.getKey(resultItem);
+
+                if (resultId.getPath().endsWith("_ingot")) {
+                    String rawMaterialName = resultId.getPath().replace("_ingot", "");
+                    ResourceLocation rawId = ResourceLocation.fromNamespaceAndPath(resultId.getNamespace(), "raw_" + rawMaterialName);
+                    Item rawItem = BuiltInRegistries.ITEM.get(rawId);
+                    if (rawItem != Items.AIR) {
+                        return rawItem;
+                    }
+                }
+                return resultItem;
+            }
+        }
+
+        // 3. 제련 레시피도 없으면, 블록 자체의 아이템을 반환합니다.
+        return oreBlockItem;
+    }
+
 }

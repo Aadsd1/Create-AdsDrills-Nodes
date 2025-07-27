@@ -235,133 +235,276 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 
     public List<ItemStack> applyMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, BlockPos miningDrillPos) {
-        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0) {
+        if (!validateMiningConditions()) {
             return Collections.emptyList();
         }
 
-        // 채굴 신호가 들어올 때마다 타임아웃과 마지막 채굴자 위치를 갱신합니다.
+        updateMiningState(miningDrillPos);
+
+        double effectiveMiningAmount = calculateEffectiveMiningAmount(miningAmount);
+        processMiningProgress(effectiveMiningAmount);
+
+        return executeMiningCycles(fortuneLevel, hasSilkTouch, null);
+    }
+
+    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch,
+                                                   Item specificItemToMine, BlockPos miningDrillPos) {
+        if (!validateSpecificMiningConditions(specificItemToMine)) {
+            return Collections.emptyList();
+        }
+
+        updateMiningState(miningDrillPos);
+
+        double effectiveMiningAmount = calculateEffectiveMiningAmount(miningAmount);
+        processMiningProgress(effectiveMiningAmount);
+
+        return executeMiningCycles(fortuneLevel, hasSilkTouch, specificItemToMine);
+    }
+
+    /**
+     * 일반 채굴 조건을 검증합니다.
+     */
+    private boolean validateMiningConditions() {
+        return level instanceof ServerLevel && currentYield > 0;
+    }
+
+    /**
+     * 특정 아이템 채굴 조건을 검증합니다.
+     */
+    private boolean validateSpecificMiningConditions(Item specificItemToMine) {
+        return validateMiningConditions() && resourceComposition.containsKey(specificItemToMine);
+    }
+
+    /**
+     * 채굴 상태를 업데이트합니다.
+     */
+    private void updateMiningState(BlockPos miningDrillPos) {
         this.ticksSinceLastMine = 0;
         this.lastMiningDrillPos = miningDrillPos;
+    }
 
-        double effectiveMiningAmount = (miningAmount / getHardness());
+    /**
+     * 효과적인 채굴량을 계산합니다.
+     */
+    private double calculateEffectiveMiningAmount(int baseMiningAmount) {
+        double effectiveMiningAmount = baseMiningAmount / getHardness();
 
+        // Quirk 효과 적용 (인공 노드인 경우)
         if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-            Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
+            Quirk.QuirkContext context = new Quirk.QuirkContext(
+                    (ServerLevel) level, worldPosition, this, null
+            );
+
             for (Quirk quirk : artificialNode.getQuirks()) {
                 effectiveMiningAmount = quirk.onCalculateMiningAmount(effectiveMiningAmount, context);
             }
         }
 
-        // 공유 진행도에 누적합니다. (초기화 없음)
+        return effectiveMiningAmount;
+    }
+
+    /**
+     * 채굴 진행도를 처리합니다.
+     */
+    private void processMiningProgress(double effectiveMiningAmount) {
         this.sharedMiningProgress += (float) effectiveMiningAmount;
 
+        // 주기적으로 상태 동기화
+        assert level != null;
         if (level.getGameTime() % 2 == 0) {
             setChanged();
             sendData();
         }
+    }
 
-        int miningResistance = 1000;
+    /**
+     * 채굴 사이클을 실행합니다.
+     * @param specificItem null이면 일반 채굴, 아니면 특정 아이템 채굴
+     */
+    private List<ItemStack> executeMiningCycles(int fortuneLevel, boolean hasSilkTouch, Item specificItem) {
+        final int MINING_RESISTANCE = 1000;
         List<ItemStack> allDrops = new ArrayList<>();
+        ServerLevel serverLevel = (ServerLevel) level;
 
-        // 진행도가 저항을 초과하는 동안 계속해서 채굴 주기를 실행합니다.
-        while (this.sharedMiningProgress >= miningResistance) {
-            this.sharedMiningProgress -= miningResistance;
+        while (this.sharedMiningProgress >= MINING_RESISTANCE && this.currentYield > 0) {
+            this.sharedMiningProgress -= MINING_RESISTANCE;
 
-            Direction miningFace = Direction.getNearest(
-                    (float)(this.worldPosition.getX() - this.lastMiningDrillPos.getX()),
-                    (float)(this.worldPosition.getY() - this.lastMiningDrillPos.getY()),
-                    (float)(this.worldPosition.getZ() - this.lastMiningDrillPos.getZ())
-            );
-            spawnMiningParticles(serverLevel, miningFace);
+            // 채굴 효과 생성
+            spawnMiningEffects();
 
-            if (this.isCracked()) {
-                for (NodeRecipe recipe : NodeRecipe.RECIPES) {
-                    if (checkRecipeConditions(recipe)) {
-                        if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
-                            this.currentYield -= recipe.consumptionMultiplier();
-                            setChanged();
-                            sendData();
-                            allDrops.add(recipe.output().copy());
-                            if (this.currentYield <= 0) break;
-                        }
-                    }
-                }
+            // 드롭 생성
+            List<ItemStack> cycleDrops = (specificItem == null)
+                    ? processNormalMiningCycle(fortuneLevel, hasSilkTouch, serverLevel)
+                    : processSpecificMiningCycle(fortuneLevel, hasSilkTouch, specificItem, serverLevel);
+
+            allDrops.addAll(cycleDrops);
+
+            // 수율 감소 및 후처리
+            if (!processCycleCompletion(serverLevel)) {
+                break; // 수율이 고갈되면 중단
             }
-            if (this.currentYield <= 0) break;
-
-            List<ItemStack> dropsThisCycle = getNormalDrops(fortuneLevel, hasSilkTouch);
-            allDrops.addAll(dropsThisCycle);
-
-            this.currentYield--;
-            if (this instanceof ArtificialNodeBlockEntity artificialNode) {
-                Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
-                for (Quirk quirk : artificialNode.getQuirks()) {
-                    quirk.onYieldConsumed(context);
-                }
-            }
-            if (this.currentYield <= 0) break;
         }
 
-        setChanged();
-        sendData();
+        finalizeMiningSafety();
         return allDrops;
     }
 
-    public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch, Item specificItemToMine, BlockPos miningDrillPos) {
-        if (!(level instanceof ServerLevel serverLevel) || currentYield <= 0 || !resourceComposition.containsKey(specificItemToMine)) {
-            return Collections.emptyList();
+    /**
+     * 채굴 효과를 생성합니다.
+     */
+    private void spawnMiningEffects() {
+        Direction miningFace = calculateMiningFace();
+        assert level != null;
+        spawnMiningParticles((ServerLevel) level, miningFace);
+    }
+
+    /**
+     * 채굴 방향을 계산합니다.
+     */
+    private Direction calculateMiningFace() {
+        return Direction.getNearest(
+                (float)(this.worldPosition.getX() - this.lastMiningDrillPos.getX()),
+                (float)(this.worldPosition.getY() - this.lastMiningDrillPos.getY()),
+                (float)(this.worldPosition.getZ() - this.lastMiningDrillPos.getZ())
+        );
+    }
+
+    /**
+     * 일반 채굴 사이클을 처리합니다.
+     */
+    private List<ItemStack> processNormalMiningCycle(int fortuneLevel, boolean hasSilkTouch, ServerLevel serverLevel) {
+        List<ItemStack> cycleDrops = new ArrayList<>();
+
+        // 크랙된 상태에서 특수 레시피 처리
+        if (this.isCracked()) {
+            cycleDrops.addAll(processSpecialRecipes(serverLevel));
+            if (this.currentYield <= 0) {
+                return cycleDrops;
+            }
         }
 
-        this.ticksSinceLastMine = 0;
-        this.lastMiningDrillPos = miningDrillPos;
+        // 일반 드롭 처리
+        cycleDrops.addAll(getNormalDrops(fortuneLevel, hasSilkTouch));
 
-        float effectiveMiningAmount = miningAmount / getHardness();
-        this.sharedMiningProgress += effectiveMiningAmount;
+        return cycleDrops;
+    }
 
-        if (level.getGameTime() % 2 == 0) {
-            setChanged();
-            sendData();
-        }
+    /**
+     * 특별 레시피를 처리합니다.
+     */
+    private List<ItemStack> processSpecialRecipes(ServerLevel serverLevel) {
+        List<ItemStack> specialDrops = new ArrayList<>();
 
-        int miningResistance = 1000;
-        List<ItemStack> allDrops = new ArrayList<>();
+        for (NodeRecipe recipe : NodeRecipe.RECIPES) {
+            if (checkRecipeConditions(recipe)) {
+                if (serverLevel.getRandom().nextFloat() < recipe.chance()) {
+                    this.currentYield -= recipe.consumptionMultiplier();
+                    setChanged();
+                    sendData();
+                    specialDrops.add(recipe.output().copy());
 
-        while (this.sharedMiningProgress >= miningResistance) {
-            this.sharedMiningProgress -= miningResistance;
-            this.currentYield--;
-
-            Direction miningFace = Direction.getNearest(
-                    (float)(this.worldPosition.getX() - miningDrillPos.getX()),
-                    (float)(this.worldPosition.getY() - miningDrillPos.getY()),
-                    (float)(this.worldPosition.getZ() - miningDrillPos.getZ())
-            );
-            spawnMiningParticles(serverLevel, miningFace);
-
-            if (hasSilkTouch) {
-                Block blockToDrop = this.itemToBlockMap.get(specificItemToMine);
-                allDrops.add(new ItemStack(Objects.requireNonNullElseGet(blockToDrop, () -> BuiltInRegistries.BLOCK.get(oreBlockId))));
-            } else {
-                ItemStack finalDrop = new ItemStack(specificItemToMine);
-                int dropCount = 1;
-                if (fortuneLevel > 0) {
-                    RandomSource rand = serverLevel.getRandom();
-                    for (int i = 0; i < fortuneLevel; i++) {
-                        if (rand.nextInt(fortuneLevel + 2) > 1) dropCount++;
+                    if (this.currentYield <= 0) {
+                        break;
                     }
                 }
-                if (this.richness > 1.0f && serverLevel.getRandom().nextFloat() < (this.richness - 1.0f)) {
-                    finalDrop.grow(finalDrop.getCount());
-                }
-                finalDrop.setCount(dropCount);
-                allDrops.add(finalDrop);
             }
-
-            if (this.currentYield <= 0) break;
         }
 
+        return specialDrops;
+    }
+
+    /**
+     * 특정 아이템 채굴 사이클을 처리합니다.
+     */
+    private List<ItemStack> processSpecificMiningCycle(int fortuneLevel, boolean hasSilkTouch,
+                                                       Item specificItem, ServerLevel serverLevel) {
+        List<ItemStack> cycleDrops = new ArrayList<>();
+
+        if (hasSilkTouch) {
+            cycleDrops.add(createSilkTouchDrop(specificItem));
+        } else {
+            cycleDrops.add(createFortuneEnhancedDrop(specificItem, fortuneLevel, serverLevel));
+        }
+
+        return cycleDrops;
+    }
+
+    /**
+     * 실크터치 드롭을 생성합니다.
+     */
+    private ItemStack createSilkTouchDrop(Item specificItem) {
+        Block blockToDrop = this.itemToBlockMap.get(specificItem);
+        Block finalBlock = Objects.requireNonNullElseGet(blockToDrop,
+                () -> BuiltInRegistries.BLOCK.get(oreBlockId));
+        return new ItemStack(finalBlock);
+    }
+
+    /**
+     * 행운 강화 드롭을 생성합니다.
+     */
+    private ItemStack createFortuneEnhancedDrop(Item specificItem, int fortuneLevel, ServerLevel serverLevel) {
+        ItemStack finalDrop = new ItemStack(specificItem);
+
+        // 행운 효과 적용
+        int dropCount = calculateFortuneDropCount(fortuneLevel, serverLevel.getRandom());
+
+        // 풍부함 효과 적용
+        if (shouldApplyRichnessBonus(serverLevel.getRandom())) {
+            finalDrop.grow(finalDrop.getCount());
+        }
+
+        finalDrop.setCount(dropCount);
+        return finalDrop;
+    }
+
+    /**
+     * 행운에 따른 드롭 개수를 계산합니다.
+     */
+    private int calculateFortuneDropCount(int fortuneLevel, RandomSource random) {
+        int dropCount = 1;
+
+        if (fortuneLevel > 0) {
+            for (int i = 0; i < fortuneLevel; i++) {
+                if (random.nextInt(fortuneLevel + 2) > 1) {
+                    dropCount++;
+                }
+            }
+        }
+
+        return dropCount;
+    }
+
+    /**
+     * 풍부함 보너스를 적용할지 결정합니다.
+     */
+    private boolean shouldApplyRichnessBonus(RandomSource random) {
+        return this.richness > 1.0f && random.nextFloat() < (this.richness - 1.0f);
+    }
+
+    /**
+     * 사이클 완료 후 처리를 수행합니다.
+     * @return 계속 채굴할 수 있으면 true
+     */
+    private boolean processCycleCompletion(ServerLevel serverLevel) {
+        this.currentYield--;
+
+        // Quirk 효과 적용 (인공 노드인 경우)
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext(serverLevel, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                quirk.onYieldConsumed(context);
+            }
+        }
+
+        return this.currentYield > 0;
+    }
+
+    /**
+     * 채굴 완료 후 상태를 안전하게 정리합니다.
+     */
+    private void finalizeMiningSafety() {
         setChanged();
         sendData();
-        return allDrops;
     }
 
 

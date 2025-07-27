@@ -46,6 +46,9 @@ public class CustomNodeCommand {
         dispatcher.register(Commands.literal("adsdrill")
                 .then(Commands.literal("create_node")
                         .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("help")
+                                .executes(CustomNodeCommand::sendHelp)
+                        )
                         .then(Commands.literal("simple")
                                 .then(Commands.argument("composition", StringArgumentType.greedyString())
                                         .executes(context -> createSimpleNode(context, StringArgumentType.getString(context, "composition"), 10000)) // 기본 매장량
@@ -100,6 +103,33 @@ public class CustomNodeCommand {
         );
     }
 
+    private static int sendHelp(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> Component.literal("--- AdsDrill: create_node Help ---").withStyle(ChatFormatting.GOLD), false);
+        source.sendSuccess(() -> Component.literal("Creates a custom Ore Node at the block you are looking at.").withStyle(ChatFormatting.GRAY), false);
+        source.sendSuccess(() -> Component.literal(""), false); // Blank line
+
+        // Simple
+        source.sendSuccess(() -> Component.literal("/adsdrill create_node simple <composition> [max_yield]").withStyle(ChatFormatting.AQUA), false);
+        source.sendSuccess(() -> Component.literal("  Creates a node with random stats.").withStyle(ChatFormatting.DARK_GRAY), false);
+        source.sendSuccess(() -> Component.literal("  Example: ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal("/adsdrill create_node simple \"minecraft:iron_ore:1 minecraft:copper_ore:1\" 20000").withStyle(ChatFormatting.WHITE)), false);
+        source.sendSuccess(() -> Component.literal(""), false);
+
+        // Full
+        source.sendSuccess(() -> Component.literal("/adsdrill create_node full <comp> <yield> <hard> <rich> <regen> [fluid] [cap]").withStyle(ChatFormatting.AQUA), false);
+        source.sendSuccess(() -> Component.literal("  Creates a natural node with specific stats.").withStyle(ChatFormatting.DARK_GRAY), false);
+        source.sendSuccess(() -> Component.literal(""), false);
+
+        // Artificial
+        source.sendSuccess(() -> Component.literal("/adsdrill create_node artificial <comp> <yield> <hard> <rich> <regen> [quirks]").withStyle(ChatFormatting.AQUA), false);
+        source.sendSuccess(() -> Component.literal("  Creates an artificial node with quirks.").withStyle(ChatFormatting.DARK_GRAY), false);
+        source.sendSuccess(() -> Component.literal("  Example: ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal("/adsdrill create_node artificial \"minecraft:diamond_ore:1\" 50000 2.5 1.8 0.008 \"STEADY_HANDS GEMSTONE_FACETS\"").withStyle(ChatFormatting.WHITE)), false);
+
+        return 1;
+    }
+
     private static int createSimpleNode(CommandContext<CommandSourceStack> context, String compositionStr, int maxYield) throws CommandSyntaxException {
         RandomSource random = context.getSource().getLevel().getRandom();
         // 월드 생성 로직과 유사한 랜덤 값 사용
@@ -122,57 +152,128 @@ public class CustomNodeCommand {
     }
 
 
-    private static int executeCreateNode(CommandContext<CommandSourceStack> context, String compositionStr, int maxYield, float hardness, float richness, float regeneration, @Nullable ResourceLocation fluidId, int fluidCapacity, @Nullable String quirksStr, boolean isArtificial) throws CommandSyntaxException {
+    private static int executeCreateNode(CommandContext<CommandSourceStack> context, String compositionStr,
+                                         int maxYield, float hardness, float richness, float regeneration,
+                                         @Nullable ResourceLocation fluidId, int fluidCapacity,
+                                         @Nullable String quirksStr, boolean isArtificial) throws CommandSyntaxException {
+
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = source.getLevel();
 
-        // 1. 플레이어가 바라보는 블록 확인
+        // 1. 대상 블록 검증
+        BlockPos targetPos = validateTargetBlock(source, player, level);
+        if (targetPos == null) return 0;
+
+        // 2. 조성 데이터 파싱
+        CompositionData compositionData = parseComposition(source, compositionStr, level);
+        if (compositionData == null) return 0;
+
+        // 3. 유체 처리
+        FluidStack fluidStack = processFluid(fluidId);
+
+        // 4. 특성(Quirk) 처리
+        List<Quirk> quirks = parseQuirks(source, quirksStr, isArtificial);
+        if (quirks == null) return 0;
+
+        // 5. 노드 생성
+        return createNode(source, level, targetPos, compositionData, maxYield, hardness,
+                richness, regeneration, fluidStack, fluidCapacity, quirks, isArtificial);
+    }
+
+    /**
+     * 플레이어가 바라보는 블록을 검증합니다.
+     */
+    private static BlockPos validateTargetBlock(CommandSourceStack source, ServerPlayer player, ServerLevel level) {
         HitResult hitResult = player.pick(10, 0, false);
+
         if (hitResult.getType() != HitResult.Type.BLOCK) {
             source.sendFailure(Component.literal("You must be looking at a block to create a node."));
-            return 0;
+            return null;
         }
+
         BlockPos targetPos = ((BlockHitResult) hitResult).getBlockPos();
         BlockState targetState = level.getBlockState(targetPos);
+
         if (targetState.isAir() || targetState.getDestroySpeed(level, targetPos) < 0) {
             source.sendFailure(Component.literal("Cannot replace the target block."));
-            return 0;
+            return null;
         }
 
-        // 2. Composition 문자열 파싱
+        return targetPos;
+    }
+
+    /**
+     * 조성 문자열을 파싱합니다.
+     */
+    private static CompositionData parseComposition(CommandSourceStack source, String compositionStr, ServerLevel level) {
         Map<Block, Float> parsedComposition = new HashMap<>();
         float totalRatio = 0f;
-        for (String part : compositionStr.split(" ")) {
-            int lastColonIndex = part.lastIndexOf(':');
-            if (lastColonIndex == -1 || lastColonIndex == 0 || lastColonIndex == part.length() - 1) {
-                source.sendFailure(Component.literal("Invalid composition format in '" + part + "'. Expected 'modid:block_id:ratio'."));
-                return 0;
-            }
 
-            String blockIdStr = part.substring(0, lastColonIndex);
-            String ratioStr = part.substring(lastColonIndex + 1);
+        String[] parts = compositionStr.split(" ");
+        for (String part : parts) {
+            CompositionEntry entry = parseCompositionPart(source, part);
+            if (entry == null) return null;
 
-            Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(blockIdStr));
-            if (blockOpt.isEmpty()) {
-                source.sendFailure(Component.literal("Unknown block ID: " + blockIdStr));
-                return 0;
-            }
-            try {
-                float ratio = Float.parseFloat(ratioStr);
-                parsedComposition.put(blockOpt.get(), ratio);
-                totalRatio += ratio;
-            } catch (NumberFormatException e) {
-                source.sendFailure(Component.literal("Invalid ratio number: " + ratioStr));
-                return 0;
-            }
+            parsedComposition.put(entry.block, entry.ratio);
+            totalRatio += entry.ratio;
         }
+
         if (parsedComposition.isEmpty()) {
             source.sendFailure(Component.literal("Composition cannot be empty."));
-            return 0;
+            return null;
         }
 
-        // 3. 파싱된 데이터를 노드 데이터로 변환
+        return convertToNodeData(source, parsedComposition, totalRatio, level);
+    }
+
+    /**
+     * 개별 조성 부분을 파싱합니다.
+     */
+    private static CompositionEntry parseCompositionPart(CommandSourceStack source, String part) {
+        int lastColonIndex = part.lastIndexOf(':');
+
+        if (!isValidCompositionFormat(part, lastColonIndex)) {
+            source.sendFailure(Component.literal(
+                    "Invalid composition format in '" + part + "'. Expected 'modid:block_id:ratio'."
+            ));
+            return null;
+        }
+
+        String blockIdStr = part.substring(0, lastColonIndex);
+        String ratioStr = part.substring(lastColonIndex + 1);
+
+        // 블록 검증
+        Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(blockIdStr));
+        if (blockOpt.isEmpty()) {
+            source.sendFailure(Component.literal("Unknown block ID: " + blockIdStr));
+            return null;
+        }
+
+        // 비율 파싱
+        try {
+            float ratio = Float.parseFloat(ratioStr);
+            return new CompositionEntry(blockOpt.get(), ratio);
+        } catch (NumberFormatException e) {
+            source.sendFailure(Component.literal("Invalid ratio number: " + ratioStr));
+            return null;
+        }
+    }
+
+    /**
+     * 조성 형식이 유효한지 확인합니다.
+     */
+    private static boolean isValidCompositionFormat(String part, int lastColonIndex) {
+        return lastColonIndex != -1 &&
+                lastColonIndex != 0 &&
+                lastColonIndex != part.length() - 1;
+    }
+
+    /**
+     * 파싱된 조성을 노드 데이터로 변환합니다.
+     */
+    private static CompositionData convertToNodeData(CommandSourceStack source, Map<Block, Float> parsedComposition,
+                                                     float totalRatio, ServerLevel level) {
         Map<Item, Float> finalComposition = new HashMap<>();
         Map<Item, Block> itemToBlockMap = new HashMap<>();
         Block representativeBlock = null;
@@ -183,9 +284,12 @@ public class CustomNodeCommand {
             Item oreItem = getOreItem(oreBlock, level);
 
             if (oreItem == Items.AIR) {
-                source.sendFailure(Component.literal("Could not determine a valid item for block: " + BuiltInRegistries.BLOCK.getKey(oreBlock)));
-                return 0;
+                source.sendFailure(Component.literal(
+                        "Could not determine a valid item for block: " + BuiltInRegistries.BLOCK.getKey(oreBlock)
+                ));
+                return null;
             }
+
             float normalizedRatio = entry.getValue() / totalRatio;
             finalComposition.put(oreItem, normalizedRatio);
             itemToBlockMap.put(oreItem, oreBlock);
@@ -196,45 +300,140 @@ public class CustomNodeCommand {
             }
         }
 
-        // 4. 유체 및 특성(Quirk) 처리
-        FluidStack fluidStack = FluidStack.EMPTY;
-        if (fluidId != null) {
-            Fluid fluid = BuiltInRegistries.FLUID.get(fluidId);
-            if (fluid != Fluids.EMPTY) {
-                fluidStack = new FluidStack(fluid, 1);
-            }
+        return new CompositionData(finalComposition, itemToBlockMap, representativeBlock);
+    }
+
+    /**
+     * 유체를 처리합니다.
+     */
+    private static FluidStack processFluid(@Nullable ResourceLocation fluidId) {
+        if (fluidId == null) {
+            return FluidStack.EMPTY;
         }
+
+        Fluid fluid = BuiltInRegistries.FLUID.get(fluidId);
+        return fluid != Fluids.EMPTY ? new FluidStack(fluid, 1) : FluidStack.EMPTY;
+    }
+
+    /**
+     * 특성(Quirk) 문자열을 파싱합니다.
+     */
+    private static List<Quirk> parseQuirks(CommandSourceStack source, @Nullable String quirksStr, boolean isArtificial) {
         List<Quirk> quirks = new ArrayList<>();
-        if (isArtificial && quirksStr != null && !quirksStr.isBlank()) {
-            for (String quirkName : quirksStr.toLowerCase().split(" ")) {
-                try {
-                    quirks.add(Quirk.valueOf(quirkName.toUpperCase()));
-                } catch (IllegalArgumentException e) {
-                    source.sendFailure(Component.literal("Unknown quirk: " + quirkName));
-                    return 0;
-                }
+
+        if (!isArtificial || quirksStr == null || quirksStr.isBlank()) {
+            return quirks;
+        }
+
+        String[] quirkNames = quirksStr.toLowerCase().split(" ");
+        for (String quirkName : quirkNames) {
+            try {
+                quirks.add(Quirk.valueOf(quirkName.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                source.sendFailure(Component.literal("Unknown quirk: " + quirkName));
+                return null;
             }
         }
 
-        // 5. 노드 블록 설치 및 BlockEntity 설정
-        BlockState nodeBlockState = (isArtificial ? AdsDrillBlocks.ARTIFICIAL_NODE : AdsDrillBlocks.ORE_NODE).get().defaultBlockState();
-        level.setBlock(targetPos, nodeBlockState, 3);
-        BlockEntity be = level.getBlockEntity(targetPos);
+        return quirks;
+    }
 
-        if (isArtificial && be instanceof ArtificialNodeBlockEntity artificialNode) {
-            artificialNode.configureFromCrafting(quirks, finalComposition, itemToBlockMap, maxYield, hardness, richness, regeneration, fluidStack, fluidCapacity);
-            source.sendSuccess(() -> Component.literal("Successfully created an Artificial Ore Node at " + targetPos.toShortString()).withStyle(ChatFormatting.GREEN), true);
-        } else if (!isArtificial && be instanceof OreNodeBlockEntity oreNode) {
-            oreNode.configureFromFeature(finalComposition, itemToBlockMap, maxYield, hardness, richness, regeneration, targetState.getBlock(), representativeBlock, fluidStack, fluidCapacity);
-            source.sendSuccess(() -> Component.literal("Successfully created an Ore Node at " + targetPos.toShortString()).withStyle(ChatFormatting.GREEN), true);
+    /**
+     * 노드를 생성합니다.
+     */
+    private static int createNode(CommandSourceStack source, ServerLevel level, BlockPos targetPos,
+                                  CompositionData compositionData, int maxYield, float hardness,
+                                  float richness, float regeneration, FluidStack fluidStack,
+                                  int fluidCapacity, List<Quirk> quirks, boolean isArtificial) {
+
+        // 원본 블록 상태 백업
+        BlockState originalState = level.getBlockState(targetPos);
+
+        // 노드 블록 설치
+        BlockState nodeBlockState = getNodeBlockState(isArtificial);
+        level.setBlock(targetPos, nodeBlockState, 3);
+        BlockEntity blockEntity = level.getBlockEntity(targetPos);
+
+        // 노드 설정
+        boolean success = configureNode(blockEntity, compositionData, maxYield, hardness, richness,
+                regeneration, fluidStack, fluidCapacity, quirks, isArtificial,
+                originalState.getBlock());
+
+        if (success) {
+            sendSuccessMessage(source, targetPos, isArtificial);
+            return 1;
         } else {
-            // 실패 시 블록을 원래대로 되돌림
-            level.setBlock(targetPos, targetState, 3);
+            // 실패 시 원본 블록으로 복원
+            level.setBlock(targetPos, originalState, 3);
             source.sendFailure(Component.literal("Failed to create node BlockEntity."));
             return 0;
         }
+    }
 
-        return 1;
+    /**
+     * 노드 블록 상태를 가져옵니다.
+     */
+    private static BlockState getNodeBlockState(boolean isArtificial) {
+        return (isArtificial ? AdsDrillBlocks.ARTIFICIAL_NODE : AdsDrillBlocks.ORE_NODE)
+                .get()
+                .defaultBlockState();
+    }
+
+    /**
+     * 노드를 설정합니다.
+     */
+    private static boolean configureNode(BlockEntity blockEntity, CompositionData compositionData,
+                                         int maxYield, float hardness, float richness, float regeneration,
+                                         FluidStack fluidStack, int fluidCapacity, List<Quirk> quirks,
+                                         boolean isArtificial, Block originalBlock) {
+
+        if (isArtificial && blockEntity instanceof ArtificialNodeBlockEntity artificialNode) {
+            artificialNode.configureFromCrafting(
+                    quirks,
+                    compositionData.finalComposition,
+                    compositionData.itemToBlockMap,
+                    maxYield, hardness, richness, regeneration,
+                    fluidStack, fluidCapacity
+            );
+            return true;
+        }
+        else if (!isArtificial && blockEntity instanceof OreNodeBlockEntity oreNode) {
+            oreNode.configureFromFeature(
+                    compositionData.finalComposition,
+                    compositionData.itemToBlockMap,
+                    maxYield, hardness, richness, regeneration,
+                    originalBlock, compositionData.representativeBlock,
+                    fluidStack, fluidCapacity
+            );
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 성공 메시지를 전송합니다.
+     */
+    private static void sendSuccessMessage(CommandSourceStack source, BlockPos targetPos, boolean isArtificial) {
+        String nodeType = isArtificial ? "Artificial Ore Node" : "Ore Node";
+        Component message = Component.literal("Successfully created an " + nodeType + " at " + targetPos.toShortString())
+                .withStyle(ChatFormatting.GREEN);
+        source.sendSuccess(() -> message, true);
+    }
+
+// --- 데이터 클래스들 ---
+
+    /**
+         * 조성 엔트리를 나타내는 클래스
+         */
+        private record CompositionEntry(Block block, float ratio) {
+    }
+
+    /**
+         * 조성 데이터를 나타내는 클래스
+         */
+        private record CompositionData(Map<Item, Float> finalComposition, Map<Item, Block> itemToBlockMap,
+                                       Block representativeBlock) {
     }
 
     /**

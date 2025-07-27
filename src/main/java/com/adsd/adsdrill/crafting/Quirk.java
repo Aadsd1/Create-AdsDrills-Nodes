@@ -174,7 +174,7 @@ public enum Quirk {
             checkForOppositePolarity(Quirk.POLARITY_NEGATIVE, context);
             boolean isActive = context.nodeBE().isPolarityBonusActive();
             if (!wasActive && isActive) {
-                context.playEffects(ParticleTypes.HAPPY_VILLAGER, SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 1.5f, 10, 0.1);
+                context.playEffects(ParticleTypes.HAPPY_VILLAGER, SoundEvents.NOTE_BLOCK_CHIME.value(), 0.0f, 1.5f, 10, 0.1);
             }
         }
 
@@ -193,7 +193,7 @@ public enum Quirk {
             checkForOppositePolarity(Quirk.POLARITY_POSITIVE, context);
             boolean isActive = context.nodeBE().isPolarityBonusActive();
             if (!wasActive && isActive) {
-                context.playEffects(ParticleTypes.HAPPY_VILLAGER, SoundEvents.NOTE_BLOCK_CHIME.value(), 0.5f, 1.6f, 10, 0.1);
+                context.playEffects(ParticleTypes.HAPPY_VILLAGER, SoundEvents.NOTE_BLOCK_CHIME.value(), 0.0f, 1.6f, 10, 0.1);
             }
         }
         @Override

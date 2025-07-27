@@ -5,6 +5,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.adsd.adsdrill.config.AdsDrillConfigs;
+import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -34,6 +35,9 @@ public class FindOreModsCommand {
                 .then(Commands.literal("findOreMods")
                         .requires(source -> source.hasPermission(2))
                         .executes(context -> listMods(context.getSource())) // 서브명령어 없이 실행 시 모드 목록 표시
+                        .then(Commands.literal("help")
+                                .executes(FindOreModsCommand::sendHelp)
+                        )
                         .then(Commands.literal("details")
                                 .then(Commands.argument("modid", StringArgumentType.string())
                                         .executes(context -> showModDetails(context.getSource(), StringArgumentType.getString(context, "modid")))
@@ -42,6 +46,27 @@ public class FindOreModsCommand {
                 );
         dispatcher.register(command);
     }
+
+    private static int sendHelp(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> Component.literal("--- AdsDrill: findOreMods Help ---").withStyle(ChatFormatting.GOLD), false);
+        source.sendSuccess(() -> Component.literal("Scans and lists mods that add ore features.").withStyle(ChatFormatting.GRAY), false);
+        source.sendSuccess(() -> Component.literal(""), false); // Blank line
+
+        // Base command
+        source.sendSuccess(() -> Component.literal("/adsdrill findOreMods").withStyle(ChatFormatting.AQUA), false);
+        source.sendSuccess(() -> Component.literal("  Lists all detected mod IDs.").withStyle(ChatFormatting.DARK_GRAY), false);
+        source.sendSuccess(() -> Component.literal(""), false);
+
+        // Details subcommand
+        source.sendSuccess(() -> Component.literal("/adsdrill findOreMods details <modid>").withStyle(ChatFormatting.AQUA), false);
+        source.sendSuccess(() -> Component.literal("  Shows how AdsDrill maps ores for a specific mod.").withStyle(ChatFormatting.DARK_GRAY), false);
+        source.sendSuccess(() -> Component.literal("  Example: ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal("/adsdrill findOreMods details create").withStyle(ChatFormatting.WHITE)), false);
+
+        return 1;
+    }
+
 
     private static int listMods(CommandSourceStack source) {
         Registry<PlacedFeature> placedFeatureRegistry = source.getServer().registryAccess().registryOrThrow(Registries.PLACED_FEATURE);

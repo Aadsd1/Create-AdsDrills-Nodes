@@ -107,15 +107,13 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
 
         switch (tier) {
-            case BRASS:
+            case BRASS, NETHERITE:
                 break;
             case STEEL:
                 candidates.put(Quirk.OVERLOAD_DISCHARGE, 0.0f);
                 candidates.put(Quirk.BONE_CHILL, 0.0f);
                 candidates.put(Quirk.WITHERING_ECHO, 0.0f);
                 candidates.put(Quirk.WILD_MAGIC,0.0f);
-                break;
-            case NETHERITE:
                 break;
         }
 
@@ -250,8 +248,6 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                                 worldPosition.getX() + 0.5, worldPosition.getY() + 1.2, worldPosition.getZ() + 0.5,
                                 10, 0.4, 0.2, 0.4, 0.0);
                         level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
-                        setChanged();
-                        sendData();
                     } else {
                         progress = Math.max(0, progress - progressDecay);
                         // 일반 실패 피드백 (약함)
@@ -261,9 +257,9 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
                                     5, 0.4, 0.2, 0.4, 0.01);
                         }
 
-                        setChanged();
-                        sendData();
                     }
+                    setChanged();
+                    sendData();
                 }
             }
         }
@@ -303,66 +299,177 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
     public void completeCrafting() {
         if (level == null || level.isClientSide) return;
 
-        //  1. 최종 속성 계산
+        // 1. 데이터 수집 및 계산
+        CraftingData craftingData = collectCraftingData();
+
+        // 2. 코어 등급에 따른 최종 속성 계산
+        StabilizerCoreItem.Tier tier = getCoreItemTier();
+        FinalAttributes attributes = calculateFinalAttributes(craftingData, tier);
+
+        // 3. 특성(Quirk) 생성
+        List<Quirk> finalQuirks = generateQuirks(tier);
+
+        // 4. 유체 처리
+        FluidData fluidData = processFluids(craftingData.fluidCapacities, attributes.yieldMultiplier);
+
+        // 5. 블록 교체 및 데이터 주입
+        replaceWithArtificialNode(attributes, finalQuirks, craftingData, fluidData);
+
+        // 6. 완료 효과
+        playCraftingCompleteEffects();
+    }
+
+    /**
+     * 인벤토리에서 제작 데이터를 수집합니다.
+     */
+    private CraftingData collectCraftingData() {
         Map<Item, Float> weightedComposition = new HashMap<>();
         Map<Item, Block> finalItemToBlockMap = new HashMap<>();
+        Map<Fluid, Integer> fluidCapacities = new HashMap<>();
         float totalInputYield = 0;
 
+        // 데이터 슬롯 처리
         for (int i = DATA_SLOT_START; i < CORE_SLOT; i++) {
             ItemStack dataStack = inventory.getStackInSlot(i);
             if (dataStack.isEmpty()) continue;
 
-            CustomData customData = dataStack.get(DataComponents.CUSTOM_DATA);
-            if (customData == null) continue;
-            CompoundTag nbt = customData.copyTag();
+            CompoundTag nbt = extractCustomData(dataStack);
 
-            float yield = nbt.getFloat("Yield");
-            totalInputYield += yield;
-
-            ListTag compositionList = nbt.getList("Composition", 10);
-            for (int j = 0; j < compositionList.size(); j++) {
-                CompoundTag entry = compositionList.getCompound(j);
-                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(entry.getString("Item")));
-                float ratio = entry.getFloat("Ratio");
-                weightedComposition.merge(item, ratio * yield, Float::sum);
-            }
-
-            ListTag itemToBlockList = nbt.getList("ItemToBlockMap", 10);
-            for (int j = 0; j < itemToBlockList.size(); j++) {
-                CompoundTag entry = itemToBlockList.getCompound(j);
-                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(entry.getString("Item")));
-                Block block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse(entry.getString("Block")));
-                if (item != Items.AIR && block != Blocks.AIR) {
-                    finalItemToBlockMap.putIfAbsent(item, block);
-                }
-            }
+            totalInputYield += processDataSlot(nbt, weightedComposition, finalItemToBlockMap);
         }
 
+        // 유체 데이터 처리
+        processFluidData(fluidCapacities);
+
+        // 기본값 설정 (빈 경우)
         if (weightedComposition.isEmpty()) {
-            weightedComposition.put(Items.RAW_IRON, 1.0f);
-            finalItemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
+            setDefaultComposition(weightedComposition, finalItemToBlockMap);
             totalInputYield = 1000;
         }
-        Map<Fluid, Integer> fluidCapacities = new HashMap<>();
 
+        return new CraftingData(weightedComposition, finalItemToBlockMap, fluidCapacities, totalInputYield);
+    }
+
+    /**
+     * 아이템 스택에서 커스텀 데이터를 추출합니다.
+     */
+    private CompoundTag extractCustomData(ItemStack stack) {
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        assert customData != null;
+        return customData.copyTag();
+    }
+
+    /**
+     * 개별 데이터 슬롯을 처리합니다.
+     */
+    private float processDataSlot(CompoundTag nbt, Map<Item, Float> weightedComposition,
+                                  Map<Item, Block> itemToBlockMap) {
+        float yield = nbt.getFloat("Yield");
+
+        processComposition(nbt, weightedComposition, yield);
+        processItemToBlockMapping(nbt, itemToBlockMap);
+
+        return yield;
+    }
+
+    /**
+     * 조성 데이터를 처리합니다.
+     */
+    private void processComposition(CompoundTag nbt, Map<Item, Float> weightedComposition, float yield) {
+        ListTag compositionList = nbt.getList("Composition", 10);
+
+        for (int i = 0; i < compositionList.size(); i++) {
+            CompoundTag entry = compositionList.getCompound(i);
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(entry.getString("Item")));
+            float ratio = entry.getFloat("Ratio");
+            weightedComposition.merge(item, ratio * yield, Float::sum);
+        }
+    }
+
+    /**
+     * 아이템-블록 매핑을 처리합니다.
+     */
+    private void processItemToBlockMapping(CompoundTag nbt, Map<Item, Block> itemToBlockMap) {
+        ListTag itemToBlockList = nbt.getList("ItemToBlockMap", 10);
+
+        for (int i = 0; i < itemToBlockList.size(); i++) {
+            CompoundTag entry = itemToBlockList.getCompound(i);
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(entry.getString("Item")));
+            Block block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse(entry.getString("Block")));
+
+            if (item != Items.AIR && block != Blocks.AIR) {
+                itemToBlockMap.putIfAbsent(item, block);
+            }
+        }
+    }
+
+    /**
+     * 유체 데이터를 처리합니다.
+     */
+    private void processFluidData(Map<Fluid, Integer> fluidCapacities) {
         for (int i = 0; i < DATA_SLOT_COUNT; i++) {
             ItemStack dataStack = inventory.getStackInSlot(i);
             if (dataStack.isEmpty()) continue;
-            CustomData customData = dataStack.get(DataComponents.CUSTOM_DATA);
-            if (customData == null) continue;
-            CompoundTag nbt = customData.copyTag();
 
-            if (nbt.contains("FluidContent")) {
-                FluidStack fluid = FluidStack.parse(level.registryAccess(), nbt.getCompound("FluidContent")).orElse(FluidStack.EMPTY);
-                if (!fluid.isEmpty()) {
-                    int capacity = nbt.getInt("MaxFluidCapacity");
-                    fluidCapacities.merge(fluid.getFluid(), capacity, Integer::sum);
-                }
+            CompoundTag nbt = extractCustomData(dataStack);
+            if (!nbt.contains("FluidContent")) continue;
+
+            assert level != null;
+            FluidStack fluid = FluidStack.parse(level.registryAccess(), nbt.getCompound("FluidContent"))
+                    .orElse(FluidStack.EMPTY);
+            if (!fluid.isEmpty()) {
+                int capacity = nbt.getInt("MaxFluidCapacity");
+                fluidCapacities.merge(fluid.getFluid(), capacity, Integer::sum);
             }
         }
+    }
 
+    /**
+     * 기본 조성을 설정합니다.
+     */
+    private void setDefaultComposition(Map<Item, Float> weightedComposition, Map<Item, Block> itemToBlockMap) {
+        weightedComposition.put(Items.RAW_IRON, 1.0f);
+        itemToBlockMap.put(Items.RAW_IRON, Blocks.IRON_ORE);
+    }
+
+    /**
+     * 코어 아이템의 등급을 가져옵니다.
+     */
+    private StabilizerCoreItem.Tier getCoreItemTier() {
+        ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
+        return (coreStack.getItem() instanceof StabilizerCoreItem sci) ?
+                sci.getTier() : StabilizerCoreItem.Tier.BRASS;
+    }
+
+    /**
+     * 최종 속성을 계산합니다.
+     */
+    private FinalAttributes calculateFinalAttributes(CraftingData craftingData, StabilizerCoreItem.Tier tier) {
+        // 조성 정규화
+        Map<Item, Float> finalComposition = normalizeComposition(craftingData.weightedComposition);
+
+        // 수율 계산
+        float yieldMultiplier = getYieldMultiplier(tier);
+        int finalMaxYield = (int) (craftingData.totalInputYield * yieldMultiplier);
+
+        // 특성 값 계산
+        assert level != null;
+        RandomSource random = level.getRandom();
+        AttributeValues values = generateAttributeValues(tier, random);
+
+        return new FinalAttributes(
+                finalComposition, yieldMultiplier, finalMaxYield,
+                values.hardness, values.richness, values.regeneration
+        );
+    }
+
+    /**
+     * 조성을 정규화합니다.
+     */
+    private Map<Item, Float> normalizeComposition(Map<Item, Float> weightedComposition) {
         Map<Item, Float> finalComposition = new HashMap<>();
         float totalWeight = weightedComposition.values().stream().reduce(0f, Float::sum);
+
         if (totalWeight > 0) {
             for (Map.Entry<Item, Float> entry : weightedComposition.entrySet()) {
                 finalComposition.put(entry.getKey(), entry.getValue() / totalWeight);
@@ -371,165 +478,268 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             finalComposition.put(Items.RAW_IRON, 1.0f);
         }
 
-        ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
-        StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
+        return finalComposition;
+    }
 
-        float yieldMultiplier = switch (tier) {
+    /**
+     * 등급에 따른 수율 배수를 반환합니다.
+     */
+    private float getYieldMultiplier(StabilizerCoreItem.Tier tier) {
+        return switch (tier) {
             case BRASS -> 0.8f;
             case STEEL -> 1.0f;
             case NETHERITE -> 1.25f;
         };
-        int finalMaxYield = (int) (totalInputYield * yieldMultiplier);
+    }
 
-        RandomSource random = level.getRandom();
-        float finalHardness, finalRichness, finalRegeneration;
-        switch (tier) {
-            case BRASS -> {
-                finalHardness = 0.6f + (random.nextFloat() * 0.4f);
-                finalRichness = 0.9f + (random.nextFloat() * 0.2f);
-                finalRegeneration = 0.0005f + (random.nextFloat() * 0.001f);
-            }
-            case STEEL -> {
-                finalHardness = 0.9f + (random.nextFloat() * 0.6f);
-                finalRichness = 1.05f + (random.nextFloat() * 0.3f);
-                finalRegeneration = 0.0015f + (random.nextFloat() * 0.002f);
-            }
-            case NETHERITE -> {
-                finalHardness = 1.4f + (random.nextFloat() * 0.8f);
-                finalRichness = 1.2f + (random.nextFloat() * 0.4f);
-                finalRegeneration = 0.0025f + (random.nextFloat() * 0.003f);
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + tier);
-        }
-        // --- 2. 특성(Quirk) 결정 (수정된 로직) ---
+    /**
+     * 등급에 따른 속성 값을 생성합니다.
+     */
+    private AttributeValues generateAttributeValues(StabilizerCoreItem.Tier tier, RandomSource random) {
+        return switch (tier) {
+            case BRASS -> new AttributeValues(
+                    0.6f + (random.nextFloat() * 0.4f),
+                    0.9f + (random.nextFloat() * 0.2f),
+                    0.0005f + (random.nextFloat() * 0.001f)
+            );
+            case STEEL -> new AttributeValues(
+                    0.9f + (random.nextFloat() * 0.6f),
+                    1.05f + (random.nextFloat() * 0.3f),
+                    0.0015f + (random.nextFloat() * 0.002f)
+            );
+            case NETHERITE -> new AttributeValues(
+                    1.4f + (random.nextFloat() * 0.8f),
+                    1.2f + (random.nextFloat() * 0.4f),
+                    0.0025f + (random.nextFloat() * 0.003f)
+            );
+        };
+    }
+
+    /**
+     * 등급에 따른 특성(Quirk)을 생성합니다.
+     */
+    private List<Quirk> generateQuirks(StabilizerCoreItem.Tier tier) {
+        List<Quirk> availableQuirks = getAvailableQuirks(tier);
+        List<Quirk.Tier> quirkTiersToGenerate = determineQuirkTiers(tier);
+
+        return selectQuirks(availableQuirks, quirkTiersToGenerate, tier);
+    }
+
+    /**
+     * 사용 가능한 특성 목록을 가져옵니다.
+     */
+    private List<Quirk> getAvailableQuirks(StabilizerCoreItem.Tier tier) {
         List<Quirk> availableQuirks = new ArrayList<>();
-        for(Quirk q : Quirk.values()){
-            var config = AdsDrillConfigs.getQuirkConfig(q);
-            // 설정에서 활성화되어 있고, 현재 코어 등급에 블랙리스트되지 않은 특성만 추가
-            if(config.isEnabled() && !config.blacklistedTiers().contains(tier.name())){
-                availableQuirks.add(q);
+
+        for (Quirk quirk : Quirk.values()) {
+            var config = AdsDrillConfigs.getQuirkConfig(quirk);
+            if (config.isEnabled() && !config.blacklistedTiers().contains(tier.name())) {
+                availableQuirks.add(quirk);
             }
         }
 
-        List<Quirk> finalQuirks = new ArrayList<>();
-        // 2a. 코어 티어에 따라 특성 개수와 티어 분포 결정
-        int numQuirks;
-        List<Quirk.Tier> quirkTiersToGenerate = new ArrayList<>();
+        return availableQuirks;
+    }
+
+    /**
+     * 생성할 특성의 등급을 결정합니다.
+     */
+    private List<Quirk.Tier> determineQuirkTiers(StabilizerCoreItem.Tier tier) {
+        List<Quirk.Tier> quirkTiers = new ArrayList<>();
+        assert level != null;
+        RandomSource random = level.getRandom();
 
         switch (tier) {
-            case BRASS -> {
-                if (random.nextFloat() < 0.1f) quirkTiersToGenerate.add(Quirk.Tier.RARE);
-                else quirkTiersToGenerate.add(Quirk.Tier.COMMON);
-            }
+            case BRASS -> quirkTiers.add(random.nextFloat() < 0.1f ? Quirk.Tier.RARE : Quirk.Tier.COMMON);
             case STEEL -> {
-                numQuirks = (random.nextFloat() < 0.3f) ? 2 : 1; // 30% 확률로 2개
+                int numQuirks = random.nextFloat() < 0.3f ? 2 : 1;
                 for (int i = 0; i < numQuirks; i++) {
-                    float r = random.nextFloat();
-                    if (r < 0.05f) quirkTiersToGenerate.add(Quirk.Tier.EPIC);
-                    else if (r < 0.60f) quirkTiersToGenerate.add(Quirk.Tier.RARE); // 55%
-                    else quirkTiersToGenerate.add(Quirk.Tier.COMMON); // 40%
+                    quirkTiers.add(selectSteelQuirkTier(random));
                 }
             }
             case NETHERITE -> {
-                numQuirks = (random.nextFloat() < 0.7f) ? 3 : 2; // 70% 확률로 3개
+                int numQuirks = random.nextFloat() < 0.7f ? 3 : 2;
                 for (int i = 0; i < numQuirks; i++) {
-                    float r = random.nextFloat();
-                    if (r < 0.4f) quirkTiersToGenerate.add(Quirk.Tier.EPIC);
-                    else if (r < 0.9f) quirkTiersToGenerate.add(Quirk.Tier.RARE); // 50%
-                    else quirkTiersToGenerate.add(Quirk.Tier.COMMON); // 10%
+                    quirkTiers.add(selectNetheriteQuirkTier(random));
                 }
             }
         }
 
-        for (Quirk.Tier tierToGen : quirkTiersToGenerate) {
-            // [!!! 핵심 수정 2: 마스터 목록에서 후보 필터링 !!!]
-            Map<Quirk, Float> candidates = availableQuirks.stream()
-                    .filter(q -> q.getTier() == tierToGen)
-                    .collect(Collectors.toMap(q -> q, q -> 3.0f));
+        return quirkTiers;
+    }
 
+    /**
+     * Steel 등급의 특성 티어를 선택합니다.
+     */
+    private Quirk.Tier selectSteelQuirkTier(RandomSource random) {
+        float r = random.nextFloat();
+        if (r < 0.05f) return Quirk.Tier.EPIC;
+        if (r < 0.60f) return Quirk.Tier.RARE;
+        return Quirk.Tier.COMMON;
+    }
+
+    /**
+     * Netherite 등급의 특성 티어를 선택합니다.
+     */
+    private Quirk.Tier selectNetheriteQuirkTier(RandomSource random) {
+        float r = random.nextFloat();
+        if (r < 0.4f) return Quirk.Tier.EPIC;
+        if (r < 0.9f) return Quirk.Tier.RARE;
+        return Quirk.Tier.COMMON;
+    }
+
+    /**
+     * 특성을 선택합니다.
+     */
+    private List<Quirk> selectQuirks(List<Quirk> availableQuirks, List<Quirk.Tier> quirkTiers,
+                                     StabilizerCoreItem.Tier coreTier) {
+        List<Quirk> finalQuirks = new ArrayList<>();
+        assert level != null;
+        RandomSource random = level.getRandom();
+
+        for (Quirk.Tier tierToGen : quirkTiers) {
+            Map<Quirk, Float> candidates = buildCandidateMap(availableQuirks, tierToGen, coreTier);
             if (candidates.isEmpty()) continue;
 
-            final float CATALYST_BONUS = 10.0f;
-            ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
-            ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
-
-            if (!catalyst1.isEmpty()) {
-                candidates.replaceAll((quirk, weight) -> quirk.getCatalyst().get() == catalyst1.getItem() ? weight + CATALYST_BONUS : weight);
-            }
-            if (!catalyst2.isEmpty()) {
-                candidates.replaceAll((quirk, weight) -> quirk.getCatalyst().get() == catalyst2.getItem() ? weight + CATALYST_BONUS : weight);
-            }
-
-            switch (tier) {
-                case BRASS, NETHERITE -> {
-                }
-                case STEEL -> {
-                    candidates.remove(Quirk.OVERLOAD_DISCHARGE);
-                    candidates.remove(Quirk.BONE_CHILL);
-                    candidates.remove(Quirk.WITHERING_ECHO);
-                    candidates.remove(Quirk.WILD_MAGIC);
-                }
-            }
-            float totalQuirkWeight = candidates.values().stream().reduce(0f, Float::sum);
-            if (totalQuirkWeight <= 0) continue;
-
-            float randomValue = random.nextFloat() * totalQuirkWeight;
-            Quirk selectedQuirk = null;
-            for (Map.Entry<Quirk, Float> entry : candidates.entrySet()) {
-                randomValue -= entry.getValue();
-                if (randomValue <= 0) {
-                    selectedQuirk = entry.getKey();
-                    break;
-                }
-            }
-
+            Quirk selectedQuirk = selectWeightedRandom(candidates, random);
             if (selectedQuirk != null) {
                 finalQuirks.add(selectedQuirk);
-                // [!!! 핵심 수정 3: 선택된 특성을 마스터 목록에서 제거 !!!]
                 availableQuirks.remove(selectedQuirk);
             }
         }
 
-        FluidStack finalFluid = FluidStack.EMPTY;
-        int finalFluidCapacity = 0;
+        return finalQuirks;
+    }
 
-        if (!fluidCapacities.isEmpty()) {
-            Fluid dominantFluid = fluidCapacities.entrySet().stream()
-                    .max(Map.Entry.comparingByValue())
-                    .map(Map.Entry::getKey)
-                    .orElse(null);
+    /**
+     * 후보 특성과 가중치 맵을 구성합니다.
+     */
+    private Map<Quirk, Float> buildCandidateMap(List<Quirk> availableQuirks, Quirk.Tier targetTier,
+                                                StabilizerCoreItem.Tier coreTier) {
+        Map<Quirk, Float> candidates = availableQuirks.stream()
+                .filter(q -> q.getTier() == targetTier)
+                .collect(Collectors.toMap(q -> q, q -> 3.0f));
 
-            if (dominantFluid != null) {
-                int totalCapacity = fluidCapacities.values().stream().mapToInt(Integer::intValue).sum();
-                finalFluidCapacity = (int) (totalCapacity * yieldMultiplier);
-                finalFluid = new FluidStack(dominantFluid, 1);
+        if (candidates.isEmpty()) return candidates;
+
+        // 촉매 보너스 적용
+        applyCatalystBonus(candidates);
+
+        // Steel 등급 특별 제한
+        if (coreTier == StabilizerCoreItem.Tier.STEEL) {
+            removeSteelRestrictedQuirks(candidates);
+        }
+
+        return candidates;
+    }
+
+    /**
+     * 촉매 보너스를 적용합니다.
+     */
+    private void applyCatalystBonus(Map<Quirk, Float> candidates) {
+        final float CATALYST_BONUS = 10.0f;
+        ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
+        ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
+
+        if (!catalyst1.isEmpty()) {
+            candidates.replaceAll((quirk, weight) ->
+                    quirk.getCatalyst().get() == catalyst1.getItem() ? weight + CATALYST_BONUS : weight);
+        }
+        if (!catalyst2.isEmpty()) {
+            candidates.replaceAll((quirk, weight) ->
+                    quirk.getCatalyst().get() == catalyst2.getItem() ? weight + CATALYST_BONUS : weight);
+        }
+    }
+
+    /**
+     * Steel 등급에서 제한된 특성을 제거합니다.
+     */
+    private void removeSteelRestrictedQuirks(Map<Quirk, Float> candidates) {
+        candidates.remove(Quirk.OVERLOAD_DISCHARGE);
+        candidates.remove(Quirk.BONE_CHILL);
+        candidates.remove(Quirk.WITHERING_ECHO);
+        candidates.remove(Quirk.WILD_MAGIC);
+    }
+
+    /**
+     * 가중치를 기반으로 랜덤 선택을 수행합니다.
+     */
+    private Quirk selectWeightedRandom(Map<Quirk, Float> candidates, RandomSource random) {
+        float totalWeight = candidates.values().stream().reduce(0f, Float::sum);
+        if (totalWeight <= 0) return null;
+
+        float randomValue = random.nextFloat() * totalWeight;
+        for (Map.Entry<Quirk, Float> entry : candidates.entrySet()) {
+            randomValue -= entry.getValue();
+            if (randomValue <= 0) {
+                return entry.getKey();
             }
         }
-        // --- 3. 블록 교체 및 데이터 주입 ---
+        return null;
+    }
+
+    /**
+     * 유체 데이터를 처리합니다.
+     */
+    private FluidData processFluids(Map<Fluid, Integer> fluidCapacities, float yieldMultiplier) {
+        if (fluidCapacities.isEmpty()) {
+            return new FluidData(FluidStack.EMPTY, 0);
+        }
+
+        Fluid dominantFluid = fluidCapacities.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        if (dominantFluid == null) {
+            return new FluidData(FluidStack.EMPTY, 0);
+        }
+
+        int totalCapacity = fluidCapacities.values().stream().mapToInt(Integer::intValue).sum();
+        int finalFluidCapacity = (int) (totalCapacity * yieldMultiplier);
+        FluidStack finalFluid = new FluidStack(dominantFluid, 1);
+
+        return new FluidData(finalFluid, finalFluidCapacity);
+    }
+
+    /**
+     * 블록을 인공 노드로 교체하고 데이터를 주입합니다.
+     */
+    private void replaceWithArtificialNode(FinalAttributes attributes, List<Quirk> finalQuirks,
+                                           CraftingData craftingData, FluidData fluidData) {
         this.isCompleting = true;
         BlockPos currentPos = this.worldPosition;
 
-        // 3a. 블록을 인공 노드로 교체
+        // 블록을 인공 노드로 교체
+        assert level != null;
         level.setBlock(currentPos, AdsDrillBlocks.ARTIFICIAL_NODE.get().defaultBlockState(), 3);
         BlockEntity newBE = level.getBlockEntity(currentPos);
 
-        // 3b. 새로 생성된 BE가 맞는지 확인하고, 계산된 모든 데이터를 직접 주입
+        // 데이터 주입
         if (newBE instanceof ArtificialNodeBlockEntity artificialNode) {
             artificialNode.configureFromCrafting(
                     finalQuirks,
-                    finalComposition,
-                    finalItemToBlockMap,
-                    finalMaxYield,
-                    finalHardness,
-                    finalRichness,
-                    finalRegeneration,
-                    finalFluid,
-                    finalFluidCapacity
+                    attributes.finalComposition,
+                    craftingData.finalItemToBlockMap,
+                    attributes.finalMaxYield,
+                    attributes.hardness,
+                    attributes.richness,
+                    attributes.regeneration,
+                    fluidData.fluidStack,
+                    fluidData.capacity
             );
         }
+    }
 
-        //4. 제작 완료 효과
+    /**
+     * 제작 완료 효과를 재생합니다.
+     */
+    private void playCraftingCompleteEffects() {
+        BlockPos currentPos = this.worldPosition;
+
+        assert level != null;
         level.playSound(null, currentPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0f, 0.8f);
+
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
                     currentPos.getX() + 0.5, currentPos.getY() + 1.2, currentPos.getZ() + 0.5,
@@ -537,6 +747,33 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
     }
 
+// --- 데이터 클래스들 ---
+
+    /**
+         * 제작 데이터를 담는 클래스
+         */
+        private record CraftingData(Map<Item, Float> weightedComposition, Map<Item, Block> finalItemToBlockMap,
+                                    Map<Fluid, Integer> fluidCapacities, float totalInputYield) {
+    }
+
+    /**
+         * 최종 속성을 담는 클래스
+         */
+        private record FinalAttributes(Map<Item, Float> finalComposition, float yieldMultiplier, int finalMaxYield,
+                                       float hardness, float richness, float regeneration) {
+    }
+
+    /**
+         * 속성 값을 담는 클래스
+         */
+        private record AttributeValues(float hardness, float richness, float regeneration) {
+    }
+
+    /**
+         * 유체 데이터를 담는 클래스
+         */
+        private record FluidData(FluidStack fluidStack, int capacity) {
+    }
     public void onBroken() {
         if (isCompleting || level == null || level.isClientSide) return;
 
@@ -702,7 +939,7 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         return true;
     }
 
-    // [3] 요구 속도를 가져오는 헬퍼 메서드를 추가합니다.
+    // 요구 속도를 가져오는 헬퍼 메서드
     private int getRequiredSpeed() {
         ItemStack coreStack = inventory.getStackInSlot(9);
         if (coreStack.getItem() instanceof StabilizerCoreItem stabilizer) {

@@ -53,6 +53,7 @@ import java.util.*;
 
 public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourceAccessor {
 
+
     private enum InvalidityReason {
         NONE,
         LOOP_DETECTED,
@@ -123,6 +124,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private final List<BlockPos> redstoneBrakeModules = new ArrayList<>();
 
     private final DrillEnergyStorage energyBuffer = new DrillEnergyStorage(0, Integer.MAX_VALUE, Integer.MAX_VALUE, this::setChanged);
+    private int totalEnergyCapacity;
 
     private float heat = 0.0f;
     private boolean isOverheated = false;
@@ -391,11 +393,56 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private void scanAndValidateStructure() {
         if (level == null || level.isClientSide()) return;
 
+        // 이전 구조 상태 백업
+        Set<BlockPos> oldStructure = backupCurrentStructure();
+
+        // 상태 초기화
+        initializeStructureState();
+
+        Direction inputFacing = getBlockState().getValue(DirectionalKineticBlock.FACING);
+        Direction headFacing = inputFacing.getOpposite();
+
+        // 헤드 확인 및 처리
+        boolean isLaserHeadAttached = validateAndCacheHead(headFacing);
+
+        // 구조 유효성이 이미 실패한 경우 조기 종료
+        if (invalidityReason != InvalidityReason.NONE) {
+            finalizeInvalidStructure();
+            updateDetachedParts(oldStructure, new HashSet<>());
+            return;
+        }
+
+        // 재귀적 모듈 구조 탐색
+        StructureScanResult scanResult = scanModuleStructure(inputFacing);
+
+        // 구조 검증 및 데이터 집계
+        if (shouldProcessModules()) {
+            processFoundModules(scanResult);
+        }
+
+        // 에너지 용량 설정 및 레이저 헤드 에너지 검증
+        energyBuffer.setCapacity(totalEnergyCapacity);
+        validateLaserHeadEnergy(isLaserHeadAttached);
+
+        // 최종 처리
+        finalizeStructureValidation(oldStructure, scanResult.moduleConnections);
+    }
+
+    /**
+     * 현재 구조 상태를 백업합니다.
+     */
+    private Set<BlockPos> backupCurrentStructure() {
         Set<BlockPos> oldStructure = new HashSet<>(this.structureCache);
         if (this.cachedHeadPos != null) {
             oldStructure.add(this.cachedHeadPos);
         }
-        // --- 1. 상태 초기화 ---
+        return oldStructure;
+    }
+
+    /**
+     * 구조 스캔을 위해 모든 상태를 초기화합니다.
+     */
+    private void initializeStructureState() {
         this.structureCache.clear();
         this.processingModuleChain.clear();
         this.itemBufferHandlers.clear();
@@ -404,55 +451,60 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
         this.bulkProcessingModules.clear();
         this.resonatorModules.clear();
         this.redstoneBrakeModules.clear();
+
         this.speedMultiplier = 1.0;
         this.stressMultiplier = 1.0;
         this.heatMultiplier = 1.0;
         this.totalStressImpact = coreTier.getBaseStress();
-        int totalEnergyCapacity = 0;
+        this.totalEnergyCapacity = 0;
         this.cachedHeadPos = null;
         this.invalidityReason = InvalidityReason.NONE;
         this.structureValid = false;
-        Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>();
+    }
 
-        Direction inputFacing = getBlockState().getValue(DirectionalKineticBlock.FACING);
-        Direction headFacing = inputFacing.getOpposite();
-
-        // --- 2. 헤드 확인 ---
-
+    /**
+     * 헤드를 확인하고 캐시합니다.
+     * @return 레이저 헤드가 부착되었는지 여부
+     */
+    private boolean validateAndCacheHead(Direction headFacing) {
         BlockPos potentialHeadPos = worldPosition.relative(headFacing);
+        assert level != null;
         BlockState headState = level.getBlockState(potentialHeadPos);
         boolean isLaserHeadAttached = false;
 
-        if (headState.getBlock() instanceof IDrillHead head &&
-                headState.hasProperty(DirectionalKineticBlock.FACING) &&
-                headState.getValue(DirectionalKineticBlock.FACING) == headFacing) {
-
+        if (isValidHead(headState, headFacing)) {
+            IDrillHead head = (IDrillHead) headState.getBlock();
             this.cachedHeadPos = potentialHeadPos;
             this.totalStressImpact += head.getStressImpact();
 
             if (head instanceof LaserDrillHeadBlock) {
                 isLaserHeadAttached = true;
             }
-
         } else {
             this.invalidityReason = InvalidityReason.HEAD_MISSING;
         }
 
-        // 조건 1: 해당 위치의 블록이 IDrillHead인가?
-        // 조건 2: 그 헤드 블록의 FACING 방향이 코어가 바라보는 방향(headFacing)과 일치하는가?
-        if (headState.getBlock() instanceof IDrillHead head &&
+        return isLaserHeadAttached;
+    }
+
+    /**
+     * 헤드 블록이 유효한지 확인합니다.
+     */
+    private boolean isValidHead(BlockState headState, Direction expectedFacing) {
+        return headState.getBlock() instanceof IDrillHead &&
                 headState.hasProperty(DirectionalKineticBlock.FACING) &&
-                headState.getValue(DirectionalKineticBlock.FACING) == headFacing) {
+                headState.getValue(DirectionalKineticBlock.FACING) == expectedFacing;
+    }
 
-            this.cachedHeadPos = potentialHeadPos;
-            this.totalStressImpact += head.getStressImpact();
-        } else {
-            this.invalidityReason = InvalidityReason.HEAD_MISSING;
-        }
-        // --- 3. 재귀적 모듈 구조 탐색 ---
+    /**
+     * 모듈 구조를 재귀적으로 탐색합니다.
+     */
+    private StructureScanResult scanModuleStructure(Direction inputFacing) {
         Set<BlockPos> allFoundModules = new HashSet<>();
         List<BlockPos> allOtherCores = new ArrayList<>();
         Set<BlockPos> allVisited = new HashSet<>();
+        Map<BlockPos, Set<Direction>> moduleConnections = new HashMap<>();
+
         allVisited.add(worldPosition);
 
         for (Direction startDir : Direction.values()) {
@@ -461,166 +513,253 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
             BlockPos startPos = worldPosition.relative(startDir);
             if (allVisited.contains(startPos)) continue;
 
+            assert level != null;
             BlockState startState = level.getBlockState(startPos);
             if (startState.getBlock() instanceof GenericModuleBlock) {
-                // 코어와 첫 모듈의 연결 정보를 기록
-                moduleConnections.computeIfAbsent(worldPosition, k -> new HashSet<>()).add(startDir);
-                moduleConnections.computeIfAbsent(startPos, k -> new HashSet<>()).add(startDir.getOpposite());
+                // 코어와 첫 모듈의 연결 정보 기록
+                recordConnection(moduleConnections, worldPosition, startPos, startDir);
 
-                StructureCheckResult result = searchStructureRecursive(startPos, startDir.getOpposite(), allVisited, allFoundModules, allOtherCores, moduleConnections, 0);
-                if (result.loopDetected()) { this.invalidityReason = InvalidityReason.LOOP_DETECTED; break; }
-                if (result.multipleCoresDetected()) { this.invalidityReason = InvalidityReason.MULTIPLE_CORES; break; }
+                StructureCheckResult result = searchStructureRecursive(
+                        startPos, startDir.getOpposite(), allVisited,
+                        allFoundModules, allOtherCores, moduleConnections, 0
+                );
 
-
-            }
-        }
-
-        // --- 4. 유효성 검사 및 데이터 집계 ---
-
-        if (this.invalidityReason == InvalidityReason.NONE || this.invalidityReason == InvalidityReason.HEAD_MISSING) {
-            if (allFoundModules.size() >coreTier.getMaxModules()) {
-                this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
-            } else {
-                this.structureValid = true;
-                this.structureCache = allFoundModules;
-
-                Set<Object> foundProcessingKeys = new HashSet<>();
-                for (BlockPos modulePos : this.structureCache) {
-                    if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                        ModuleType type = moduleBE.getModuleType();
-
-                        speedMultiplier *= (1.0 + type.getSpeedBonus());
-                        stressMultiplier *= (1.0 + type.getStressImpact()); // 스트레스도 곱셈으로 변경
-                        heatMultiplier *= (1.0 + type.getHeatModifier());
-
-                        totalEnergyCapacity+=type.getEnergyCapacity();
-                        if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) itemBufferHandlers.add(moduleBE.getItemHandler());
-                        if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) fluidBufferHandlers.add(moduleBE.getFluidHandler());
-
-                        boolean isDuplicate = false;
-
-                        RecipeType<?> recipeType = type.getBehavior().getRecipeType();
-                        // 1. 이 모듈이 "우선순위를 가진" 모듈인지 확인 (일반 처리 모듈 또는 필터 모듈)
-                        if (recipeType != null || type == ModuleType.FILTER) {
-                            // 중복 검사용 키를 결정
-                            Object key = (type == ModuleType.FILTER) ? ModuleType.FILTER : recipeType;
-
-                            if (!foundProcessingKeys.add(key)) {
-                                isDuplicate = true;
-                            } else {
-                                // 중복이 아니면, 처리 체인에 추가
-                                processingModuleChain.add(modulePos);
-                            }
-                        }
-                        // 2. 이 모듈이 "압축 모듈"인가?
-                        else if (type == ModuleType.COMPACTOR) {
-                            if (!foundProcessingKeys.add(ModuleType.COMPACTOR)) {
-                                isDuplicate = true;
-                            } else {
-                                bulkProcessingModules.add(modulePos);
-                            }
-
-                        } else if (type == ModuleType.RESONATOR) {
-                            if (!foundProcessingKeys.add(ModuleType.RESONATOR)) {
-                                isDuplicate = true;
-                            } else {
-                                resonatorModules.add(modulePos);
-                            }
-                        }
-
-
-                        else if (type == ModuleType.COOLANT || type == ModuleType.KINETIC_DYNAMO || type == ModuleType.ENERGY_INPUT) {
-                            activeSystemModules.add(modulePos);
-
-                        } else if (type == ModuleType.REDSTONE_BRAKE) {
-                            redstoneBrakeModules.add(modulePos);
-                        }
-
-                        if (isDuplicate) {
-                            this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
-                            this.structureValid = false;
-                            break;
-                        }
-                    }
+                if (result.loopDetected()) {
+                    this.invalidityReason = InvalidityReason.LOOP_DETECTED;
+                    break;
                 }
-
-                if (this.structureValid) {
-                    // 이제 processingModuleChain에는 일반 처리 모듈과 필터 모듈이 모두 들어있음
-                    // 우선순위에 따라 정렬하면, 플레이어가 설정한 순서대로 실행됨
-                    processingModuleChain.sort(Comparator.comparingInt(pos -> {
-                        if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity gme) return gme.getProcessingPriority();
-                        return 99;
-                    }));
+                if (result.multipleCoresDetected()) {
+                    this.invalidityReason = InvalidityReason.MULTIPLE_CORES;
+                    break;
                 }
             }
         }
 
+        return new StructureScanResult(allFoundModules, moduleConnections);
+    }
 
+    /**
+     * 모듈 간 연결 정보를 기록합니다.
+     */
+    private void recordConnection(Map<BlockPos, Set<Direction>> connections,
+                                  BlockPos pos1, BlockPos pos2, Direction dir) {
+        connections.computeIfAbsent(pos1, k -> new HashSet<>()).add(dir);
+        connections.computeIfAbsent(pos2, k -> new HashSet<>()).add(dir.getOpposite());
+    }
 
-        this.energyBuffer.setCapacity(totalEnergyCapacity);
-        // 구조가 유효하고 레이저 헤드가 부착된 경우에만 에너지 경고를 확인합니다.
+    /**
+     * 모듈 처리 가능 여부를 확인합니다.
+     */
+    private boolean shouldProcessModules() {
+        return invalidityReason == InvalidityReason.NONE ||
+                invalidityReason == InvalidityReason.HEAD_MISSING;
+    }
+
+    /**
+     * 발견된 모듈들을 처리하고 분류합니다.
+     */
+    private void processFoundModules(StructureScanResult scanResult) {
+        if (scanResult.foundModules.size() > coreTier.getMaxModules()) {
+            this.invalidityReason = InvalidityReason.TOO_MANY_MODULES;
+            return;
+        }
+
+        this.structureValid = true;
+        this.structureCache = scanResult.foundModules;
+
+        Set<Object> foundProcessingKeys = new HashSet<>();
+
+        for (BlockPos modulePos : this.structureCache) {
+            assert level != null;
+            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                if (!processModule(moduleBE, modulePos, foundProcessingKeys)) {
+                    this.invalidityReason = InvalidityReason.DUPLICATE_PROCESSING_MODULE;
+                    this.structureValid = false;
+                    break;
+                }
+            }
+        }
+
+        if (this.structureValid) {
+            sortProcessingChain();
+        }
+    }
+
+    /**
+     * 개별 모듈을 처리하고 분류합니다.
+     * @return 중복이 아닌 경우 true
+     */
+    private boolean processModule(GenericModuleBlockEntity moduleBE, BlockPos modulePos,
+                                  Set<Object> foundProcessingKeys) {
+        ModuleType type = moduleBE.getModuleType();
+
+        // 스탯 적용
+        applyModuleStats(type, moduleBE);
+
+        // 모듈 분류 및 중복 검사
+        return classifyModule(type, modulePos, foundProcessingKeys);
+    }
+
+    /**
+     * 모듈의 스탯을 적용합니다.
+     */
+    private void applyModuleStats(ModuleType type, GenericModuleBlockEntity moduleBE) {
+        speedMultiplier *= (1.0 + type.getSpeedBonus());
+        stressMultiplier *= (1.0 + type.getStressImpact());
+        heatMultiplier *= (1.0 + type.getHeatModifier());
+        totalEnergyCapacity += type.getEnergyCapacity();
+
+        if (type.getItemCapacity() > 0 && moduleBE.getItemHandler() != null) {
+            itemBufferHandlers.add(moduleBE.getItemHandler());
+        }
+        if (type.getFluidCapacity() > 0 && moduleBE.getFluidHandler() != null) {
+            fluidBufferHandlers.add(moduleBE.getFluidHandler());
+        }
+    }
+
+    /**
+     * 모듈을 타입에 따라 분류하고 중복을 검사합니다.
+     * @return 중복이 아닌 경우 true
+     */
+    private boolean classifyModule(ModuleType type, BlockPos modulePos, Set<Object> foundProcessingKeys) {
+        RecipeType<?> recipeType = type.getBehavior().getRecipeType();
+
+        // 처리 모듈 (레시피 타입 또는 필터)
+        if (recipeType != null || type == ModuleType.FILTER) {
+            Object key = (type == ModuleType.FILTER) ? ModuleType.FILTER : recipeType;
+            if (!foundProcessingKeys.add(key)) return false;
+            processingModuleChain.add(modulePos);
+            return true;
+        }
+
+        // 특수 모듈들
+        switch (type) {
+            case COMPACTOR:
+                if (!foundProcessingKeys.add(ModuleType.COMPACTOR)) return false;
+                bulkProcessingModules.add(modulePos);
+                break;
+
+            case RESONATOR:
+                if (!foundProcessingKeys.add(ModuleType.RESONATOR)) return false;
+                resonatorModules.add(modulePos);
+                break;
+
+            case COOLANT:
+            case KINETIC_DYNAMO:
+            case ENERGY_INPUT:
+                activeSystemModules.add(modulePos);
+                break;
+
+            case REDSTONE_BRAKE:
+                redstoneBrakeModules.add(modulePos);
+                break;
+        }
+
+        return true;
+    }
+
+    /**
+     * 처리 체인을 우선순위에 따라 정렬합니다.
+     */
+    private void sortProcessingChain() {
+        processingModuleChain.sort(Comparator.comparingInt(pos -> {
+            assert level != null;
+            if (level.getBlockEntity(pos) instanceof GenericModuleBlockEntity gme) {
+                return gme.getProcessingPriority();
+            }
+            return 99;
+        }));
+    }
+
+    /**
+     * 레이저 헤드의 에너지 요구사항을 검증합니다.
+     */
+    private void validateLaserHeadEnergy(boolean isLaserHeadAttached) {
         if (this.structureValid && isLaserHeadAttached) {
             if (this.energyBuffer.getMaxEnergyStored() == 0) {
-                // 에너지 버퍼나 발전기가 없어 최대 용량이 0이면
                 this.invalidityReason = InvalidityReason.NO_ENERGY_SOURCE;
             }
         }
+    }
 
+    /**
+     * 구조 검증을 완료하고 필요한 업데이트를 수행합니다.
+     */
+    private void finalizeStructureValidation(Set<BlockPos> oldStructure,
+                                             Map<BlockPos, Set<Direction>> moduleConnections) {
         if (!this.structureValid) {
-            this.structureCache.clear();
-            this.processingModuleChain.clear();
-            this.activeSystemModules.clear();
-            this.bulkProcessingModules.clear();
+            finalizeInvalidStructure();
         }
 
-        Set<BlockPos> currentStructure = new HashSet<>(this.structureCache);
-        if (this.cachedHeadPos != null) {
-            currentStructure.add(this.cachedHeadPos);
-        }
-
-        // 이전 구조에는 있었지만 현재 구조에는 없는 부품(연결 해제된 부품)을 찾습니다.
-        Set<BlockPos> detachedParts = new HashSet<>(oldStructure);
-        detachedParts.removeAll(currentStructure);
-
-        // 연결 해제된 부품들의 상태를 강제로 초기화합니다.
-        for (BlockPos detachedPos : detachedParts) {
-            BlockEntity be = level.getBlockEntity(detachedPos);
-            if (be instanceof AbstractDrillHeadBlockEntity headBE) {
-                // 코어 연결을 끊고, 속도를 0으로 만듭니다.
-                headBE.setCore(null);
-            } else if (be instanceof GenericModuleBlockEntity moduleBE) {
-                // 모듈의 시각적 연결과 속도를 모두 초기화합니다.
-                moduleBE.updateVisualConnections(new HashSet<>());
-                moduleBE.updateVisualSpeed(0);
-            }
-        }
-
-        // 현재 구조에 포함된 모듈들의 연결 상태를 업데이트합니다.
-        for (BlockPos modulePos : this.structureCache) {
-            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
-                moduleBE.updateVisualConnections(moduleConnections.getOrDefault(modulePos, new HashSet<>()));
-            }
-        }
+        Set<BlockPos> currentStructure = getCurrentStructure();
+        updateDetachedParts(oldStructure, currentStructure);
+        updateModuleConnections(moduleConnections);
 
         setChanged();
         sendData();
     }
 
+    /**
+     * 유효하지 않은 구조의 상태를 정리합니다.
+     */
+    private void finalizeInvalidStructure() {
+        this.structureCache.clear();
+        this.processingModuleChain.clear();
+        this.activeSystemModules.clear();
+        this.bulkProcessingModules.clear();
+    }
 
-    // 레드스톤 신호로 정지되었는지 확인하는 헬퍼 메서드
-    private boolean isHaltedByRedstone() {
-        if (level == null || redstoneBrakeModules.isEmpty()) {
-            return false;
+    /**
+     * 현재 구조를 반환합니다.
+     */
+    private Set<BlockPos> getCurrentStructure() {
+        Set<BlockPos> currentStructure = new HashSet<>(this.structureCache);
+        if (this.cachedHeadPos != null) {
+            currentStructure.add(this.cachedHeadPos);
         }
-        // 연결된 브레이크 모듈 중 하나라도 레드스톤 신호를 받으면 true 반환
-        for (BlockPos modulePos : redstoneBrakeModules) {
+        return currentStructure;
+    }
 
-            if (level.hasNeighborSignal(modulePos)) {
-                return true;
+    /**
+     * 연결 해제된 부품들의 상태를 업데이트합니다.
+     */
+    private void updateDetachedParts(Set<BlockPos> oldStructure, Set<BlockPos> currentStructure) {
+        Set<BlockPos> detachedParts = new HashSet<>(oldStructure);
+        detachedParts.removeAll(currentStructure);
+
+        for (BlockPos detachedPos : detachedParts) {
+            assert level != null;
+            BlockEntity be = level.getBlockEntity(detachedPos);
+            if (be instanceof AbstractDrillHeadBlockEntity headBE) {
+                headBE.setCore(null);
+            } else if (be instanceof GenericModuleBlockEntity moduleBE) {
+                moduleBE.updateVisualConnections(new HashSet<>());
+                moduleBE.updateVisualSpeed(0);
             }
         }
-        return false;
     }
+
+    /**
+     * 모듈들의 시각적 연결 상태를 업데이트합니다.
+     */
+    private void updateModuleConnections(Map<BlockPos, Set<Direction>> moduleConnections) {
+        for (BlockPos modulePos : this.structureCache) {
+            assert level != null;
+            if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
+                moduleBE.updateVisualConnections(
+                        moduleConnections.getOrDefault(modulePos, new HashSet<>())
+                );
+            }
+        }
+    }
+
+    /**
+         * 구조 스캔 결과를 담는 내부 클래스
+         */
+        private record StructureScanResult(Set<BlockPos> foundModules, Map<BlockPos, Set<Direction>> moduleConnections) {
+    }
+
+
 
 
     private StructureCheckResult searchStructureRecursive(BlockPos currentPos, Direction cameFrom, Set<BlockPos> visited, Set<BlockPos> functionalModules, List<BlockPos> otherCores, Map<BlockPos, Set<Direction>> moduleConnections, int depth) {
@@ -673,6 +812,20 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     private record StructureCheckResult(boolean loopDetected, boolean multipleCoresDetected) {}
 
 
+    // 레드스톤 신호로 정지되었는지 확인하는 헬퍼 메서드
+    private boolean isHaltedByRedstone() {
+        if (level == null || redstoneBrakeModules.isEmpty()) {
+            return false;
+        }
+        // 연결된 브레이크 모듈 중 하나라도 레드스톤 신호를 받으면 true 반환
+        for (BlockPos modulePos : redstoneBrakeModules) {
+
+            if (level.hasNeighborSignal(modulePos)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 
     public boolean isModuleConnectedAt(Direction absoluteDirection) {
@@ -687,7 +840,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
      * @return 헤드가 존재하고 캐시되었으면 true
      */
     public boolean hasHead() {
-        return this.cachedHeadPos != null;
+        return this.cachedHeadPos == null;
     }
 
     @Override
@@ -921,150 +1074,325 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     public void serverTick() {
         tickCounter++;
         assert level != null;
-        //  쿨다운 기반의 구조 검사 실행
+
+        // 1. 구조 검사
+        processStructureCheck();
+
+        // 2. 극성 보너스 상태 업데이트
+        updatePolarityBonus();
+
+        // 3. 활성 시스템 모듈 틱
+        tickActiveSystemModules();
+
+        // 4. 속도 및 헤드 정보 수집
+        float finalSpeed = getFinalSpeed();
+        IDrillHead headBlock = getHeadBlock();
+
+        // 5. 에너지 상태 검증 (레이저 헤드)
+        validateEnergyState(finalSpeed);
+
+        // 6. 열 관리
+        processHeatManagement(finalSpeed, headBlock);
+
+        // 7. 동기화 처리
+        handleSynchronization(finalSpeed);
+
+        // 8. 모듈 속도 업데이트
+        updateModuleVisualSpeed(finalSpeed);
+
+        // 9. 헤드 처리
+        processHeadOperations(finalSpeed, headBlock);
+    }
+
+    /**
+     * 구조 검사 쿨다운을 처리합니다.
+     */
+    private void processStructureCheck() {
         if (structureCheckCooldown > 0) {
             structureCheckCooldown--;
             if (structureCheckCooldown == 0) {
                 scanAndValidateStructure();
             }
         }
+    }
+
+    /**
+     * 극성 보너스 상태를 업데이트합니다.
+     */
+    private void updatePolarityBonus() {
         this.polarityBonusActive = false; // 매 틱 초기화
-        if (hasHead()) {
-            Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
-            BlockPos nodePos = cachedHeadPos.relative(headFacing);
-            if (level != null && level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
-                if (nodeBE.isPolarityBonusActive()) {
-                    this.polarityBonusActive = true;
-                }
+
+        if (hasHead()) return;
+
+        Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
+        BlockPos nodePos = cachedHeadPos.relative(headFacing);
+
+        assert level != null;
+        if (level.getBlockEntity(nodePos) instanceof OreNodeBlockEntity nodeBE) {
+            if (nodeBE.isPolarityBonusActive()) {
+                this.polarityBonusActive = true;
             }
         }
-        assert level != null;
+    }
 
+    /**
+     * 활성 시스템 모듈들을 틱합니다.
+     */
+    private void tickActiveSystemModules() {
         for (BlockPos modulePos : activeSystemModules) {
+            assert level != null;
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity module) {
                 module.onCoreTick(this);
             }
         }
-        float finalSpeed = getFinalSpeed();
+    }
 
-        IDrillHead headBlock = null;
-        if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead h) {
-            headBlock = h;
+    /**
+     * 현재 헤드 블록을 가져옵니다.
+     */
+    private IDrillHead getHeadBlock() {
+        if (hasHead()) return null;
+
+        assert level != null;
+        if (level.getBlockState(cachedHeadPos).getBlock() instanceof IDrillHead headBlock) {
+            return headBlock;
         }
-        // 레이저 헤드 작동 시 에너지 부족 경고 처리
-        if (hasHead() && level.getBlockState(cachedHeadPos).getBlock() instanceof LaserDrillHeadBlock) {
-            // 레이저 헤드가 있고, 에너지 공급원이 있는 상태에서(NO_ENERGY_SOURCE가 아님)
-            // 현재 에너지가 부족한 경우 경고 상태를 설정합니다.
 
-            if (this.invalidityReason != InvalidityReason.NO_ENERGY_SOURCE && this.energyBuffer.getEnergyStored() < AdsDrillConfigs.SERVER.laserEnergyPerMiningTick.get()) {
-                if (getFinalSpeed() != 0) { // 드릴이 작동 중일 때만 에너지 부족 경고 표시
-                    this.invalidityReason = InvalidityReason.INSUFFICIENT_ENERGY;
-                }
-            } else if (this.invalidityReason == InvalidityReason.INSUFFICIENT_ENERGY) {
-                // 에너지가 충분해지거나 드릴이 멈추면 경고를 해제합니다.
-                this.invalidityReason = InvalidityReason.NONE;
-            }
-        } else if (this.invalidityReason == InvalidityReason.INSUFFICIENT_ENERGY || this.invalidityReason == InvalidityReason.NO_ENERGY_SOURCE) {
-            // 레이저 헤드가 제거되면 에너지 관련 경고도 함께 해제합니다.
+        return null;
+    }
+
+    /**
+     * 레이저 헤드의 에너지 상태를 검증합니다.
+     */
+    private void validateEnergyState(float finalSpeed) {
+        if (hasHead()) {
+            clearEnergyWarnings();
+            return;
+        }
+
+        assert level != null;
+        if (level.getBlockState(cachedHeadPos).getBlock() instanceof LaserDrillHeadBlock) {
+            processLaserHeadEnergyState(finalSpeed);
+        } else {
+            clearEnergyWarnings();
+        }
+    }
+
+    /**
+     * 레이저 헤드의 에너지 상태를 처리합니다.
+     */
+    private void processLaserHeadEnergyState(float finalSpeed) {
+        boolean hasEnergySource = this.invalidityReason != InvalidityReason.NO_ENERGY_SOURCE;
+        boolean hasInsufficientEnergy = this.energyBuffer.getEnergyStored() <
+                AdsDrillConfigs.SERVER.laserEnergyPerMiningTick.get();
+        boolean isDrillOperating = finalSpeed != 0;
+
+        if (hasEnergySource && hasInsufficientEnergy && isDrillOperating) {
+            this.invalidityReason = InvalidityReason.INSUFFICIENT_ENERGY;
+        } else if (this.invalidityReason == InvalidityReason.INSUFFICIENT_ENERGY) {
             this.invalidityReason = InvalidityReason.NONE;
         }
-        // --- 과열 로직 ---
-        // finalSpeed의 절댓값을 사용하거나, 0이 아닌지 확인합니다.
-        if (finalSpeed != 0 && headBlock != null) {
-            float baseHeatGen = headBlock.getHeatGeneration();
-            float speedFactor = Math.max(1, Math.abs(finalSpeed) / 64f);
+    }
 
-            // 곱셈으로 누적된 열 생성 배율을 적용합니다.
-            // heatMultiplier는 음수 보너스가 적용되어 1.0보다 작은 값이 됩니다. (예: 0.8)
-            float finalHeatMultiplier = (float) Math.max(0, this.heatMultiplier);
-            float heatThisTick = baseHeatGen * speedFactor * finalHeatMultiplier;
+    /**
+     * 에너지 관련 경고를 제거합니다.
+     */
+    private void clearEnergyWarnings() {
+        if (this.invalidityReason == InvalidityReason.INSUFFICIENT_ENERGY ||
+                this.invalidityReason == InvalidityReason.NO_ENERGY_SOURCE) {
+            this.invalidityReason = InvalidityReason.NONE;
+        }
+    }
 
-            addHeat(heatThisTick);
-
+    /**
+     * 열 관리를 처리합니다.
+     */
+    private void processHeatManagement(float finalSpeed, IDrillHead headBlock) {
+        if (isDrillOperating(finalSpeed, headBlock)) {
+            generateHeat(finalSpeed, headBlock);
         } else {
-            // 냉각: 드릴이 멈춰있을 때 열이 식는 로직
-            float coolingRate = coreTier.getBaseCooling();
-            if (headBlock != null) {
-                coolingRate += headBlock.getCoolingRate();
-            }
-            this.heat -= coolingRate;
+            coolDown(headBlock);
         }
 
-        // (열 수치 제한 및 과열 상태 갱신 로직은 이전과 동일)
+        updateOverheatState(headBlock);
+    }
+
+    /**
+     * 드릴이 작동 중인지 확인합니다.
+     */
+    private boolean isDrillOperating(float finalSpeed, IDrillHead headBlock) {
+        return finalSpeed != 0 && headBlock != null;
+    }
+
+    /**
+     * 열을 생성합니다.
+     */
+    private void generateHeat(float finalSpeed, IDrillHead headBlock) {
+        float baseHeatGen = headBlock.getHeatGeneration();
+        float speedFactor = Math.max(1, Math.abs(finalSpeed) / 64f);
+        float finalHeatMultiplier = (float) Math.max(0, this.heatMultiplier);
+        float heatThisTick = baseHeatGen * speedFactor * finalHeatMultiplier;
+
+        addHeat(heatThisTick);
+    }
+
+    /**
+     * 드릴을 냉각시킵니다.
+     */
+    private void coolDown(IDrillHead headBlock) {
+        float coolingRate = coreTier.getBaseCooling();
+        if (headBlock != null) {
+            coolingRate += headBlock.getCoolingRate();
+        }
+        this.heat -= coolingRate;
+    }
+
+    /**
+     * 과열 상태를 업데이트하고 이벤트를 처리합니다.
+     */
+    private void updateOverheatState(IDrillHead headBlock) {
         this.heat = Mth.clamp(this.heat, 0, 100);
-        // 이전 틱의 과열 상태를 기억하기 위한 필드
-        // --- isOverheated 상태 업데이트 ---
+
         boolean wasOverheated = isOverheated;
+        updateOverheatFlag();
+
+        if (!wasOverheated && isOverheated) {
+            handleOverheatEvent(headBlock);
+        }
+    }
+
+    /**
+     * 과열 플래그를 업데이트합니다.
+     */
+    private void updateOverheatFlag() {
         if (isOverheated && this.heat <= COOLDOWN_RESET_THRESHOLD) {
             isOverheated = false;
         } else if (!isOverheated && this.heat >= 100.0f) {
             isOverheated = true;
         }
+    }
 
-        // --- 과열 이벤트 처리 ---
-        if (!wasOverheated && isOverheated) {
-            boolean eventHandledByHead = false;
-            if (headBlock != null) {
-                eventHandledByHead = headBlock.onOverheat(level, cachedHeadPos, this);
-            }
+    /**
+     * 과열 이벤트를 처리합니다.
+     */
+    private void handleOverheatEvent(IDrillHead headBlock) {
+        boolean eventHandledByHead = processHeadOverheatEvent(headBlock);
+        processQuirkOverheatEvents();
 
-            Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
-            BlockPos nodePos = cachedHeadPos.relative(headFacing);
-            if (level.getBlockEntity(nodePos) instanceof ArtificialNodeBlockEntity artificialNode) {
-                Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, nodePos, artificialNode, this);
-                for (Quirk quirk : artificialNode.getQuirks()) {
-                    quirk.onDrillCoreOverheat(context);
-                }
-            }
+        if (!eventHandledByHead) {
+            playOverheatSound();
+        }
+    }
 
-            if (!eventHandledByHead) {
-                level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 1.0f, 0.8f);
+    /**
+     * 헤드의 과열 이벤트를 처리합니다.
+     */
+    private boolean processHeadOverheatEvent(IDrillHead headBlock) {
+        if (headBlock != null) {
+            return headBlock.onOverheat(level, cachedHeadPos, this);
+        }
+        return false;
+    }
+
+    /**
+     * Quirk의 과열 이벤트를 처리합니다.
+     */
+    private void processQuirkOverheatEvents() {
+        if (hasHead()) return;
+
+        Direction headFacing = getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite();
+        BlockPos nodePos = cachedHeadPos.relative(headFacing);
+
+        assert level != null;
+        if (level.getBlockEntity(nodePos) instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext(
+                    (ServerLevel) level, nodePos, artificialNode, this
+            );
+
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                quirk.onDrillCoreOverheat(context);
             }
         }
-        // --- 동기화 로직 ---
+    }
+
+    /**
+     * 과열 사운드를 재생합니다.
+     */
+    private void playOverheatSound() {
+        assert level != null;
+        level.playSound(null, worldPosition, SoundEvents.GENERIC_EXTINGUISH_FIRE,
+                SoundSource.BLOCKS, 1.0f, 0.8f);
+    }
+
+    /**
+     * 동기화를 처리합니다.
+     */
+    private void handleSynchronization(float finalSpeed) {
         boolean needsSync = false;
+
         if (this.visualSpeed != finalSpeed) {
             this.visualSpeed = finalSpeed;
             needsSync = true;
         }
+
         if (tickCounter % GOGGLE_UPDATE_DEBOUNCE == 0) {
             needsSync = true;
         }
+
         if (needsSync) {
             setChanged();
             sendData();
         }
+    }
 
-        // --- 모듈 및 헤드 업데이트 ---
+    /**
+     * 모듈들의 시각적 속도를 업데이트합니다.
+     */
+    private void updateModuleVisualSpeed(float finalSpeed) {
         for (BlockPos modulePos : this.structureCache) {
+            assert level != null;
             if (level.getBlockEntity(modulePos) instanceof GenericModuleBlockEntity moduleBE) {
                 moduleBE.updateVisualSpeed(finalSpeed);
             }
         }
+    }
 
+    /**
+     * 헤드 관련 작업을 처리합니다.
+     */
+    private void processHeadOperations(float finalSpeed, IDrillHead headBlock) {
+        if (hasHead() || headBlock == null) return;
 
-        // --- 채굴 로직 호출 ---
-        if (hasHead() && headBlock != null) {
-            // 헤드 BE의 종류에 따라 올바른 처리를 하도록 변경
-            if (level.getBlockEntity(cachedHeadPos) instanceof RotaryDrillHeadBlockEntity headBE) {
-                headBE.updateVisualSpeed(-finalSpeed); // Rotary는 반대로 회전
+        updateHeadVisualState(finalSpeed);
+
+        if (finalSpeed != 0) {
+            assert level != null;
+            headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
+        }
+    }
+
+    /**
+     * 헤드의 시각적 상태를 업데이트합니다.
+     */
+    private void updateHeadVisualState(float finalSpeed) {
+        assert level != null;
+        BlockEntity headBE = level.getBlockEntity(cachedHeadPos);
+        boolean needsSync = tickCounter % GOGGLE_UPDATE_DEBOUNCE == 0;
+
+        switch (headBE) {
+            case RotaryDrillHeadBlockEntity rotaryHead -> {
+                rotaryHead.updateVisualSpeed(-finalSpeed); // 반대 회전
                 if (needsSync) {
-                    headBE.updateClientHeat(this.heat);
+                    rotaryHead.updateClientHeat(this.heat);
                 }
             }
-            // 펌프 헤드에 대한 속도 전달 로직
-            else if (level.getBlockEntity(cachedHeadPos) instanceof PumpHeadBlockEntity headBE) {
-                headBE.updateVisualSpeed(finalSpeed); // 펌프는 정방향 회전
-                // 펌프는 열 시각화가 없으므로 updateClientHeat는 호출하지 않음
-
-            } else if (level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity headBE) {
-                headBE.updateVisualSpeed(finalSpeed); // 레이저는 정방향 회전
-            }
-            else if (level.getBlockEntity(cachedHeadPos) instanceof HydraulicDrillHeadBlockEntity headBE) {
-                headBE.updateVisualSpeed(-finalSpeed);
-            }
-            if (finalSpeed != 0) {
-                headBlock.onDrillTick(level, cachedHeadPos, level.getBlockState(cachedHeadPos), this);
+            case PumpHeadBlockEntity pumpHead -> // 펌프는 열 시각화 없음
+                    pumpHead.updateVisualSpeed(finalSpeed); // 정방향 회전
+            case LaserDrillHeadBlockEntity laserHead -> laserHead.updateVisualSpeed(finalSpeed); // 정방향 회전
+            case HydraulicDrillHeadBlockEntity hydraulicHead -> hydraulicHead.updateVisualSpeed(-finalSpeed); // 반대 회전
+            case null -> {}
+            default -> {
+                // 다른 헤드 타입에 대한 기본 처리
             }
         }
     }
@@ -1243,7 +1571,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
 
     // 채굴력 정보를 표시하는 헬퍼 메서드
     private void addMiningPowerTooltip(List<Component> tooltip) {
-        if (!structureValid || !hasHead()) return;
+        if (!structureValid || hasHead()) return;
 
         tooltip.add(Component.literal(""));
         tooltip.add(Component.literal("Mining Power:").withStyle(ChatFormatting.GRAY));
@@ -1418,7 +1746,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     }
 
     private void addLaserHeadTooltips(List<Component> tooltip) {
-        if (!hasHead() || level == null || !(level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity laserBE)) {
+        if (hasHead() || level == null || !(level.getBlockEntity(cachedHeadPos) instanceof LaserDrillHeadBlockEntity laserBE)) {
             return;
         }
 

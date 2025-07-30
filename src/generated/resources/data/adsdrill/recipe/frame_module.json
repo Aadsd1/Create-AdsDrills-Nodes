@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:brass_sheet"
+    },
+    "C": {
+      "item": "create:shaft"
+    },
+    "D": {
+      "item": "create:gearbox"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:frame_module"
+  }
+}

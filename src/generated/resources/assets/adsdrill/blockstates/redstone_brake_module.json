@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "adsdrill:block/redstone_brake_module/block"
+    }
+  }
+}

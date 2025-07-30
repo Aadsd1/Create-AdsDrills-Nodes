@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "C": {
+      "item": "create:crushing_wheel"
+    },
+    "D": {
+      "item": "create:chute"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_crusher_upgrade"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "adsdrill:fluid_buffer_module"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "adsdrill:blocks/fluid_buffer_module"
+}

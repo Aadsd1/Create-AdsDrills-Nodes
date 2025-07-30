@@ -1,0 +1,38 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "create:iron_sheet"
+    },
+    "B": {
+      "item": "minecraft:stone_slab"
+    },
+    "C": {
+      "item": "create:electron_tube"
+    },
+    "D": {
+      "item": "minecraft:water_bucket"
+    },
+    "E": {
+      "item": "minecraft:dispenser"
+    },
+    "F": {
+      "item": "minecraft:redstone_block"
+    },
+    "G": {
+      "item": "create:deployer"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "ACA",
+    "EDF",
+    "AGA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:explosive_drill_head"
+  }
+}

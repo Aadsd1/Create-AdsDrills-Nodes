@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "adsdrill:block/energy_buffer_module/block"
+    }
+  }
+}

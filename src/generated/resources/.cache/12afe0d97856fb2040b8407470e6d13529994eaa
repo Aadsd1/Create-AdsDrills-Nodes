@@ -1,0 +1,8 @@
+// 1.21.1	2025-07-19T15:36:09.0134992	Create's Sequenced Assembly Recipes
+07fb10049155d7929b2b82d2339eeeab2843055e data/create/recipe/sequenced_assembly/core_netherite_upgrade.json
+9cab6114e27e10a894fa47783b4963078b081e4f data/create/recipe/sequenced_assembly/core_steel_upgrade.json
+4292ec17552f32390896743c3d85731cd7d226cf data/create/recipe/sequenced_assembly/drill_core.json
+24d33fb813b1f3345e66c30d63274969df2fa991 data/create/recipe/sequenced_assembly/laser_drill_head.json
+fd38f2d0991c148cfafaeef53c54d48da6ac8c4f data/create/recipe/sequenced_assembly/precision_mechanism.json
+96ddad5fffc9192b1aa2cd82302588ccae9d6f52 data/create/recipe/sequenced_assembly/sturdy_sheet.json
+ebbcfe667b9a7b858cf3347ea96dd90d5deaf81c data/create/recipe/sequenced_assembly/track.json

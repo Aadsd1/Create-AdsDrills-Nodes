@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:brass_sheet"
+    },
+    "C": {
+      "item": "create:encased_fan"
+    },
+    "D": {
+      "item": "minecraft:iron_bars"
+    },
+    "E": {
+      "item": "minecraft:water_bucket"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_washer_upgrade"
+  }
+}

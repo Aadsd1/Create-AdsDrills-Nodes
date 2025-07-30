@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_laser_drill": {
+      "conditions": {
+        "items": [
+          {
+            "items": "adsdrill:laser_drill_head"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "adsdrill:laser_designator"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_laser_drill"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "adsdrill:laser_designator"
+    ]
+  }
+}

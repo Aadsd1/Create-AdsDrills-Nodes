@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "A": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "B": {
+      "item": "adsdrill:brass_node_locator"
+    },
+    "C": {
+      "item": "create:precision_mechanism"
+    },
+    "D": {
+      "item": "adsdrill:rose_gold"
+    }
+  },
+  "pattern": [
+    " C ",
+    "ABA",
+    " D "
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:steel_node_locator"
+  }
+}

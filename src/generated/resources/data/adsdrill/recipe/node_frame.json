@@ -1,0 +1,39 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "B": {
+      "item": "create:shaft"
+    },
+    "C": {
+      "item": "adsdrill:rose_gold"
+    },
+    "D": {
+      "item": "adsdrill:xomv"
+    },
+    "E": {
+      "item": "create:basin"
+    },
+    "F": {
+      "item": "adsdrill:thunder_stone"
+    },
+    "G": {
+      "item": "adsdrill:ivory_crystal"
+    }
+  },
+  "pattern": [
+    "AAAAA",
+    "ABCBA",
+    "ADEFA",
+    "ABGBA",
+    "AAAAA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:node_frame"
+  }
+}

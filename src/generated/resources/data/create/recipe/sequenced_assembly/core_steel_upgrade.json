@@ -1,0 +1,98 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "adsdrill:steel_ingot"
+  },
+  "loops": 2,
+  "results": [
+    {
+      "chance": 88.0,
+      "id": "adsdrill:core_steel_upgrade"
+    },
+    {
+      "chance": 3.0,
+      "id": "adsdrill:raw_steel_chunk"
+    },
+    {
+      "chance": 3.0,
+      "id": "adsdrill:raw_rose_gold_chunk"
+    },
+    {
+      "chance": 3.0,
+      "id": "create:precision_mechanism"
+    },
+    {
+      "chance": 2.0,
+      "id": "minecraft:iron_ingot"
+    },
+    {
+      "id": "minecraft:iron_nugget"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_steel_upgrade"
+        },
+        {
+          "tag": "c:plates/iron"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_steel_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_steel_upgrade"
+        },
+        {
+          "item": "adsdrill:rose_gold"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_steel_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_steel_upgrade"
+        },
+        {
+          "item": "create:precision_mechanism"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_steel_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:pressing",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_steel_upgrade"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_steel_upgrade"
+        }
+      ]
+    }
+  ],
+  "transitional_item": {
+    "id": "adsdrill:incomplete_core_steel_upgrade"
+  }
+}

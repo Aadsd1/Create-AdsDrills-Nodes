@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "minecraft:furnace"
+    },
+    "C": {
+      "item": "create:brass_sheet"
+    },
+    "D": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "E": {
+      "item": "create:blaze_burner"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AEA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_furnace_upgrade"
+  }
+}

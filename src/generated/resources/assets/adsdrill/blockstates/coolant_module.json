@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "adsdrill:block/coolant_module/block"
+    }
+  }
+}

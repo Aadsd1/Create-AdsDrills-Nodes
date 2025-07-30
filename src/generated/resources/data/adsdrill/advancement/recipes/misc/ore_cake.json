@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_rose_gold": {
+      "conditions": {
+        "items": [
+          {
+            "items": "adsdrill:rose_gold"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "adsdrill:ore_cake"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_rose_gold"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "adsdrill:ore_cake"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "type": "adsdrill:ore_node",
+  "config": {
+    "fluid_capacity": {
+      "type": "minecraft:uniform",
+      "max_inclusive": 20000,
+      "min_inclusive": 5000
+    },
+    "fluid_chance": 0.4,
+    "mining_resistance": {
+      "type": "minecraft:uniform",
+      "max_inclusive": 250,
+      "min_inclusive": 150
+    },
+    "total_yield": {
+      "type": "minecraft:uniform",
+      "max_inclusive": 3000,
+      "min_inclusive": 1000
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "parent": "minecraft:item/generated",
+  "overrides": [
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_0",
+      "predicate": {
+        "adsdrill:angle_int": 0.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_1",
+      "predicate": {
+        "adsdrill:angle_int": 1.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_2",
+      "predicate": {
+        "adsdrill:angle_int": 2.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_3",
+      "predicate": {
+        "adsdrill:angle_int": 3.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_4",
+      "predicate": {
+        "adsdrill:angle_int": 4.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_5",
+      "predicate": {
+        "adsdrill:angle_int": 5.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_6",
+      "predicate": {
+        "adsdrill:angle_int": 6.0
+      }
+    },
+    {
+      "model": "adsdrill:item/steel_node_locator_needle_7",
+      "predicate": {
+        "adsdrill:angle_int": 7.0
+      }
+    }
+  ],
+  "textures": {
+    "layer0": "adsdrill:item/steel_node_locator/steel_node_locator_base"
+  }
+}

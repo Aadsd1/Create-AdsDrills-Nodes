@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "A": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "B": {
+      "item": "adsdrill:steel_node_locator"
+    },
+    "C": {
+      "item": "adsdrill:thunder_stone"
+    },
+    "D": {
+      "item": "minecraft:lodestone"
+    }
+  },
+  "pattern": [
+    " C ",
+    "ABA",
+    " D "
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:netherite_node_locator"
+  }
+}

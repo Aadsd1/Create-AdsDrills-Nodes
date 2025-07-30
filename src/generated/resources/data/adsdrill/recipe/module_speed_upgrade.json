@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:brass_sheet"
+    },
+    "C": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "D": {
+      "item": "minecraft:feather"
+    },
+    "E": {
+      "item": "adsdrill:cinnabar"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_speed_upgrade"
+  }
+}

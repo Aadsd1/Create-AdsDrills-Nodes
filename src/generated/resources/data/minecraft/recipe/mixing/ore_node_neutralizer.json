@@ -1,0 +1,19 @@
+{
+  "type": "create:mixing",
+  "ingredients": [
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:sugar"
+    },
+    {
+      "item": "create:wheat_flour"
+    }
+  ],
+  "results": [
+    {
+      "id": "adsdrill:ore_node_neutralizer"
+    }
+  ]
+}

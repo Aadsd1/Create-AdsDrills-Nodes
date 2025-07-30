@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "A": {
+      "item": "create:brass_ingot"
+    },
+    "B": {
+      "item": "create:electron_tube"
+    },
+    "C": {
+      "item": "create:brass_sheet"
+    },
+    "D": {
+      "item": "minecraft:compass"
+    }
+  },
+  "pattern": [
+    " C ",
+    "ABA",
+    " D "
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:brass_node_locator"
+  }
+}

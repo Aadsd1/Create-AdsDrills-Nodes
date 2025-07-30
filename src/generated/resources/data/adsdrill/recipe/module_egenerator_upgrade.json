@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:brass_sheet"
+    },
+    "C": {
+      "item": "create:windmill_bearing"
+    },
+    "D": {
+      "item": "adsdrill:thunder_stone"
+    },
+    "E": {
+      "item": "adsdrill:cinnabar"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_egenerator_upgrade"
+  }
+}

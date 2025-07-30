@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:iron_block"
+    },
+    "B": {
+      "item": "create:mechanical_drill"
+    }
+  },
+  "pattern": [
+    " A ",
+    "AAA",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:iron_rotary_drill_head"
+  }
+}

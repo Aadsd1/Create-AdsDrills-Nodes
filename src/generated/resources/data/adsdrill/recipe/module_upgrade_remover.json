@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "minecraft:iron_nugget"
+    },
+    "C": {
+      "item": "minecraft:flint"
+    }
+  },
+  "pattern": [
+    "ABC",
+    "BCB",
+    "CBA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_upgrade_remover"
+  }
+}

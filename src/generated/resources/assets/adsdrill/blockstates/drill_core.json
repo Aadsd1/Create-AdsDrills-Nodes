@@ -1,0 +1,82 @@
+{
+  "variants": {
+    "facing=down,tier=brass": {
+      "model": "adsdrill:block/drill_core/brass",
+      "x": 180
+    },
+    "facing=down,tier=netherite": {
+      "model": "adsdrill:block/drill_core/netherite",
+      "x": 180
+    },
+    "facing=down,tier=steel": {
+      "model": "adsdrill:block/drill_core/steel",
+      "x": 180
+    },
+    "facing=east,tier=brass": {
+      "model": "adsdrill:block/drill_core/brass",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,tier=netherite": {
+      "model": "adsdrill:block/drill_core/netherite",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,tier=steel": {
+      "model": "adsdrill:block/drill_core/steel",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north,tier=brass": {
+      "model": "adsdrill:block/drill_core/brass",
+      "x": 90
+    },
+    "facing=north,tier=netherite": {
+      "model": "adsdrill:block/drill_core/netherite",
+      "x": 90
+    },
+    "facing=north,tier=steel": {
+      "model": "adsdrill:block/drill_core/steel",
+      "x": 90
+    },
+    "facing=south,tier=brass": {
+      "model": "adsdrill:block/drill_core/brass",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,tier=netherite": {
+      "model": "adsdrill:block/drill_core/netherite",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,tier=steel": {
+      "model": "adsdrill:block/drill_core/steel",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up,tier=brass": {
+      "model": "adsdrill:block/drill_core/brass"
+    },
+    "facing=up,tier=netherite": {
+      "model": "adsdrill:block/drill_core/netherite"
+    },
+    "facing=up,tier=steel": {
+      "model": "adsdrill:block/drill_core/steel"
+    },
+    "facing=west,tier=brass": {
+      "model": "adsdrill:block/drill_core/brass",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,tier=netherite": {
+      "model": "adsdrill:block/drill_core/netherite",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,tier=steel": {
+      "model": "adsdrill:block/drill_core/steel",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

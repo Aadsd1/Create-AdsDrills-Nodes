@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "adsdrill:block/kinetic_dynamo_module/block"
+    }
+  }
+}

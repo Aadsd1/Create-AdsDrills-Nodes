@@ -1,0 +1,31 @@
+{
+  "parent": "adsdrill:root",
+  "criteria": {
+    "get_steel_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:core_upgrade_steel"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.main.steel_core.description"
+    },
+    "frame": "task",
+    "icon": {
+      "id": "adsdrill:core_steel_upgrade"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.main.steel_core.title"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "minecraft:blast_furnace"
+    },
+    "C": {
+      "item": "adsdrill:rose_gold"
+    },
+    "D": {
+      "item": "adsdrill:module_furnace_upgrade"
+    },
+    "E": {
+      "item": "create:blaze_cake"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AEA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_bfurnace_upgrade"
+  }
+}

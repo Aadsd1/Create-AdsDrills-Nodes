@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "create:cogwheel"
+    },
+    "B": {
+      "item": "create:copper_sheet"
+    },
+    "C": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "D": {
+      "item": "create:mechanical_pump"
+    },
+    "E": {
+      "item": "create:hose_pulley"
+    }
+  },
+  "pattern": [
+    "ABC",
+    "BDB",
+    "EBA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:pump_head"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_brass_locator": {
+      "conditions": {
+        "items": [
+          {
+            "items": "adsdrill:brass_node_locator"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "adsdrill:steel_node_locator"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_brass_locator"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "adsdrill:steel_node_locator"
+    ]
+  }
+}

@@ -2,6 +2,7 @@ package com.adsd.adsdrill.content.kinetics.node;
 
 
 import com.adsd.adsdrill.AdsDrillAddon;
+import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.crafting.Quirk;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -120,7 +121,6 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
         }
         volatileFissureCounter = tag.getInt("VolatileCounter");
     }
-
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
         // 부모 클래스(OreNodeBlockEntity)의 툴팁을 먼저 표시합니다.
@@ -138,29 +138,38 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
 
                 // 쉬프트 누를 때만 설명 표시
                 if (isPlayerSneaking) {
-                    // [!!! 핵심 수정: 긴 설명을 여러 줄로 나누어 추가하는 로직 !!!]
                     Font font = Minecraft.getInstance().font;
-                    Component description = quirk.getDescription();
                     int maxWidth = 200; // 툴팁 한 줄의 최대 너비 (픽셀 단위)
                     String indentation = "    "; // 들여쓰기
 
-                    // 설명이 비어있지 않은 경우에만 처리
+                    // Quirk에 따라 동적으로 설명 컴포넌트를 생성합니다.
+                    Component description;
+                    var config = AdsDrillConfigs.getQuirkConfig(quirk);
+
+                    description = switch (quirk) {
+                        case CHAOTIC_OUTPUT, BURIED_TREASURE -> Component.translatable(quirk.getDescription().getString(),
+                                String.format("%.0f%%", config.chance() * 100));
+                        case AQUIFER -> Component.translatable(quirk.getDescription().getString(),
+                                String.format("%.0f%%", config.minFluidPercentage() * 100),
+                                String.format("%.0f%%", config.maxFluidPercentage() * 100));
+                        default ->
+                            // 다른 특성들은 서식 지정자가 없으므로 그대로 사용
+                                quirk.getDescription();
+                    };
+
+                    // 설명이 비어있지 않은 경우에만 줄 바꿈 로직 실행
                     if (!description.getString().isEmpty()) {
                         String[] words = description.getString().split(" ");
                         StringBuilder currentLine = new StringBuilder();
 
                         for (String word : words) {
-                            // 현재 줄에 다음 단어를 추가했을 때 최대 너비를 초과하는지 확인
                             if (font.width(currentLine + word) > maxWidth) {
-                                // 최대 너비를 초과하면, 현재까지의 줄을 툴팁에 추가
                                 tooltip.add(Component.literal(indentation + currentLine.toString().trim()).withStyle(ChatFormatting.GRAY));
-                                // 새 줄 시작
                                 currentLine = new StringBuilder();
                             }
                             currentLine.append(word).append(" ");
                         }
 
-                        // 마지막 줄 추가
                         if (!currentLine.toString().trim().isEmpty()) {
                             tooltip.add(Component.literal(indentation + currentLine.toString().trim()).withStyle(ChatFormatting.GRAY));
                         }
@@ -170,6 +179,4 @@ public class ArtificialNodeBlockEntity extends OreNodeBlockEntity {
         }
         return true;
     }
-
-
 }

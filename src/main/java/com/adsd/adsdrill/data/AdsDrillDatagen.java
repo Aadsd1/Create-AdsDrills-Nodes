@@ -209,13 +209,13 @@ public class AdsDrillDatagen {
         registrate.addRawLang("quirk.adsdrill.polarity_negative.description", "§7Increases mining yield if a Positive Polarity node is nearby.");
         registrate.addRawLang("quirk.adsdrill.signal_amplification.description", "§7Increases mining yield by 10% while receiving a redstone signal.");
         registrate.addRawLang("quirk.adsdrill.gemstone_facets.description", "§7Doubles the effectiveness of the Fortune enchantment on this node.");
-        registrate.addRawLang("quirk.adsdrill.chaotic_output.description", "§7Has a 5% chance to yield a random ore from this node's composition, ignoring normal ratios.");
         registrate.addRawLang("quirk.adsdrill.wild_magic.description", "§7Sometimes creates random, harmless visual and sound effects.");
         registrate.addRawLang("quirk.adsdrill.petrified_heart.description", "§7This node's Regeneration is boosted based on its Hardness.");
-        registrate.addRawLang("quirk.adsdrill.aquifer.description", "§7Reduces node Hardness while the internal fluid level is between 60% and 70% of its capacity.");
         registrate.addRawLang("quirk.adsdrill.trace_minerals.description", "§7Has a small chance to yield Iron Nuggets as a byproduct.");
-        registrate.addRawLang("quirk.adsdrill.buried_treasure.description", "§7Has a 5% chance to yield a random item from ancient structures.");
         registrate.addRawLang("quirk.adsdrill.volatile_fissures.description", "§7Causes a small explosion for every 10 yield consumed, damaging nearby entities and briefly becoming Cracked.");
+        registrate.addRawLang("quirk.adsdrill.chaotic_output.description", "§7Has a %s chance to yield a random ore from this node's composition, ignoring normal ratios.");
+        registrate.addRawLang("quirk.adsdrill.aquifer.description", "§7Reduces node Hardness while the internal fluid level is between %s and %s of its capacity.");
+        registrate.addRawLang("quirk.adsdrill.buried_treasure.description", "§7Has a %s chance to yield a random item from ancient structures.");
 
         registrate.addRawLang("adsdrill.quirk.header", "Quirks:");
         registrate.addRawLang("adsdrill.quirk_candidates.header", "Quirk Candidates:");

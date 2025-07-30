@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:brass_sheet"
+    },
+    "C": {
+      "item": "create:precision_mechanism"
+    },
+    "D": {
+      "item": "adsdrill:thunder_stone"
+    },
+    "E": {
+      "item": "adsdrill:rose_gold"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "ABA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_einput_upgrade"
+  }
+}

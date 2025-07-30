@@ -1,0 +1,50 @@
+{
+  "parent": "adsdrill:tools/locator",
+  "criteria": {
+    "get_netherite_locator": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:netherite_node_locator"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_steel_locator": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:steel_node_locator"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.tools.advanced_locator.description"
+    },
+    "frame": "task",
+    "hidden": false,
+    "icon": {
+      "id": "adsdrill:steel_node_locator"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.tools.advanced_locator.title"
+    }
+  },
+  "requirements": [
+    [
+      "get_steel_locator",
+      "get_netherite_locator"
+    ]
+  ]
+}

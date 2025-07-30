@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "adsdrill:block/explosive_drill_head/block",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "adsdrill:block/explosive_drill_head/block",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "adsdrill:block/explosive_drill_head/block",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "adsdrill:block/explosive_drill_head/block",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "adsdrill:block/explosive_drill_head/block"
+    },
+    "facing=west": {
+      "model": "adsdrill:block/explosive_drill_head/block",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

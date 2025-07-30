@@ -1,0 +1,172 @@
+{
+  "parent": "adsdrill:artificial_node/complete",
+  "criteria": {
+    "get_cinnabar": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:cinnabar"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_fossil": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:fossil"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_ivory_crystal": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:ivory_crystal"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_koh_i_noor": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:koh_i_noor"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_raw_steel_chunk": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:raw_steel_chunk"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_rose_gold": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:rose_gold"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_silky_jewel": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:silky_jewel"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_thunder_stone": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:thunder_stone"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_ultramarine": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:ultramarine"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_xomv": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:xomv"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.hidden.catalyst_collector.description"
+    },
+    "frame": "challenge",
+    "hidden": true,
+    "icon": {
+      "id": "adsdrill:koh_i_noor"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.hidden.catalyst_collector.title"
+    }
+  },
+  "requirements": [
+    [
+      "get_cinnabar"
+    ],
+    [
+      "get_fossil"
+    ],
+    [
+      "get_ivory_crystal"
+    ],
+    [
+      "get_koh_i_noor"
+    ],
+    [
+      "get_rose_gold"
+    ],
+    [
+      "get_silky_jewel"
+    ],
+    [
+      "get_thunder_stone"
+    ],
+    [
+      "get_ultramarine"
+    ],
+    [
+      "get_raw_steel_chunk"
+    ],
+    [
+      "get_xomv"
+    ]
+  ]
+}

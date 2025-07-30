@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:brass_sheet"
+    },
+    "C": {
+      "item": "adsdrill:ivory_crystal"
+    },
+    "D": {
+      "item": "adsdrill:koh_i_noor"
+    },
+    "E": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "F": {
+      "item": "create:attribute_filter"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "AFA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_resonator_upgrade"
+  }
+}

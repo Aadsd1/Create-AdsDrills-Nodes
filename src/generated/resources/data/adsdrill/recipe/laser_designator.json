@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "create:iron_sheet"
+    },
+    "B": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "minecraft:glass"
+    },
+    "D": {
+      "item": "create:redstone_link"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "BCA",
+    "AAD"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:laser_designator"
+  }
+}

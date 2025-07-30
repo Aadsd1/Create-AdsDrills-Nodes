@@ -1,0 +1,121 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "adsdrill:xomv"
+  },
+  "loops": 3,
+  "results": [
+    {
+      "chance": 88.0,
+      "id": "adsdrill:core_netherite_upgrade"
+    },
+    {
+      "chance": 3.0,
+      "id": "adsdrill:xomv"
+    },
+    {
+      "chance": 3.0,
+      "id": "minecraft:netherite_ingot"
+    },
+    {
+      "chance": 2.0,
+      "id": "create:precision_mechanism"
+    },
+    {
+      "id": "minecraft:flint"
+    },
+    {
+      "id": "adsdrill:koh_i_noor"
+    },
+    {
+      "id": "minecraft:diamond"
+    },
+    {
+      "id": "minecraft:netherite_scrap"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_netherite_upgrade"
+        },
+        {
+          "item": "minecraft:netherite_ingot"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_netherite_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_netherite_upgrade"
+        },
+        {
+          "item": "create:precision_mechanism"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_netherite_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_netherite_upgrade"
+        },
+        {
+          "item": "adsdrill:koh_i_noor"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_netherite_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:filling",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_netherite_upgrade"
+        },
+        {
+          "type": "fluid_stack",
+          "amount": 1000,
+          "fluid": "minecraft:lava"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_netherite_upgrade"
+        }
+      ]
+    },
+    {
+      "type": "create:pressing",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_core_netherite_upgrade"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_core_netherite_upgrade"
+        }
+      ]
+    }
+  ],
+  "transitional_item": {
+    "id": "adsdrill:incomplete_core_netherite_upgrade"
+  }
+}

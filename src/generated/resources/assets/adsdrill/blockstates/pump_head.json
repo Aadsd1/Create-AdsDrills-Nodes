@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "adsdrill:block/pump_head/block",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "adsdrill:block/pump_head/block",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "adsdrill:block/pump_head/block",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "adsdrill:block/pump_head/block",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "adsdrill:block/pump_head/block"
+    },
+    "facing=west": {
+      "model": "adsdrill:block/pump_head/block",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

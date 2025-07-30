@@ -1,0 +1,32 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "B": {
+      "item": "adsdrill:ivory_crystal"
+    },
+    "C": {
+      "item": "adsdrill:xomv"
+    },
+    "D": {
+      "item": "adsdrill:fossil"
+    },
+    "E": {
+      "item": "adsdrill:silky_jewel"
+    }
+  },
+  "pattern": [
+    "AAAA",
+    "ABCA",
+    "ADEA",
+    "AAAA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:steel_stabilizer_core"
+  }
+}

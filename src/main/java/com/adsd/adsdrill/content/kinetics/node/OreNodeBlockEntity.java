@@ -316,7 +316,16 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             sendData();
         }
     }
+    public boolean restoreYield(int amount) {
+        if (this.currentYield >= this.maxYield) {
+            return false; // 이미 가득 찼으면 실패
+        }
 
+        this.currentYield = Math.min(this.maxYield, this.currentYield + amount);
+        setChanged();
+        sendData(); // 클라이언트에 변경사항 동기화
+        return true; // 성공
+    }
     /**
      * 채굴 사이클을 실행합니다.
      * @param specificItem null이면 일반 채굴, 아니면 특정 아이템 채굴

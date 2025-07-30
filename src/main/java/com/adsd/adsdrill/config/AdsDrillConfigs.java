@@ -125,6 +125,8 @@ public class AdsDrillConfigs {
 
         public final ModConfigSpec.ConfigValue<List<? extends Config>> nodeCombinationRecipes;
 
+        public final ModConfigSpec.IntValue nodeRestorativeYieldAmount;
+
         // ... 드릴 코어, 열 시스템 등 설정 ...
         public final ModConfigSpec.IntValue brassDrillMaxModules;
         public final ModConfigSpec.IntValue steelDrillMaxModules;
@@ -272,6 +274,10 @@ public class AdsDrillConfigs {
             brassCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Brass Stabilizer Core.").defineInRange("brassCoreFailurePenalty", 64, 0, 1024);
             steelCoreFailurePenalty = builder.comment("Progress lost per tick on crafting failure with a Steel Stabilizer Core.").defineInRange("steelCoreFailurePenalty", 512, 0, 1024);
             nodeFrameRequiredProgress = builder.comment("Total progress required to craft an Artificial Node in the Node Frame.").defineInRange("nodeFrameRequiredProgress", 240000, 1000, Integer.MAX_VALUE);
+
+            nodeRestorativeYieldAmount = builder.comment("The amount of yield restored by Ore Cake.")
+                    .defineInRange("nodeRestorativeYieldAmount", 250, 1, Integer.MAX_VALUE);
+
             builder.pop();
 
             builder.push("worldgen");

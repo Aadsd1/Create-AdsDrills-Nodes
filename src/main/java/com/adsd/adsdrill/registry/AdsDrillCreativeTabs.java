@@ -91,6 +91,7 @@ public class AdsDrillCreativeTabs {
                         pOutput.accept(AdsDrillItems.STEEL_STABILIZER_CORE);
                         pOutput.accept(AdsDrillItems.NETHERITE_STABILIZER_CORE);
                         pOutput.accept(AdsDrillItems.ORE_NODE_NEUTRALIZER);
+                        pOutput.accept(AdsDrillItems.ORE_CAKE);
                         pOutput.accept(AdsDrillItems.UNFINISHED_NODE_DATA);
                         pOutput.accept(AdsDrillItems.LASER_DESIGNATOR);
                         pOutput.accept(AdsDrillItems.NODE_DEBUGGER);

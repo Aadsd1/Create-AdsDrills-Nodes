@@ -87,7 +87,7 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
         float volume = Mth.clamp(speed / 256f, 0.01f, 0.25f);
         float pitch = 0.8f + Mth.clamp(speed / 256f, 0.0f, 0.7f);
 
-        level.playLocalSound(worldPosition, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, volume, pitch, false);
+        level.playLocalSound(worldPosition, SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS, volume, pitch, false);
     }
 
     @Override

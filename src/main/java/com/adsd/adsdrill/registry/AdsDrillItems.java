@@ -14,6 +14,10 @@ public class AdsDrillItems {
 
     private static final CreateRegistrate REGISTRATE = AdsDrillAddon.registrate();
 
+    public static final ItemEntry<OreCakeItem> ORE_CAKE = REGISTRATE
+            .item("ore_cake", OreCakeItem::new)
+            .register();
+
 
     public static final ItemEntry<NodeLocatorItem> BRASS_NODE_LOCATOR = REGISTRATE
             .item("brass_node_locator", p -> new NodeLocatorItem(p, NodeLocatorItem.Tier.BRASS))

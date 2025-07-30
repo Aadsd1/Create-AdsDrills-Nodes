@@ -51,7 +51,7 @@ public class CustomNodeCommand {
                         )
                         .then(Commands.literal("simple")
                                 .then(Commands.argument("composition", StringArgumentType.greedyString())
-                                        .executes(context -> createSimpleNode(context, StringArgumentType.getString(context, "composition"), 10000)) // 기본 매장량
+                                        .executes(context -> createSimpleNode(context, StringArgumentType.getString(context, "composition"), 10000))
                                         .then(Commands.argument("max_yield", IntegerArgumentType.integer(1))
                                                 .executes(context -> createSimpleNode(context, StringArgumentType.getString(context, "composition"), IntegerArgumentType.getInteger(context, "max_yield")))
                                         )
@@ -63,9 +63,7 @@ public class CustomNodeCommand {
                                                 .then(Commands.argument("hardness", FloatArgumentType.floatArg(0.1f))
                                                         .then(Commands.argument("richness", FloatArgumentType.floatArg(0.1f))
                                                                 .then(Commands.argument("regeneration", FloatArgumentType.floatArg(0.0f))
-                                                                        // 유체 없이 생성
                                                                         .executes(context -> createFullNode(context, null, 0, null))
-                                                                        // 유체와 함께 생성
                                                                         .then(Commands.argument("fluid_id", ResourceLocationArgument.id())
                                                                                 .suggests((ctx, builder) -> {
                                                                                     BuiltInRegistries.FLUID.keySet().forEach(rl -> builder.suggest(rl.toString()));
@@ -81,17 +79,30 @@ public class CustomNodeCommand {
                                         )
                                 )
                         )
+                        // [수정됨] artificial 명령어 구조 변경
                         .then(Commands.literal("artificial")
                                 .then(Commands.argument("composition", StringArgumentType.string())
                                         .then(Commands.argument("max_yield", IntegerArgumentType.integer(1))
                                                 .then(Commands.argument("hardness", FloatArgumentType.floatArg(0.1f))
                                                         .then(Commands.argument("richness", FloatArgumentType.floatArg(0.1f))
                                                                 .then(Commands.argument("regeneration", FloatArgumentType.floatArg(0.0f))
-                                                                        // 특성 없이 생성
-                                                                        .executes(context -> createFullNode(context, null, 0, ""))
-                                                                        // 특성과 함께 생성
+                                                                        // 분기 1: 유체 없이 생성
+                                                                        .executes(context -> createFullNode(context, null, 0, "")) // 특성 없음
                                                                         .then(Commands.argument("quirks", StringArgumentType.greedyString())
-                                                                                .executes(context -> createFullNode(context, null, 0, StringArgumentType.getString(context, "quirks")))
+                                                                                .executes(context -> createFullNode(context, null, 0, StringArgumentType.getString(context, "quirks"))) // 특성 있음
+                                                                        )
+                                                                        // 분기 2: 유체와 함께 생성
+                                                                        .then(Commands.argument("fluid_id", ResourceLocationArgument.id())
+                                                                                .suggests((ctx, builder) -> {
+                                                                                    BuiltInRegistries.FLUID.keySet().forEach(rl -> builder.suggest(rl.toString()));
+                                                                                    return builder.buildFuture();
+                                                                                })
+                                                                                .then(Commands.argument("fluid_capacity", IntegerArgumentType.integer(1))
+                                                                                        .executes(context -> createFullNode(context, ResourceLocationArgument.getId(context, "fluid_id"), IntegerArgumentType.getInteger(context, "fluid_capacity"), "")) // 특성 없음
+                                                                                        .then(Commands.argument("quirks", StringArgumentType.greedyString())
+                                                                                                .executes(context -> createFullNode(context, ResourceLocationArgument.getId(context, "fluid_id"), IntegerArgumentType.getInteger(context, "fluid_capacity"), StringArgumentType.getString(context, "quirks"))) // 특성 있음
+                                                                                        )
+                                                                                )
                                                                         )
                                                                 )
                                                         )
@@ -122,17 +133,18 @@ public class CustomNodeCommand {
         source.sendSuccess(() -> Component.literal(""), false);
 
         // Artificial
-        source.sendSuccess(() -> Component.literal("/adsdrill create_node artificial <comp> <yield> <hard> <rich> <regen> [quirks]").withStyle(ChatFormatting.AQUA), false);
-        source.sendSuccess(() -> Component.literal("  Creates an artificial node with quirks.").withStyle(ChatFormatting.DARK_GRAY), false);
-        source.sendSuccess(() -> Component.literal("  Example: ").withStyle(ChatFormatting.YELLOW)
-                .append(Component.literal("/adsdrill create_node artificial \"minecraft:diamond_ore:1\" 50000 2.5 1.8 0.008 \"STEADY_HANDS GEMSTONE_FACETS\"").withStyle(ChatFormatting.WHITE)), false);
+        source.sendSuccess(() -> Component.literal("/adsdrill create_node artificial <comp> <yield> <hard> <rich> <regen> [fluid] [cap] [quirks]").withStyle(ChatFormatting.AQUA), false);
+        source.sendSuccess(() -> Component.literal("  Creates an artificial node with quirks and optional fluid.").withStyle(ChatFormatting.DARK_GRAY), false);
+        source.sendSuccess(() -> Component.literal("  Example (no fluid): ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal("/adsdrill create_node artificial \"minecraft:diamond_ore:1\" 50000 2.5 1.8 0.008 STEADY_HANDS").withStyle(ChatFormatting.WHITE)), false);
+        source.sendSuccess(() -> Component.literal("  Example (with fluid): ").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal("/adsdrill create_node artificial \"minecraft:coal_ore:1\" 10000 1.0 1.0 0.0 minecraft:lava 8000 AQUIFER").withStyle(ChatFormatting.WHITE)), false);
 
         return 1;
     }
 
     private static int createSimpleNode(CommandContext<CommandSourceStack> context, String compositionStr, int maxYield) throws CommandSyntaxException {
         RandomSource random = context.getSource().getLevel().getRandom();
-        // 월드 생성 로직과 유사한 랜덤 값 사용
         float hardness = 0.5f + random.nextFloat() * 1.5f;
         float richness = 0.8f + random.nextFloat() * 0.7f;
         float regeneration = 0.0005f + random.nextFloat() * 0.0045f;
@@ -152,38 +164,26 @@ public class CustomNodeCommand {
     }
 
 
-    private static int executeCreateNode(CommandContext<CommandSourceStack> context, String compositionStr,
-                                         int maxYield, float hardness, float richness, float regeneration,
-                                         @Nullable ResourceLocation fluidId, int fluidCapacity,
-                                         @Nullable String quirksStr, boolean isArtificial) throws CommandSyntaxException {
-
+    private static int executeCreateNode(CommandContext<CommandSourceStack> context, String compositionStr, int maxYield, float hardness, float richness, float regeneration, @Nullable ResourceLocation fluidId, int fluidCapacity, @Nullable String quirksStr, boolean isArtificial) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = source.getLevel();
 
-        // 1. 대상 블록 검증
         BlockPos targetPos = validateTargetBlock(source, player, level);
         if (targetPos == null) return 0;
 
-        // 2. 조성 데이터 파싱
         CompositionData compositionData = parseComposition(source, compositionStr, level);
         if (compositionData == null) return 0;
 
-        // 3. 유체 처리
         FluidStack fluidStack = processFluid(fluidId);
 
-        // 4. 특성(Quirk) 처리
         List<Quirk> quirks = parseQuirks(source, quirksStr, isArtificial);
         if (quirks == null) return 0;
 
-        // 5. 노드 생성
         return createNode(source, level, targetPos, compositionData, maxYield, hardness,
                 richness, regeneration, fluidStack, fluidCapacity, quirks, isArtificial);
     }
 
-    /**
-     * 플레이어가 바라보는 블록을 검증합니다.
-     */
     private static BlockPos validateTargetBlock(CommandSourceStack source, ServerPlayer player, ServerLevel level) {
         HitResult hitResult = player.pick(10, 0, false);
 
@@ -203,9 +203,6 @@ public class CustomNodeCommand {
         return targetPos;
     }
 
-    /**
-     * 조성 문자열을 파싱합니다.
-     */
     private static CompositionData parseComposition(CommandSourceStack source, String compositionStr, ServerLevel level) {
         Map<Block, Float> parsedComposition = new HashMap<>();
         float totalRatio = 0f;
@@ -227,9 +224,6 @@ public class CustomNodeCommand {
         return convertToNodeData(source, parsedComposition, totalRatio, level);
     }
 
-    /**
-     * 개별 조성 부분을 파싱합니다.
-     */
     private static CompositionEntry parseCompositionPart(CommandSourceStack source, String part) {
         int lastColonIndex = part.lastIndexOf(':');
 
@@ -243,14 +237,12 @@ public class CustomNodeCommand {
         String blockIdStr = part.substring(0, lastColonIndex);
         String ratioStr = part.substring(lastColonIndex + 1);
 
-        // 블록 검증
         Optional<Block> blockOpt = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(blockIdStr));
         if (blockOpt.isEmpty()) {
             source.sendFailure(Component.literal("Unknown block ID: " + blockIdStr));
             return null;
         }
 
-        // 비율 파싱
         try {
             float ratio = Float.parseFloat(ratioStr);
             return new CompositionEntry(blockOpt.get(), ratio);
@@ -260,18 +252,12 @@ public class CustomNodeCommand {
         }
     }
 
-    /**
-     * 조성 형식이 유효한지 확인합니다.
-     */
     private static boolean isValidCompositionFormat(String part, int lastColonIndex) {
         return lastColonIndex != -1 &&
                 lastColonIndex != 0 &&
                 lastColonIndex != part.length() - 1;
     }
 
-    /**
-     * 파싱된 조성을 노드 데이터로 변환합니다.
-     */
     private static CompositionData convertToNodeData(CommandSourceStack source, Map<Block, Float> parsedComposition,
                                                      float totalRatio, ServerLevel level) {
         Map<Item, Float> finalComposition = new HashMap<>();
@@ -303,9 +289,6 @@ public class CustomNodeCommand {
         return new CompositionData(finalComposition, itemToBlockMap, representativeBlock);
     }
 
-    /**
-     * 유체를 처리합니다.
-     */
     private static FluidStack processFluid(@Nullable ResourceLocation fluidId) {
         if (fluidId == null) {
             return FluidStack.EMPTY;
@@ -315,9 +298,6 @@ public class CustomNodeCommand {
         return fluid != Fluids.EMPTY ? new FluidStack(fluid, 1) : FluidStack.EMPTY;
     }
 
-    /**
-     * 특성(Quirk) 문자열을 파싱합니다.
-     */
     private static List<Quirk> parseQuirks(CommandSourceStack source, @Nullable String quirksStr, boolean isArtificial) {
         List<Quirk> quirks = new ArrayList<>();
 
@@ -338,23 +318,16 @@ public class CustomNodeCommand {
         return quirks;
     }
 
-    /**
-     * 노드를 생성합니다.
-     */
     private static int createNode(CommandSourceStack source, ServerLevel level, BlockPos targetPos,
                                   CompositionData compositionData, int maxYield, float hardness,
                                   float richness, float regeneration, FluidStack fluidStack,
                                   int fluidCapacity, List<Quirk> quirks, boolean isArtificial) {
 
-        // 원본 블록 상태 백업
         BlockState originalState = level.getBlockState(targetPos);
-
-        // 노드 블록 설치
         BlockState nodeBlockState = getNodeBlockState(isArtificial);
         level.setBlock(targetPos, nodeBlockState, 3);
         BlockEntity blockEntity = level.getBlockEntity(targetPos);
 
-        // 노드 설정
         boolean success = configureNode(blockEntity, compositionData, maxYield, hardness, richness,
                 regeneration, fluidStack, fluidCapacity, quirks, isArtificial,
                 originalState.getBlock());
@@ -363,25 +336,18 @@ public class CustomNodeCommand {
             sendSuccessMessage(source, targetPos, isArtificial);
             return 1;
         } else {
-            // 실패 시 원본 블록으로 복원
             level.setBlock(targetPos, originalState, 3);
             source.sendFailure(Component.literal("Failed to create node BlockEntity."));
             return 0;
         }
     }
 
-    /**
-     * 노드 블록 상태를 가져옵니다.
-     */
     private static BlockState getNodeBlockState(boolean isArtificial) {
         return (isArtificial ? AdsDrillBlocks.ARTIFICIAL_NODE : AdsDrillBlocks.ORE_NODE)
                 .get()
                 .defaultBlockState();
     }
 
-    /**
-     * 노드를 설정합니다.
-     */
     private static boolean configureNode(BlockEntity blockEntity, CompositionData compositionData,
                                          int maxYield, float hardness, float richness, float regeneration,
                                          FluidStack fluidStack, int fluidCapacity, List<Quirk> quirks,
@@ -396,8 +362,7 @@ public class CustomNodeCommand {
                     fluidStack, fluidCapacity
             );
             return true;
-        }
-        else if (!isArtificial && blockEntity instanceof OreNodeBlockEntity oreNode) {
+        } else if (!isArtificial && blockEntity instanceof OreNodeBlockEntity oreNode) {
             oreNode.configureFromFeature(
                     compositionData.finalComposition,
                     compositionData.itemToBlockMap,
@@ -411,9 +376,6 @@ public class CustomNodeCommand {
         return false;
     }
 
-    /**
-     * 성공 메시지를 전송합니다.
-     */
     private static void sendSuccessMessage(CommandSourceStack source, BlockPos targetPos, boolean isArtificial) {
         String nodeType = isArtificial ? "Artificial Ore Node" : "Ore Node";
         Component message = Component.literal("Successfully created an " + nodeType + " at " + targetPos.toShortString())
@@ -421,25 +383,6 @@ public class CustomNodeCommand {
         source.sendSuccess(() -> message, true);
     }
 
-// --- 데이터 클래스들 ---
-
-    /**
-         * 조성 엔트리를 나타내는 클래스
-         */
-        private record CompositionEntry(Block block, float ratio) {
-    }
-
-    /**
-         * 조성 데이터를 나타내는 클래스
-         */
-        private record CompositionData(Map<Item, Float> finalComposition, Map<Item, Block> itemToBlockMap,
-                                       Block representativeBlock) {
-    }
-
-    /**
-     * OreNodeFeature의 로직과 동일한 결과를 보장하는 헬퍼 메서드.
-     * 광석 블록으로부터 대표 아이템을 찾습니다.
-     */
     private static Item getOreItem(Block oreBlock, ServerLevel level) {
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(oreBlock);
         Optional<ResourceLocation> manualItemId = AdsDrillConfigs.SERVER.getManualMappingForItem(blockId);
@@ -472,5 +415,12 @@ public class CustomNodeCommand {
             }
         }
         return oreBlockItem;
+    }
+
+    private record CompositionEntry(Block block, float ratio) {
+    }
+
+    private record CompositionData(Map<Item, Float> finalComposition, Map<Item, Block> itemToBlockMap,
+                                   Block representativeBlock) {
     }
 }

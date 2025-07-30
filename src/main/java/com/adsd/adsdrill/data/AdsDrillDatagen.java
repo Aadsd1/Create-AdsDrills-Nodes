@@ -59,7 +59,8 @@ public class AdsDrillDatagen {
 
         BlockTagsProvider blockTagsProvider = new BlockTagsProvider(packOutput, lookupProvider, AdsDrillAddon.MOD_ID, existingFileHelper) {
             @Override
-            protected void addTags(HolderLookup.@NotNull Provider p_256380_) {}
+            protected void addTags(HolderLookup.@NotNull Provider p_256380_) {
+            }
         };
         generator.addProvider(event.includeServer(), blockTagsProvider);
         generator.addProvider(event.includeServer(), new AdsDrillTagsProvider(packOutput, lookupProvider, blockTagsProvider.contentsGetter(), existingFileHelper));
@@ -69,7 +70,7 @@ public class AdsDrillDatagen {
                 new RegistrySetBuilder()
                         .add(Registries.CONFIGURED_FEATURE, AdsDrillFeatures::bootstrapConfiguredFeatures)
                         .add(Registries.PLACED_FEATURE, AdsDrillFeatures::bootstrapPlacedFeatures)
-                         .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, AdsDrillDatagen::bootstrapBiomeModifiers),
+                        .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, AdsDrillDatagen::bootstrapBiomeModifiers),
                 Set.of(AdsDrillAddon.MOD_ID)
         ));
     }
@@ -219,7 +220,7 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.quirk.header", "Quirks:");
         registrate.addRawLang("adsdrill.quirk_candidates.header", "Quirk Candidates:");
         registrate.addRawLang("adsdrill.fluid_content.header", "Fluid Content");
-        registrate.addRawLang("adsdrill.catalyst.head","Catalyst");
+        registrate.addRawLang("adsdrill.catalyst.head", "Catalyst");
         registrate.addRawLang("creativetab.adsdrill.base_tab", "AdsDrills & Nodes");
         // 툴팁
         registrate.addRawLang("tooltip.adsdrill.node_locator.tier", "Tier: %s");
@@ -228,6 +229,10 @@ public class AdsDrillDatagen {
         registrate.addRawLang("tooltip.adsdrill.node_locator.tier.netherite", "Netherite");
         registrate.addRawLang("tooltip.adsdrill.node_locator.radius", "Scan Radius: %s blocks");
         registrate.addRawLang("tooltip.adsdrill.node_locator.usage", "Right-click to scan for nodes.");
+
+        registrate.addRawLang("tooltip.adsdrill.node_restorative.description", "Right-click on an Ore Node to restore a portion of its yield.");
+        registrate.addRawLang("tooltip.adsdrill.node_restorative.effect", "Restores %d Yield");
+        registrate.addRawLang("message.adsdrill.restorative.full", "The node's yield is already full!");
 
         // 액션바 메시지
         registrate.addRawLang("message.adsdrill.locator.found.brass", "Node detected nearby!");
@@ -256,8 +261,8 @@ public class AdsDrillDatagen {
         registrate.addRawLang("advancements.adsdrill.heads.diamond_rotary_drill.title", "Deeper and Harder");
         registrate.addRawLang("advancements.adsdrill.heads.diamond_rotary_drill.description", "Strengthen your Rotary Drill Head with diamonds.");
 
-        registrate.addRawLang("advancements.adsdrill.heads.netherite_rotary_drill.title","Nether-Infused Drill");
-        registrate.addRawLang("advancements.adsdrill.heads.netherite_rotary_drill.description","Make your End tier Rotary Drill Head");
+        registrate.addRawLang("advancements.adsdrill.heads.netherite_rotary_drill.title", "Nether-Infused Drill");
+        registrate.addRawLang("advancements.adsdrill.heads.netherite_rotary_drill.description", "Make your End tier Rotary Drill Head");
 
         registrate.addRawLang("advancements.adsdrill.heads.hydraulic_drill.title", "Hydraulic Breakthrough");
         registrate.addRawLang("advancements.adsdrill.heads.hydraulic_drill.description", "Craft a Hydraulic Drill Head to selectively mine specific resources using the power of water.");
@@ -419,9 +424,9 @@ public class AdsDrillDatagen {
         registrate.addRawLang("adsdrill.jei.info.structure.1",
                 "A valid drill structure consists of one 'Drill Core', one 'Drill Head', and multiple 'Modules'. Wearing §6Goggles§r while looking at the core allows you to instantly check the structure's validity and its current stats.");
         registrate.addRawLang("adsdrill.jei.info.structure.2",
-                "§71. Power Input:§r Rotational force from Create must be supplied to the 'back' of the Drill Core (the face with the arrow).");
+                "§71. Power Input:§r Rotational force from Create must be supplied to the 'back' of the Drill Core (the face with normal shaft).");
         registrate.addRawLang("adsdrill.jei.info.structure.3",
-                "§72. Head Attachment:§r The Drill Head must be placed on the 'front' of the Drill Core (opposite the back). The head's orientation must also face away from the core.");
+                "§72. Head Attachment:§r The Drill Head must be placed on the 'front' of the Drill Core (with bigger shaft). The head's orientation must also face away from the core.");
         registrate.addRawLang("adsdrill.jei.info.structure.4",
                 "§73. Module Connection:§r Modules can be attached to the 'sides' of the Drill Core (the four faces that are not the front or back), either directly or by chaining them off of other modules.");
         registrate.addRawLang("adsdrill.jei.info.structure.5",

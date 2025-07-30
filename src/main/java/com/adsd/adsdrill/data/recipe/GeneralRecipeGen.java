@@ -130,6 +130,19 @@ public class GeneralRecipeGen extends RecipeProvider {
                 .unlockedBy("has_drill",has(AllBlocks.MECHANICAL_DRILL.get()))
                 .save(recipeOutput);
 
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AdsDrillItems.ORE_CAKE.get())
+                .pattern("AFE")
+                .pattern("BCB")
+                .pattern(" D ")
+                .define('A', AdsDrillItems.THE_FOSSIL.get())
+                .define('B', AdsDrillItems.ORE_NODE_NEUTRALIZER.get())
+                .define('C', AdsDrillItems.RAW_ROSE_GOLD_CHUNK.get())
+                .define('D',AllItems.BLAZE_CAKE.get())
+                .define('E',AdsDrillItems.IVORY_CRYSTAL.get())
+                .define('F',AdsDrillItems.RAW_STEEL_CHUNK.get())
+                .unlockedBy("has_rose_gold", has(AdsDrillItems.ROSE_GOLD.get()))
+                .save(recipeOutput);
+
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AdsDrillBlocks.PUMP_HEAD.get())
                 .pattern("ABC")
                 .pattern("BDB")

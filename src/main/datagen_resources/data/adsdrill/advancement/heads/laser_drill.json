@@ -1,0 +1,35 @@
+{
+  "parent": "adsdrill:heads/diamond_rotary_drill",
+  "display": {
+    "icon": {
+      "id": "adsdrill:laser_drill_head"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.heads.laser_drill.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.heads.laser_drill.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_laser_drill": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:laser_drill_head"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_laser_drill"
+    ]
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "parent": "adsdrill:root",
+  "display": {
+    "icon": {
+      "id": "adsdrill:frame_module"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.modules.frame.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.modules.frame.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_frame_module": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:frame_module"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_frame_module"
+    ]
+  ]
+}

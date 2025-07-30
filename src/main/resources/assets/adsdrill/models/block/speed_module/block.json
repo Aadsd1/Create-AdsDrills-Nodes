@@ -1,0 +1,24 @@
+{
+  "credit": "Model for Speed module",
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "#all",
+    "all": "adsdrill:block/speed_module"
+  },
+
+  "elements": [
+    {
+      "name": "SpeedModule",
+      "from": [2, 2, 2],
+      "to": [14, 14, 14],
+      "faces": {
+        "down":  { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "up":    { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "north": { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "south": { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "west":  { "uv": [2, 2, 14, 14], "texture": "#all"},
+        "east":  { "uv": [2, 2, 14, 14], "texture": "#all"}
+      }
+    }
+  ]
+}

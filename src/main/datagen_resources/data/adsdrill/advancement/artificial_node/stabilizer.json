@@ -1,0 +1,57 @@
+{
+  "parent": "adsdrill:artificial_node/frame",
+  "display": {
+    "icon": {
+      "id": "adsdrill:brass_stabilizer_core"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.artificial_node.stabilizer.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.artificial_node.stabilizer.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_brass_core": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:brass_stabilizer_core"]
+          }
+        ]
+      }
+    },
+    "get_steel_core": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:steel_stabilizer_core"]
+          }
+        ]
+      }
+    },
+    "get_netherite_core": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:netherite_stabilizer_core"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_brass_core",
+      "get_steel_core",
+      "get_netherite_core"
+    ]
+  ]
+}

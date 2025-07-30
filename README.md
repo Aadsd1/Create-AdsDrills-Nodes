@@ -1,27 +1,15 @@
+## Welcome to Create : AdsDrill & Nodes
+## Create : AdsDrill & Nodes에 오신 것을 환영합니다
 
-Installation information
-=======
+Welcome to AdsDrill, an addon for the Create mod.  
+Create 모드의 애드온, AdsDrill에 오신 것을 환영합니다.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions at [github](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+This mod introduces a powerful, multi-block drilling system for automated resource gathering.  
+이 모드는 자동화된 자원 채굴을 위한 강력한 다중 블록 드릴 시스템을 추가합니다.
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+Assemble custom drills using a central Drill Core, various functional Modules, and specialized Drill Heads.  
+중앙의 드릴 코어와 다양한 기능성 모듈, 그리고 특화된 드릴 헤드를 사용하여 자신만의 드릴을 조립하세요.
 
-> **Note**: For Eclipse, use tasks in `Launch Group` instead of ones founds in `Java Application`. A preparation task must run before launching the game. NeoGradle uses launch groups to do these subsequently.
+Unearth massive, renewable Ore Nodes hidden underground, or even construct your own with unique properties.  
+지하에 숨겨진 거대하고 재생 가능한 광맥 노드를 발굴하거나, 특별한 속성을 가진 인공 노드를 직접 제작할 수도 있습니다.
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
-
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
-
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/

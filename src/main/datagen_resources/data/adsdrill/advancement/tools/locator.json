@@ -1,0 +1,35 @@
+{
+  "parent": "adsdrill:root",
+  "display": {
+    "icon": {
+      "id": "adsdrill:brass_node_locator"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.tools.locator.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.tools.locator.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_locator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:brass_node_locator"]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "get_locator"
+    ]
+  ]
+}

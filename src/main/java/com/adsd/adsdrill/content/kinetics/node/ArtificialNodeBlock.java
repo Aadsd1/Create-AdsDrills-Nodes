@@ -1,0 +1,82 @@
+package com.adsd.adsdrill.content.kinetics.node;
+
+
+import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import com.adsd.adsdrill.registry.AdsDrillBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+// OreNodeBlock을 상속받고 IWrenchable를 구현합니다.
+public class ArtificialNodeBlock extends OreNodeBlock implements IWrenchable {
+
+    public ArtificialNodeBlock(Properties properties) {
+        super(properties);
+    }
+    protected static final VoxelShape SHAPE = Shapes.box(0.125, 0.125, 0.125, 0.875, 0.875, 0.875);
+
+    @Override
+    protected @NotNull VoxelShape getShape(@NotNull BlockState pState, net.minecraft.world.level.@NotNull BlockGetter pLevel, @NotNull BlockPos pPos, @NotNull CollisionContext pContext) {
+        return SHAPE;
+    }
+    // BE 타입은 ArtificialNodeBlockEntity를 사용하도록 오버라이드합니다.
+    @Override
+    public BlockEntityType<? extends OreNodeBlockEntity> getBlockEntityType() {
+        return AdsDrillBlockEntity.ARTIFICIAL_NODE.get();
+    }
+
+    @Override
+    protected @NotNull List<ItemStack> getDrops(@NotNull BlockState state, LootParams.@NotNull Builder params) {
+        BlockEntity be = params.getParameter(LootContextParams.BLOCK_ENTITY);
+
+        // BE가 존재하고, 타입이 OreNodeBlockEntity(또는 그 자식)가 맞는지 확인합니다.
+        if (be instanceof OreNodeBlockEntity nodeBE) {
+            ItemStack dropStack = new ItemStack(this);
+
+            // BE의 데이터를 아이템 스택에 저장합니다.
+            var level = params.getLevel();
+            nodeBE.saveToItem(dropStack, level.registryAccess());
+
+            return Collections.singletonList(dropStack);
+        }
+
+        // BE가 없거나 타입이 다를 경우, 부모 클래스의 드롭 로직을 따릅니다.
+        // (이 경우 부모가 빈 리스트를 반환하므로 아무것도 드롭되지 않습니다)
+        return super.getDrops(state, params);
+    }
+
+    @Override
+    public @NotNull ItemStack getCloneItemStack(@NotNull BlockState state, @NotNull HitResult target, @NotNull LevelReader level, @NotNull BlockPos pos, @NotNull Player player) {
+        ItemStack stack = new ItemStack(this);
+        BlockEntity be = level.getBlockEntity(pos);
+
+        if (be instanceof OreNodeBlockEntity nodeBE) {
+            if (nodeBE.hasLevel()) {
+                nodeBE.saveToItem(stack, Objects.requireNonNull(nodeBE.getLevel()).registryAccess());
+            }
+        }
+        return stack;
+    }
+    @Override
+    public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
+
+        return IWrenchable.super.onSneakWrenched(state, context);
+    }
+}

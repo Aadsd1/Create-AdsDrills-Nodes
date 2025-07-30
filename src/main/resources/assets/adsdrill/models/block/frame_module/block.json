@@ -1,0 +1,24 @@
+{
+  "credit": "Model for Frame module",
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "#all",
+    "all": "adsdrill:block/frame_module"
+  },
+
+  "elements": [
+    {
+      "name": "FrameModule",
+      "from": [3, 3, 3],
+      "to": [13, 13, 13],
+      "faces": {
+        "down":  { "uv": [3, 3, 13, 13], "texture": "#all"},
+        "up":    { "uv": [3, 3, 13, 13], "texture": "#all"},
+        "north": { "uv": [3, 3, 13, 13], "texture": "#all"},
+        "south": { "uv": [3, 3, 13, 13], "texture": "#all"},
+        "west":  { "uv": [3, 3, 13, 13], "texture": "#all"},
+        "east":  { "uv": [3, 3, 13, 13], "texture": "#all"}
+      }
+    }
+  ]
+}

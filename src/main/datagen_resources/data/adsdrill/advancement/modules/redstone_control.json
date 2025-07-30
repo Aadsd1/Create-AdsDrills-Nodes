@@ -1,0 +1,30 @@
+{
+  "parent": "adsdrill:modules/specialized",
+  "display": {
+    "icon": {
+      "id": "adsdrill:redstone_brake_module"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.modules.redstone_control.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.modules.redstone_control.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_brake": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:redstone_brake_module"]
+          }
+        ]
+      }
+    }
+  }
+}

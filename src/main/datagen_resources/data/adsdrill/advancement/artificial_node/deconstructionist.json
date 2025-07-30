@@ -1,0 +1,30 @@
+{
+  "parent": "adsdrill:heads/laser_drill",
+  "display": {
+    "icon": {
+      "id": "adsdrill:unfinished_node_data"
+    },
+    "title": {
+      "translate": "advancements.adsdrill.artificial_node.deconstructionist.title"
+    },
+    "description": {
+      "translate": "advancements.adsdrill.artificial_node.deconstructionist.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_node_data": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["adsdrill:unfinished_node_data"]
+          }
+        ]
+      }
+    }
+  }
+}

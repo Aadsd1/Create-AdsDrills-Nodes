@@ -17,3 +17,6 @@ Assemble custom drills using a central Drill Core, various functional Modules, a
 Unearth massive, renewable Ore Nodes hidden underground, or even construct your own with unique properties.  
 지하에 숨겨진 거대하고 재생 가능한 광맥 노드를 발굴하거나, 특별한 속성을 가진 인공 노드를 직접 제작할 수도 있습니다.
 
+https://modrinth.com/project/zqqwwfWb
+ 
+https://legacy.curseforge.com/minecraft/mc-mods/create-adsdrills-ore-nodes

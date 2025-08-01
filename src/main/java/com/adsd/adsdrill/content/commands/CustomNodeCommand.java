@@ -79,31 +79,37 @@ public class CustomNodeCommand {
                                         )
                                 )
                         )
-                        // [수정됨] artificial 명령어 구조 변경
+                        // artificial 명령어 구조 변경
                         .then(Commands.literal("artificial")
                                 .then(Commands.argument("composition", StringArgumentType.string())
                                         .then(Commands.argument("max_yield", IntegerArgumentType.integer(1))
                                                 .then(Commands.argument("hardness", FloatArgumentType.floatArg(0.1f))
                                                         .then(Commands.argument("richness", FloatArgumentType.floatArg(0.1f))
                                                                 .then(Commands.argument("regeneration", FloatArgumentType.floatArg(0.0f))
-                                                                        // 분기 1: 유체 없이 생성
-                                                                        .executes(context -> createFullNode(context, null, 0, "")) // 특성 없음
-                                                                        .then(Commands.argument("quirks", StringArgumentType.greedyString())
-                                                                                .executes(context -> createFullNode(context, null, 0, StringArgumentType.getString(context, "quirks"))) // 특성 있음
-                                                                        )
-                                                                        // 분기 2: 유체와 함께 생성
+                                                                        // 분기 1: 액체 정보가 제공되는 경우 (가장 구체적인 경로)
                                                                         .then(Commands.argument("fluid_id", ResourceLocationArgument.id())
                                                                                 .suggests((ctx, builder) -> {
                                                                                     BuiltInRegistries.FLUID.keySet().forEach(rl -> builder.suggest(rl.toString()));
                                                                                     return builder.buildFuture();
                                                                                 })
                                                                                 .then(Commands.argument("fluid_capacity", IntegerArgumentType.integer(1))
-                                                                                        .executes(context -> createFullNode(context, ResourceLocationArgument.getId(context, "fluid_id"), IntegerArgumentType.getInteger(context, "fluid_capacity"), "")) // 특성 없음
+                                                                                        // 분기 1-1: 액체 정보 다음에 Quirk가 오는 경우
                                                                                         .then(Commands.argument("quirks", StringArgumentType.greedyString())
-                                                                                                .executes(context -> createFullNode(context, ResourceLocationArgument.getId(context, "fluid_id"), IntegerArgumentType.getInteger(context, "fluid_capacity"), StringArgumentType.getString(context, "quirks"))) // 특성 있음
+                                                                                                .executes(context -> createFullNode(context, ResourceLocationArgument.getId(context, "fluid_id"), IntegerArgumentType.getInteger(context, "fluid_capacity"), StringArgumentType.getString(context, "quirks")))
                                                                                         )
+                                                                                        // 분기 1-2: 액체 정보로 명령어가 끝나는 경우 (Quirk 없음)
+                                                                                        .executes(context -> createFullNode(context, ResourceLocationArgument.getId(context, "fluid_id"), IntegerArgumentType.getInteger(context, "fluid_capacity"), ""))
                                                                                 )
                                                                         )
+
+                                                                        // 분기 2: 액체 정보 없이 Quirk가 바로 오는 경우
+                                                                        .then(Commands.argument("quirks", StringArgumentType.greedyString())
+                                                                                .executes(context -> createFullNode(context, null, 0, StringArgumentType.getString(context, "quirks")))
+                                                                        )
+
+                                                                        // 분기 3: 액체와 Quirk가 모두 없는 경우 (regeneration으로 명령어가 끝남)
+                                                                        .executes(context -> createFullNode(context, null, 0, ""))
+
                                                                 )
                                                         )
                                                 )

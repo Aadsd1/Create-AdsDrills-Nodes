@@ -37,33 +37,22 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class OreNodeFeature extends Feature<OreNodeConfiguration> {
-    // 비율 프리셋을 정의하는 내부 record
-    private record RatioPreset(String name, List<Float> ratios) {}
-
-    // 사용 가능한 모든 프리셋 리스트
-    private static final List<RatioPreset> PRESETS = List.of(
-            // 1개 광물 집중형
-            new RatioPreset("Dominant",   List.of(0.85f)),
-            new RatioPreset("Rich Vein",  List.of(0.70f)),
-
-            // 2개 광물 혼합형
-            new RatioPreset("Balanced Pair", List.of(0.45f, 0.45f)),
-            new RatioPreset("Major/Minor",   List.of(0.60f, 0.30f)),
-            new RatioPreset("Alloy",         List.of(0.50f, 0.40f)),
-
-            // 3개 광물 혼합형
-            new RatioPreset("Trio",          List.of(0.30f, 0.30f, 0.30f)),
-            new RatioPreset("Tiered Trio",   List.of(0.50f, 0.30f, 0.15f)),
-            new RatioPreset("Scattered Mix", List.of(0.40f, 0.25f, 0.25f))
-    );
 
     private record OreScanResult(Map<Item, Float> weightedComposition, Map<Item, Block> itemToBlockMap) {}
+    private record BiomeScanResult(OreScanResult oreData, FluidStack fluidData) {}
+
+    private static final Map<ResourceKey<Biome>, BiomeScanResult> BIOME_SCAN_CACHE = new ConcurrentHashMap<>();
 
 
     public OreNodeFeature(Codec<OreNodeConfiguration> codec) {
         super(codec);
+    }
+
+    public static void clearCache() {
+        BIOME_SCAN_CACHE.clear();
     }
 
     @Override
@@ -82,8 +71,25 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         BlockEntity be = level.getBlockEntity(origin);
 
         if (be instanceof OreNodeBlockEntity nodeBE) {
-            // 1. 바이옴 스캔으로 기본 가중치 데이터를 얻습니다.
-            OreScanResult biomeScanResult = scanAndGenerateOreData(context, origin);
+
+
+            // 1. 현재 바이옴의 고유 키(ResourceKey)를 가져옵니다.
+            Optional<ResourceKey<Biome>> biomeKeyOpt = level.getBiome(origin).unwrapKey();
+            if (biomeKeyOpt.isEmpty()) {
+                return false; // 바이옴 키를 얻을 수 없으면 생성을 중단합니다.
+            }
+            ResourceKey<Biome> biomeKey = biomeKeyOpt.get();
+
+            // 1a. 캐시에 해당 바이옴의 데이터가 있는지 확인하고, 없으면 스캔 후 캐시에 저장합니다.
+            BiomeScanResult scanResult = BIOME_SCAN_CACHE.computeIfAbsent(biomeKey, key -> {
+                OreScanResult oreScanResult = scanAndGenerateOreData(context, origin);
+                FluidStack fluidScanResult = scanForBiomeFluid(context, random);
+                return new BiomeScanResult(oreScanResult, fluidScanResult);
+            });
+
+            OreScanResult biomeScanResult = scanResult.oreData();
+            FluidStack scannedFluid = scanResult.fluidData();
+
             Map<Item, Float> finalWeightedSelection = new HashMap<>(biomeScanResult.weightedComposition());
             Map<Item, Block> finalItemToBlockMap = new HashMap<>(biomeScanResult.itemToBlockMap());
 
@@ -168,9 +174,10 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     if (activeFluidPool != null && !activeFluidPool.isEmpty()) {
                         fluidToPlace = selectFluidFromPool(activeFluidPool, random);
                     } else {
-                        // 설정된 풀이 없으면 기존의 동적 스캔 방식 사용
-                        fluidToPlace = scanForBiomeFluid(context, random);
+                        // 설정된 풀이 없으면, 캐시된 스캔 결과(scannedFluid)를 사용합니다.
+                        fluidToPlace = scannedFluid;
                     }
+
 
                     if (!fluidToPlace.isEmpty()) {
                         fluidCapacity = UniformInt.of(stats.minFluidCapacity(), stats.maxFluidCapacity()).sample(random);
@@ -186,7 +193,7 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                     regeneration *= (1.5f + random.nextFloat() * 2.0f);
                 }
                 if (random.nextFloat() < featureConfig.fluidChance()) {
-                    fluidToPlace = scanForBiomeFluid(context, random);
+                    fluidToPlace = scannedFluid;
                     if (!fluidToPlace.isEmpty()) {
                         fluidCapacity = featureConfig.fluidCapacity().sample(random);
                     }
@@ -253,34 +260,58 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
         }
     }
 
+    /**
+     * 바이옴에서 스캔된 광물 후보군과 그 가중치를 기반으로,
+     * 최종적으로 광맥 노드를 구성할 광물들의 종류와 비율을 결정합니다.
+     * 이 프로세스는 설정 파일(config)의 규칙에 따라 동적으로 이루어집니다.
+     *
+     * @param weightedSelection 바이옴 스캔을 통해 얻은, 광물 아이템과 그 가중치(등장 확률)가 담긴 맵.
+     * @param randomSource      월드 생성을 위한 Random 인스턴스.
+     * @return 최종적으로 결정된 광물 구성 (Item -> 비율(0.0~1.0)). 이 맵의 모든 비율의 합은 1.0이 됩니다.
+     */
     private Map<Item, Float> generateFinalComposition(Map<Item, Float> weightedSelection, RandomSource randomSource) {
+        // 함수 시작 시, 유효한 광물 후보가 없으면 빈 맵을 반환하여 오류를 방지합니다.
         if (weightedSelection.isEmpty()) {
             return Collections.emptyMap();
         }
 
+        // 최종 결과를 담을 맵과, 처리 과정에서 수정될 광물 후보 리스트를 준비합니다.
         Map<Item, Float> finalComposition = new HashMap<>();
         List<Item> candidatePool = new ArrayList<>(weightedSelection.keySet());
 
-        // 1. 노드에 포함될 광물 종류 개수를 설정에서 가져와 결정
+        /*
+         * [1단계: 생성할 광물 종류의 개수 결정]
+         * 서버 설정 파일(adsdrill-server.toml)에 정의된 minOreTypesPerNode와 maxOreTypesPerNode 값을 읽어옵니다.
+         * 이 설정값 범위 내에서 이번에 생성할 노드에 몇 종류의 광물이 섞일지를 무작위로 결정합니다.
+         */
         int minTypes = AdsDrillConfigs.SERVER.minOreTypesPerNode.get();
         int maxTypes = AdsDrillConfigs.SERVER.maxOreTypesPerNode.get();
-
+        // 설정된 최대치가 실제 후보 광물 수보다 많을 수 없으므로, 둘 중 작은 값을 사용합니다.
         int maxPossible = Math.min(maxTypes, candidatePool.size());
         int minPossible = Math.min(minTypes, maxPossible);
-
+        // 최종적으로 생성될 광물 종류의 개수를 min과 max 사이에서 무작위로 선택합니다.
         int oreTypeCount = minPossible;
         if (maxPossible > minPossible) {
             oreTypeCount += randomSource.nextInt(maxPossible - minPossible + 1);
         }
-        // 2. 가중치 기반으로 oreTypeCount만큼 광물을 무작위로 선택
-        List<Item> selectedOres = new ArrayList<>();
-        float totalWeight = (float) weightedSelection.values().stream().mapToDouble(f -> f).sum();
 
-        for (int i = 0; i < oreTypeCount && totalWeight > 0; i++) {
-            float randomVal = randomSource.nextFloat() * totalWeight;
+        /*
+         * [2단계: 노드를 구성할 실제 광물 종류 선택]
+         * 1단계에서 결정된 개수(oreTypeCount)만큼, 바이옴 스캔으로 얻은 가중치에 따라 광물을 무작위로 선택합니다.
+         * 가중치가 높은 광물(해당 바이옴에서 더 흔한 광물)이 더 높은 확률로 선택됩니다.
+         */
+        List<Item> selectedOres = new ArrayList<>();
+        // 모든 광물 후보의 가중치 총합을 계산합니다. 이 값은 가중치 기반 무작위 추첨의 전체 확률 범위가 됩니다.
+        float totalOreWeight = (float) weightedSelection.values().stream().mapToDouble(f -> f).sum();
+
+        // 결정된 광물 종류 개수만큼 반복하여 추첨을 진행합니다.
+        for (int i = 0; i < oreTypeCount && totalOreWeight > 0; i++) {
+            // 0부터 가중치 총합 사이의 무작위 값을 뽑습니다.
+            float randomVal = randomSource.nextFloat() * totalOreWeight;
             float currentWeight = 0;
             Item chosenOre = null;
 
+            // 모든 후보를 순회하며 무작위 값이 어느 후보의 가중치 범위에 속하는지 찾습니다.
             for (Item candidate : candidatePool) {
                 currentWeight += weightedSelection.get(candidate);
                 if (randomVal <= currentWeight) {
@@ -289,52 +320,91 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
                 }
             }
 
+            // 후보가 성공적으로 선택되면,
             if (chosenOre != null) {
-                selectedOres.add(chosenOre);
-                candidatePool.remove(chosenOre); // 중복 선택 방지
-                totalWeight -= weightedSelection.get(chosenOre);
+                selectedOres.add(chosenOre);         // 최종 선택 목록에 추가하고,
+                candidatePool.remove(chosenOre);      // 다음 추첨에서 중복 선택되지 않도록 후보 목록에서 제거합니다.
+                totalOreWeight -= weightedSelection.get(chosenOre); // 전체 가중치에서도 해당 후보의 가중치를 뺍니다.
             }
         }
 
+        // 드물게 아무 광물도 선택되지 않은 경우, 가장 가중치가 높았던 광물 하나를 안전하게 추가합니다.
         if (selectedOres.isEmpty()) {
-            // 만약 아무것도 선택되지 않았다면(드문 경우), 가장 가중치가 높은 하나를 선택
             weightedSelection.entrySet().stream()
                     .max(Map.Entry.comparingByValue())
                     .map(Map.Entry::getKey)
                     .ifPresent(selectedOres::add);
         }
 
-        // 3. 선택된 광물들에 대해 비율 프리셋 적용
-        List<RatioPreset> suitablePresets = PRESETS.stream()
-                .filter(p -> p.ratios().size() == selectedOres.size())
+        /*
+         * [3단계: 광물 비율 프리셋 선택]
+         * 2단계에서 선택된 광물들의 구성 비율을 결정할 '프리셋'을 선택합니다.
+         * 예를 들어, 2종류의 광물이 선택되었다면 "50%/40% 합금형" 프리셋이나 "60%/30% 주/부 광물형" 프리셋 등이 후보가 될 수 있습니다.
+         */
+        final int finalOreTypeCount = selectedOres.size();
+        // 설정 파일에서 불러온 모든 프리셋 중, 현재 선택된 광물 개수와 일치하는 프리셋만 필터링합니다.
+        List<AdsDrillConfigs.RatioPresetConfig> suitablePresets = AdsDrillConfigs.getRatioPresets().stream()
+                .filter(p -> p.ratios().size() == finalOreTypeCount)
                 .toList();
 
+        // 만약 적합한 프리셋이 없다면, 첫 번째 선택된 광물이 100%를 차지하는 것으로 처리하고 함수를 종료합니다.
         if (suitablePresets.isEmpty() || selectedOres.isEmpty()) {
-            return Collections.emptyMap();
+            finalComposition.put(selectedOres.getFirst(), 1.0f);
+            return finalComposition;
         }
 
-        RatioPreset selectedPreset = suitablePresets.get(randomSource.nextInt(suitablePresets.size()));
+        // 적합한 프리셋들의 가중치 총합을 계산하여, 가중치 기반으로 하나의 프리셋을 무작위로 선택합니다.
+        // 가중치가 높은 프리셋(예: 단일 광물 위주)이 더 자주 선택될 수 있습니다.
+        double totalPresetWeight = suitablePresets.stream().mapToDouble(AdsDrillConfigs.RatioPresetConfig::weight).sum();
+        double randomVal = randomSource.nextDouble() * totalPresetWeight;
+        AdsDrillConfigs.RatioPresetConfig selectedPreset = null;
 
+        for (AdsDrillConfigs.RatioPresetConfig preset : suitablePresets) {
+            randomVal -= preset.weight();
+            if (randomVal <= 0) {
+                selectedPreset = preset;
+                break;
+            }
+        }
+        // 부동소수점 오류 등으로 인해 선택되지 않았을 경우를 대비해, 마지막 프리셋을 기본값으로 사용합니다.
+        if (selectedPreset == null) {
+            selectedPreset = suitablePresets.getLast();
+        }
+
+        /*
+         * [4단계: 최종 비율 계산 및 노이즈 추가]
+         * 선택된 프리셋의 비율을 기반으로 각 광물의 최종 비율을 계산합니다.
+         * 약간의 무작위성(노이즈)을 추가하여 모든 노드가 조금씩 다른 구성을 갖도록 합니다.
+         */
         float totalRatio = 0f;
         for (int i = 0; i < selectedOres.size(); i++) {
             Item ore = selectedOres.get(i);
-            float baseRatio = selectedPreset.ratios().get(i);
-            float noise = (randomSource.nextFloat() - 0.5f) * 0.3f; // +/- 15% 변동
-            float finalRatio = Math.max(0, baseRatio * (1 + noise)); // 비율이 음수가 되지 않도록
+            float baseRatio = selectedPreset.ratios().get(i).floatValue();
+            // 프리셋 기본 비율에 -5% ~ +5%의 무작위 변동을 줍니다.
+            float noise = (randomSource.nextFloat() - 0.5f) * 0.1f;
+            float finalRatio = Math.max(0, baseRatio * (1 + noise)); // 비율이 음수가 되지 않도록 보정
             finalComposition.put(ore, finalRatio);
             totalRatio += finalRatio;
         }
 
-        // 4. 불순물 추가 및 정규화
+        /*
+         * [5단계: 불순물 추가 및 정규화]
+         * 4단계까지의 비율 총합이 1.0(100%)이 아닐 수 있습니다.
+         * 남은 비율이 충분하다면, 2단계에서 선택되지 않았던 다른 광물을 '불순물'로 추가합니다.
+         * 마지막으로 모든 비율의 합이 정확히 1.0이 되도록 모든 값을 보정(정규화)합니다.
+         */
         float remainingRatio = 1.0f - totalRatio;
+        // 남은 비율이 5% 이상이고, 추가할 수 있는 다른 광물 후보가 있다면,
         if (remainingRatio > 0.05f && !candidatePool.isEmpty()) {
+            // 후보군 중에서 무작위로 하나를 골라 남은 비율을 모두 할당합니다.
             Item selectedImpurity = candidatePool.get(randomSource.nextInt(candidatePool.size()));
             finalComposition.put(selectedImpurity, remainingRatio);
             totalRatio += remainingRatio;
         }
 
+        // 모든 비율의 합계(totalRatio)로 각 비율을 나누어, 최종 합이 정확히 1.0이 되도록 정규화합니다.
         final float finalTotalRatio = totalRatio;
-        if (finalTotalRatio <= 0) return Collections.emptyMap();
+        if (finalTotalRatio <= 0) return Collections.emptyMap(); // 0으로 나누는 오류 방지
         finalComposition.replaceAll((item, ratio) -> ratio / finalTotalRatio);
 
         return finalComposition;

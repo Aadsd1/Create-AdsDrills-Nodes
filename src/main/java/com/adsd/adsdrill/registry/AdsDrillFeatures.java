@@ -55,7 +55,7 @@ public class AdsDrillFeatures {
                 new PlacedFeature(
                         configuredFeatureHolder,
                         List.of(
-                                CountPlacement.of(3),
+                                CountPlacement.of(1),
                                 InSquarePlacement.spread(),
                                 HeightRangePlacement.uniform(
                                         VerticalAnchor.absolute(-64),

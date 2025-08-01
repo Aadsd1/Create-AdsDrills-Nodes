@@ -229,15 +229,17 @@ public class AdsDrillDatagen {
         registrate.addRawLang("tooltip.adsdrill.node_locator.tier.netherite", "Netherite");
         registrate.addRawLang("tooltip.adsdrill.node_locator.radius", "Scan Radius: %s blocks");
         registrate.addRawLang("tooltip.adsdrill.node_locator.usage", "Right-click to scan for nodes.");
+        registrate.addRawLang("tooltip.adsdrill.node_locator.usage.next", "Right-click a located node to find the next one.");
 
         registrate.addRawLang("tooltip.adsdrill.node_restorative.description", "Right-click on an Ore Node to restore a portion of its yield.");
         registrate.addRawLang("tooltip.adsdrill.node_restorative.effect", "Restores %d Yield");
         registrate.addRawLang("message.adsdrill.restorative.full", "The node's yield is already full!");
 
         // 액션바 메시지
-        registrate.addRawLang("message.adsdrill.locator.found.brass", "Node detected nearby!");
-        registrate.addRawLang("message.adsdrill.locator.found.steel", "Node detected! Approx. %s blocks away.");
-        registrate.addRawLang("message.adsdrill.locator.found.netherite", "Node locked at: %s, %s, %s");
+
+        registrate.addRawLang("message.adsdrill.locator.found.brass", "Node detected nearby! (Right-click node to find next)");
+        registrate.addRawLang("message.adsdrill.locator.found.steel", "Node detected! Approx. %s blocks away. (Right-click node to find next)");
+        registrate.addRawLang("message.adsdrill.locator.found.netherite", "Node locked at: %s, %s, %s (Right-click node to find next)");
         registrate.addRawLang("message.adsdrill.locator.no_target_stored", "No target stored in this locator.");
         registrate.addRawLang("message.adsdrill.locator.not_found", "No nodes found within %s blocks.");
         registrate.addRawLang("tooltip.adsdrill.node_locator.targeting_result", "Targeting Resource: %s");

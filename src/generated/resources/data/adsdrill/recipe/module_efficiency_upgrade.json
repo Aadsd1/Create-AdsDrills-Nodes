@@ -9,13 +9,13 @@
       "item": "adsdrill:rose_gold"
     },
     "C": {
-      "item": "adsdrill:module_reinforcement_upgrade"
+      "item": "adsdrill:reinforcement_module"
     },
     "D": {
       "item": "adsdrill:steel_ingot"
     },
     "E": {
-      "item": "adsdrill:module_heatsink_upgrade"
+      "item": "adsdrill:heatsink_module"
     },
     "F": {
       "item": "adsdrill:silky_jewel"

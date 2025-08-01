@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-28T20:04:22.6628727	Recipes
+// 1.21.1	2025-08-01T13:39:11.4179578	Recipes
 a832b640b014f148301162e9704edf7ec84d4c1d data/adsdrill/advancement/recipes/misc/frame_module.json
 318f7d7729f6e1fd837ee51b838c58c079e54435 data/adsdrill/advancement/recipes/misc/hydraulic_drill_head.json
 e0c52b0a0dcbaf9c49b51280a3d3d8a86afec67e data/adsdrill/advancement/recipes/misc/iron_rotary_drill_head.json
@@ -42,7 +42,7 @@ b40fd3f7f0c6892b9e60be9da63ddd1e039ff848 data/adsdrill/recipe/frame_module.json
 3e180c4b96245fe11143ef810e8ed0a8b43a03a0 data/adsdrill/recipe/module_coolant_upgrade.json
 1430157180a5c406b31ee6d18288e12685d41bd3 data/adsdrill/recipe/module_crusher_upgrade.json
 d1c3d3b411bab9bf2749027d70f8d173eefdbd61 data/adsdrill/recipe/module_ebuffer_upgrade.json
-e219de22c907176074a147ea245a97f8600dd6de data/adsdrill/recipe/module_efficiency_upgrade.json
+a8d765d2acbf1d22d6dda775678076c97db99a91 data/adsdrill/recipe/module_efficiency_upgrade.json
 778a9a1fd8861a160ed8994eaeb91b1622634b9f data/adsdrill/recipe/module_egenerator_upgrade.json
 4a9518855492872a7fc7b15f09a5412590461e07 data/adsdrill/recipe/module_einput_upgrade.json
 969d3facf0cc7aef009ba3b3877fad01a3dc2a31 data/adsdrill/recipe/module_fbuffer_upgrade.json

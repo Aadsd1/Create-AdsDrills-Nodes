@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-28T20:17:53.4190361	Registrate Provider for adsdrill [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
+// 1.21.1	2025-07-31T05:07:16.1071864	Registrate Provider for adsdrill [Registries, Data Maps, Recipes, Advancements, Loot Tables, Tags (enchantments), Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), generic_server_provider, Blockstates, Item models, Lang (en_us/en_ud), generic_client_provider]
 96d8cf7b990a430658c7e44ed6924e51d21daa58 assets/adsdrill/blockstates/artificial_node.json
 65393a0a68770517e659b651fb9bfa831739b6cd assets/adsdrill/blockstates/blast_furnace_module.json
 41155434ace562e5f8c010210e3d803a10b1d97f assets/adsdrill/blockstates/compactor_module.json
@@ -29,8 +29,8 @@ b68e65e190c3941a67140c438b73b1b6af9836ef assets/adsdrill/blockstates/redstone_br
 08fe55e86fb92daf4eb33c62ca4c64d8e8ad57cf assets/adsdrill/blockstates/resonator_module.json
 45783bda2a2b1d83e47380dd9b805caeb488f2fb assets/adsdrill/blockstates/speed_module.json
 bc5b6239dd3daacbc68759c019fde037e93c525b assets/adsdrill/blockstates/washer_module.json
-342eaa212bca950b17421f39180e657b7cb032f1 assets/adsdrill/lang/en_ud.json
-d41b47c029888a44d95ecee5fa45261a7c54594d assets/adsdrill/lang/en_us.json
+06e6181b23df525c386b7f716ca43e3ab472bd81 assets/adsdrill/lang/en_ud.json
+8a45f51abefc9834fd2a4328400361b467d8c876 assets/adsdrill/lang/en_us.json
 36551521908d22e6c5b5848a239eb0e03246804d assets/adsdrill/models/item/artificial_node.json
 63db756f0eeae5e97df837714778bd27775d7fde assets/adsdrill/models/item/blast_furnace_module.json
 ed350033d1a72fb5a401796c45d74d21ab54c503 assets/adsdrill/models/item/brass_node_locator.json

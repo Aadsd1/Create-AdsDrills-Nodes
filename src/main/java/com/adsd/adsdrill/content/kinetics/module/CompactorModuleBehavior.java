@@ -58,7 +58,7 @@ public class CompactorModuleBehavior implements IModuleBehavior {
     private void playCompactingEffects(GenericModuleBlockEntity moduleBE) {
         Level level = moduleBE.getLevel();
         if (level != null && !level.isClientSide) {
-            level.playSound(null, moduleBE.getBlockPos(), SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 0.2F, 1.2f);
+            level.playSound(null, moduleBE.getBlockPos(), SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 0.07F, 1.2f);
             if (level instanceof ServerLevel serverLevel) {
                 double px = moduleBE.getBlockPos().getX() + 0.5;
                 double py = moduleBE.getBlockPos().getY() + 0.5;

@@ -1,4 +1,4 @@
-// 1.21.1	2025-07-19T15:36:09.0145029	Registries
+// 1.21.1	2025-08-01T13:19:03.7784211	Registries
 d582384df96c551bcf700a96e5f2d27c69a68e79 data/adsdrill/neoforge/biome_modifier/add_ore_node_conditionally.json
 4097216fa6749ee1b273c2dd3108f593d6ea8172 data/adsdrill/worldgen/configured_feature/ore_node.json
-5fae9cf98778127c60f9d478a176cc1021fc2fd4 data/adsdrill/worldgen/placed_feature/ore_node.json
+c3d55f834d2b3eeb86613041461afb9ff5627b16 data/adsdrill/worldgen/placed_feature/ore_node.json

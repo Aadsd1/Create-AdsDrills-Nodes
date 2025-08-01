@@ -1,10 +1,12 @@
 package com.adsd.adsdrill.content.kinetics.drill.head;
 
-import com.adsd.adsdrill.registry.AdsDrillItems;
+import com.adsd.adsdrill.config.AdsDrillConfigs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -12,6 +14,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.List;
 
 public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
 
@@ -30,7 +34,12 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
     public void applyUpgrade(Player player, Item upgradeItem) {
         if (level == null || level.isClientSide) return;
 
-        if (upgradeItem == AdsDrillItems.SILKY_JEWEL.get()) {
+        // 설정 파일에서 아이템 ID 리스트와 실크터치 아이템 ID를 가져옵니다.
+        List<? extends String> fortuneItemIds = AdsDrillConfigs.SERVER.rotaryDrillFortuneItems.get();
+        Item silkTouchItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(AdsDrillConfigs.SERVER.rotaryDrillSilkTouchItem.get()));
+
+        // 1. 실크터치 업그레이드 시도
+        if (upgradeItem == silkTouchItem) {
             if (hasSilkTouch) {
                 player.displayClientMessage(Component.translatable("adsdrill.upgrade_fail.already_applied"), true);
                 return;
@@ -41,21 +50,51 @@ public class RotaryDrillHeadBlockEntity extends AbstractDrillHeadBlockEntity {
             }
             hasSilkTouch = true;
             player.displayClientMessage(Component.translatable("adsdrill.upgrade_success.silktouch"), true);
-        } else if (upgradeItem == AdsDrillItems.ROSE_GOLD.get()) {
-            if (hasSilkTouch) {
-                player.displayClientMessage(Component.translatable("adsdrill.upgrade_fail.conflict"), true);
-                return;
+
+            if (!player.getAbilities().instabuild) {
+                player.getItemInHand(player.getUsedItemHand()).shrink(1);
             }
-            if (fortuneLevel >= 3) {
-                player.displayClientMessage(Component.translatable("adsdrill.upgrade_fail.max_level"), true);
-                return;
-            }
-            fortuneLevel++;
-            player.displayClientMessage(Component.translatable("adsdrill.upgrade_success.fortune", fortuneLevel), true);
+
+            setChanged();
+            sendData();
+            return; // 로직 종료
         }
 
-        setChanged();
-        sendData();
+        // 2. 행운 업그레이드 시도
+        // 현재 행운 레벨이 설정된 아이템 리스트의 크기보다 작아야 업그레이드 가능
+        if (fortuneLevel < fortuneItemIds.size()) {
+            // 현재 레벨에 맞는 업그레이드 아이템을 가져옴 (fortuneLevel이 0이면 리스트의 0번째 아이템)
+            Item requiredFortuneItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(fortuneItemIds.get(fortuneLevel)));
+
+            if (upgradeItem == requiredFortuneItem) {
+                if (hasSilkTouch) {
+                    player.displayClientMessage(Component.translatable("adsdrill.upgrade_fail.conflict"), true);
+                    return;
+                }
+                // 행운 레벨 증가
+                fortuneLevel++;
+                player.displayClientMessage(Component.translatable("adsdrill.upgrade_success.fortune", fortuneLevel), true);
+
+                if (!player.getAbilities().instabuild) {
+                    player.getItemInHand(player.getUsedItemHand()).shrink(1);
+                }
+
+                setChanged();
+                sendData();
+                return; // 로직 종료
+            }
+        }
+
+        // 3. 최고 레벨 도달 시 (fortuneLevel이 리스트 크기 이상일 때)
+        if (fortuneLevel >= fortuneItemIds.size()) {
+            // 행운 업그레이드 아이템 중 하나라도 일치하는지 확인하여 메시지 출력
+            boolean isAnyFortuneItem = fortuneItemIds.stream()
+                    .map(id -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)))
+                    .anyMatch(item -> item == upgradeItem);
+            if (isAnyFortuneItem) {
+                player.displayClientMessage(Component.translatable("adsdrill.upgrade_fail.max_level"), true);
+            }
+        }
     }
 
     public void updateClientHeat(float heat) {

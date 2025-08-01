@@ -169,6 +169,8 @@ public class AdsDrillConfigs {
         public final ModConfigSpec.IntValue coolantWaterConsumption;
         public final ModConfigSpec.DoubleValue coolantActivationThreshold;
         public final ModConfigSpec.DoubleValue kineticDynamoConversionRate;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> rotaryDrillFortuneItems;
+        public final ModConfigSpec.ConfigValue<String> rotaryDrillSilkTouchItem;
         public final ModConfigSpec.ConfigValue<String> explosiveDrillConsumable;
         public final Map<Quirk, ModConfigSpec.BooleanValue> quirkEnabled = new EnumMap<>(Quirk.class);
         public final Map<Quirk, ModConfigSpec.DoubleValue> quirkChance = new EnumMap<>(Quirk.class);
@@ -201,6 +203,25 @@ public class AdsDrillConfigs {
 
             // 드릴 헤드 설정 섹션
             builder.push("drill_heads");
+            rotaryDrillFortuneItems = builder
+                    .comment(
+                            "A list of item IDs used to apply/upgrade Fortune on Rotary Drill Heads.",
+                            "The first item in the list is for Fortune I, the second for Fortune II, and the third for Fortune III."
+                    )
+                    .defineList(
+                            List.of("rotaryDrillFortuneItems"), // 1. 설정 경로 (List<String>)
+                            () -> List.of(                     // 2. 기본값 제공 Supplier
+                                    "minecraft:gold_block",      //    Fortune I
+                                    "minecraft:enchanted_golden_apple", //    Fortune II
+                                    "adsdrill:rose_gold"    //    Fortune III
+                            ),
+                            () -> "",                          // 3. 빈 요소 Supplier (String 리스트의 경우)
+                            obj -> obj instanceof String && ResourceLocation.tryParse((String) obj) != null // 4. 각 요소 유효성 검사
+                    );
+
+            rotaryDrillSilkTouchItem = builder
+                    .comment("The item ID used to apply the Silk Touch enchantment on Rotary Drill Heads.")
+                    .define("rotaryDrillSilkTouchItem", "adsdrill:silky_jewel");
             laserMiningAmount = builder.comment("Mining amount per operation for the Laser Drill Head.").defineInRange("laserMiningAmount", 20, 1, 256);
             rotarySpeedDivisor = builder.comment("Divisor to calculate mining amount from RPM for Rotary Drill Heads. Lower value means more output per RPM.").defineInRange("rotarySpeedDivisor", 16.0, 1.0, 512.0);
             hydraulicWaterConsumption = builder.comment("Water (mB) consumed per tick by the Hydraulic Drill Head.").defineInRange("hydraulicWaterConsumption", 50, 1, 1000);

@@ -4,9 +4,10 @@ package com.adsd.adsdrill.content.kinetics.drill.head;
 import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.content.kinetics.drill.core.DrillCoreBlockEntity;
 import com.adsd.adsdrill.content.kinetics.node.OreNodeBlockEntity;
-import com.adsd.adsdrill.registry.AdsDrillItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -79,15 +80,26 @@ public class RotaryDrillHeadBlock extends AbstractDrillHeadBlock {
     @Override
     protected @NotNull ItemInteractionResult useItemOn(@NotNull ItemStack stack, @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
         Item itemInHand = stack.getItem();
-        if (itemInHand == AdsDrillItems.ROSE_GOLD.get() || itemInHand == AdsDrillItems.SILKY_JEWEL.get()) {
+
+        // 설정 파일에서 아이템 리스트와 아이템을 가져옵니다.
+        List<? extends String> fortuneItemIds = AdsDrillConfigs.SERVER.rotaryDrillFortuneItems.get();
+        Item silkTouchItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(AdsDrillConfigs.SERVER.rotaryDrillSilkTouchItem.get()));
+
+        // 손에 든 아이템이 실크터치 아이템인지 확인
+        boolean isSilkTouchUpgrade = (itemInHand == silkTouchItem);
+
+        // 손에 든 아이템이 행운 업그레이드 아이템 리스트에 포함되어 있는지 확인
+        boolean isFortuneUpgrade = fortuneItemIds.stream()
+                .map(id -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)))
+                .anyMatch(item -> item == itemInHand);
+
+        // 둘 중 하나라도 해당되면 업그레이드 로직을 시도
+        if (isSilkTouchUpgrade || isFortuneUpgrade) {
             if (!player.isShiftKeyDown()) {
                 if (!level.isClientSide) {
                     withBlockEntityDo(level, pos, be -> {
                         if (be instanceof RotaryDrillHeadBlockEntity rotaryBE) {
                             rotaryBE.applyUpgrade(player, itemInHand);
-                            if (!player.getAbilities().instabuild) {
-                                stack.shrink(1);
-                            }
                         }
                     });
                 }

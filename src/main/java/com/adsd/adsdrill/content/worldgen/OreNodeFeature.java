@@ -43,9 +43,8 @@ public class OreNodeFeature extends Feature<OreNodeConfiguration> {
 
     private record OreScanResult(Map<Item, Float> weightedComposition, Map<Item, Block> itemToBlockMap) {}
     private record BiomeScanResult(OreScanResult oreData, FluidStack fluidData) {}
-
+    
     private static final Map<ResourceKey<Biome>, BiomeScanResult> BIOME_SCAN_CACHE = new ConcurrentHashMap<>();
-
 
     public OreNodeFeature(Codec<OreNodeConfiguration> codec) {
         super(codec);

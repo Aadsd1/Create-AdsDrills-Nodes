@@ -795,8 +795,8 @@ public class AdsDrillConfigs {
         Config plainsOverride = Config.inMemory();
         plainsOverride.set("biomes", List.of("minecraft:is_plains"));
         plainsOverride.set("ore_pool", List.of(
-                createOreEntry("minecraft:coal", "minecraft:coal_ore", 5.0, 1.5),
-                createOreEntry("minecraft:lapis_lazuli", "minecraft:iron_ore", 5.0, 1.5)
+                createOreEntry("minecraft:coal", "minecraft:coal_ore", 10.0, 1.5),
+                createOreEntry("minecraft:lapis_lazuli", "minecraft:iron_ore", 10.0, 1.5)
         ));
         biomeOverrides.add(plainsOverride);
 

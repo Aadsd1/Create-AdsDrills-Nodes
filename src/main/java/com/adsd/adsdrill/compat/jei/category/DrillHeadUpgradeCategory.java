@@ -3,6 +3,7 @@ package com.adsd.adsdrill.compat.jei.category;
 
 import com.adsd.adsdrill.AdsDrillAddon;
 import com.adsd.adsdrill.compat.jei.recipe.DrillHeadUpgradeRecipe;
+import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.registry.AdsDrillBlocks;
 import com.adsd.adsdrill.registry.AdsDrillItems;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
@@ -15,11 +16,15 @@ import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class DrillHeadUpgradeCategory implements IRecipeCategory<DrillHeadUpgradeRecipe> {
@@ -65,22 +70,55 @@ public class DrillHeadUpgradeCategory implements IRecipeCategory<DrillHeadUpgrad
     }
 
     public static List<DrillHeadUpgradeRecipe> getRecipes() {
-        return List.of(
-                new DrillHeadUpgradeRecipe(
+        // 최종적으로 반환할 레시피 리스트를 생성합니다.
+        List<DrillHeadUpgradeRecipe> recipes = new ArrayList<>();
+
+        // --- 1. 행운(Fortune) 업그레이드 레시피 생성 ---
+
+        // 설정 파일에서 행운 업그레이드 아이템 ID 목록을 가져옵니다.
+        List<? extends String> fortuneItemIds = AdsDrillConfigs.SERVER.rotaryDrillFortuneItems.get();
+
+        // 행운 레벨 I (보통 철 드릴 헤드를 예시로 사용)
+        if (!fortuneItemIds.isEmpty()) {
+            Item fortune1Item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(fortuneItemIds.getFirst()));
+            if (fortune1Item != Items.AIR) {
+                recipes.add(new DrillHeadUpgradeRecipe(
                         new ItemStack(AdsDrillBlocks.IRON_ROTARY_DRILL_HEAD.get()),
-                        new ItemStack(AdsDrillItems.ROSE_GOLD.get()),
+                        new ItemStack(fortune1Item),
                         Component.translatable("adsdrill.jei.fortune_1")
-                ),
-                new DrillHeadUpgradeRecipe(
+                ));
+            }
+        }
+
+        // 행운 레벨 II & III (보통 다이아몬드 드릴 헤드를 예시로 사용)
+        // 설정 파일에 2개 이상의 아이템이 정의되어 있으면, "최대 3단계까지"라는 텍스트로 묶어서 보여줍니다.
+        if (fortuneItemIds.size() >= 2) {
+            // 두 번째 아이템(행운 II)을 대표 아이콘으로 사용합니다.
+            Item fortune2Item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(fortuneItemIds.get(1)));
+            if (fortune2Item != Items.AIR) {
+                recipes.add(new DrillHeadUpgradeRecipe(
                         new ItemStack(AdsDrillBlocks.DIAMOND_ROTARY_DRILL_HEAD.get()),
-                        new ItemStack(AdsDrillItems.ROSE_GOLD.get()),
+                        new ItemStack(fortune2Item),
                         Component.translatable("adsdrill.jei.fortune_up_to_3")
-                ),
-                new DrillHeadUpgradeRecipe(
-                        new ItemStack(AdsDrillBlocks.NETHERITE_ROTARY_DRILL_HEAD.get()),
-                        new ItemStack(AdsDrillItems.SILKY_JEWEL.get()),
-                        Component.translatable("adsdrill.jei.silk_touch")
-                )
-        );
+                ));
+            }
+        }
+
+        // --- 2. 섬세한 손길(Silk Touch) 업그레이드 레시피 생성 ---
+
+        // 설정 파일에서 섬세한 손길 업그레이드 아이템 ID를 가져옵니다.
+        String silkTouchItemId = AdsDrillConfigs.SERVER.rotaryDrillSilkTouchItem.get();
+        Item silkTouchItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(silkTouchItemId));
+
+        if (silkTouchItem != Items.AIR) {
+            // 보통 네더라이트 드릴 헤드를 예시로 사용합니다.
+            recipes.add(new DrillHeadUpgradeRecipe(
+                    new ItemStack(AdsDrillBlocks.NETHERITE_ROTARY_DRILL_HEAD.get()),
+                    new ItemStack(silkTouchItem),
+                    Component.translatable("adsdrill.jei.silk_touch")
+            ));
+        }
+
+        return recipes;
     }
 }

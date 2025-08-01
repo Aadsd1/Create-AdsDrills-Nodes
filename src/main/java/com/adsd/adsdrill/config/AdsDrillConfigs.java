@@ -378,8 +378,8 @@ public class AdsDrillConfigs {
                         quirkLootTables.put(quirk, builder.comment("List of loot table IDs to pull items from.")
                                 .defineList(List.of("lootTables"),
                                         () -> List.of(
-                                                "minecraft:abandoned_mineshaft", "minecraft:desert_pyramid", "minecraft:jungle_temple",
-                                                "minecraft:shipwreck_treasure", "minecraft:simple_dungeon"
+                                                "minecraft:chests/abandoned_mineshaft", "minecraft:chests/desert_pyramid", "minecraft:chests/jungle_temple",
+                                                "minecraft:chests/shipwreck_treasure", "minecraft:chests/simple_dungeon"
                                         ),
                                         () -> "",
                                         obj -> obj instanceof String && ResourceLocation.tryParse((String)obj) != null));
@@ -389,7 +389,7 @@ public class AdsDrillConfigs {
                         quirkMaxFluidPercentage.put(quirk, builder.comment("Maximum fluid percentage (0.0-1.0) to activate hardness reduction.").defineInRange("maxFluidPercentage", 0.7, 0.0, 1.0));
                         quirkHardnessMultiplier.put(quirk, builder.comment("Hardness multiplier when active (e.g., 0.8 for 20% reduction).").defineInRange("hardnessMultiplier", 0.8, 0.1, 1.0));
                     }
-                    case OVERLOAD_DISCHARGE, STATIC_CHARGE, BONE_CHILL, BOTTLED_KNOWLEDGE, CHAOTIC_OUTPUT, TRACE_MINERALS ->
+                    case OVERLOAD_DISCHARGE, STATIC_CHARGE, BONE_CHILL, BOTTLED_KNOWLEDGE, CHAOTIC_OUTPUT, TRACE_MINERALS, WILD_MAGIC ->
                             quirkChance.put(quirk, builder.comment("Chance for this quirk to activate on a valid event.").defineInRange("chance", 0.1, 0.0, 1.0));
                     case POLARITY_POSITIVE, POLARITY_NEGATIVE->
                         quirkValueMultiplier.put(quirk, builder.comment("Mining amount multiplier when the polarity bonus is active.").defineInRange("multiplier", 1.33, 1.0, 10.0));

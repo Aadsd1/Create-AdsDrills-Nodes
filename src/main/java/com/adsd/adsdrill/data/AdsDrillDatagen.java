@@ -209,13 +209,13 @@ public class AdsDrillDatagen {
         registrate.addRawLang("quirk.adsdrill.polarity_negative.description", "§7Increases mining yield if a Positive Polarity node is nearby.");
         registrate.addRawLang("quirk.adsdrill.signal_amplification.description", "§7Increases mining yield by 10% while receiving a redstone signal.");
         registrate.addRawLang("quirk.adsdrill.gemstone_facets.description", "§7Doubles the effectiveness of the Fortune enchantment on this node.");
-        registrate.addRawLang("quirk.adsdrill.chaotic_output.description", "§7Has a 5% chance to yield a random ore from this node's composition, ignoring normal ratios.");
         registrate.addRawLang("quirk.adsdrill.wild_magic.description", "§7Sometimes creates random, harmless visual and sound effects.");
         registrate.addRawLang("quirk.adsdrill.petrified_heart.description", "§7This node's Regeneration is boosted based on its Hardness.");
-        registrate.addRawLang("quirk.adsdrill.aquifer.description", "§7Reduces node Hardness while the internal fluid level is between 60% and 70% of its capacity.");
         registrate.addRawLang("quirk.adsdrill.trace_minerals.description", "§7Has a small chance to yield Iron Nuggets as a byproduct.");
-        registrate.addRawLang("quirk.adsdrill.buried_treasure.description", "§7Has a 5% chance to yield a random item from ancient structures.");
         registrate.addRawLang("quirk.adsdrill.volatile_fissures.description", "§7Causes a small explosion for every 10 yield consumed, damaging nearby entities and briefly becoming Cracked.");
+        registrate.addRawLang("quirk.adsdrill.chaotic_output.description", "§7Has a %s chance to yield a random ore from this node's composition, ignoring normal ratios.");
+        registrate.addRawLang("quirk.adsdrill.aquifer.description", "§7Reduces node Hardness while the internal fluid level is between %s and %s of its capacity.");
+        registrate.addRawLang("quirk.adsdrill.buried_treasure.description", "§7Has a %s chance to yield a random item from ancient structures.");
 
         registrate.addRawLang("adsdrill.quirk.header", "Quirks:");
         registrate.addRawLang("adsdrill.quirk_candidates.header", "Quirk Candidates:");
@@ -229,15 +229,17 @@ public class AdsDrillDatagen {
         registrate.addRawLang("tooltip.adsdrill.node_locator.tier.netherite", "Netherite");
         registrate.addRawLang("tooltip.adsdrill.node_locator.radius", "Scan Radius: %s blocks");
         registrate.addRawLang("tooltip.adsdrill.node_locator.usage", "Right-click to scan for nodes.");
+        registrate.addRawLang("tooltip.adsdrill.node_locator.usage.next", "Right-click a located node to find the next one.");
 
         registrate.addRawLang("tooltip.adsdrill.node_restorative.description", "Right-click on an Ore Node to restore a portion of its yield.");
         registrate.addRawLang("tooltip.adsdrill.node_restorative.effect", "Restores %d Yield");
         registrate.addRawLang("message.adsdrill.restorative.full", "The node's yield is already full!");
 
         // 액션바 메시지
-        registrate.addRawLang("message.adsdrill.locator.found.brass", "Node detected nearby!");
-        registrate.addRawLang("message.adsdrill.locator.found.steel", "Node detected! Approx. %s blocks away.");
-        registrate.addRawLang("message.adsdrill.locator.found.netherite", "Node locked at: %s, %s, %s");
+
+        registrate.addRawLang("message.adsdrill.locator.found.brass", "Node detected nearby! (Right-click node to find next)");
+        registrate.addRawLang("message.adsdrill.locator.found.steel", "Node detected! Approx. %s blocks away. (Right-click node to find next)");
+        registrate.addRawLang("message.adsdrill.locator.found.netherite", "Node locked at: %s, %s, %s (Right-click node to find next)");
         registrate.addRawLang("message.adsdrill.locator.no_target_stored", "No target stored in this locator.");
         registrate.addRawLang("message.adsdrill.locator.not_found", "No nodes found within %s blocks.");
         registrate.addRawLang("tooltip.adsdrill.node_locator.targeting_result", "Targeting Resource: %s");

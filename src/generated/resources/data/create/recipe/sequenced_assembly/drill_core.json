@@ -1,0 +1,81 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "create:brass_casing"
+  },
+  "loops": 1,
+  "results": [
+    {
+      "chance": 90.0,
+      "id": "adsdrill:drill_core"
+    },
+    {
+      "id": "create:cogwheel"
+    },
+    {
+      "chance": 2.0,
+      "id": "create:mechanical_bearing"
+    },
+    {
+      "chance": 3.0,
+      "id": "create:brass_casing"
+    },
+    {
+      "chance": 4.0,
+      "id": "create:brass_sheet"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_drill_core"
+        },
+        {
+          "item": "create:gearbox"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_drill_core"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_drill_core"
+        },
+        {
+          "item": "create:mechanical_bearing"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_drill_core"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_drill_core"
+        },
+        {
+          "item": "create:cogwheel"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_drill_core"
+        }
+      ]
+    }
+  ],
+  "transitional_item": {
+    "id": "adsdrill:incomplete_drill_core"
+  }
+}

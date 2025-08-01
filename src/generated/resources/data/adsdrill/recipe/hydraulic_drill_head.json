@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "create:cogwheel"
+    },
+    "B": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "C": {
+      "item": "adsdrill:ultramarine"
+    },
+    "D": {
+      "item": "minecraft:dispenser"
+    },
+    "E": {
+      "item": "adsdrill:iron_rotary_drill_head"
+    }
+  },
+  "pattern": [
+    "ABC",
+    "DED",
+    "CBA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:hydraulic_drill_head"
+  }
+}

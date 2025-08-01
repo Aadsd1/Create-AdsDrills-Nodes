@@ -1,0 +1,117 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "create:mechanical_drill"
+  },
+  "loops": 3,
+  "results": [
+    {
+      "chance": 90.0,
+      "id": "adsdrill:laser_drill_head"
+    },
+    {
+      "chance": 2.0,
+      "id": "minecraft:netherite_ingot"
+    },
+    {
+      "chance": 2.0,
+      "id": "adsdrill:raw_rose_gold_chunk"
+    },
+    {
+      "chance": 2.0,
+      "id": "adsdrill:raw_steel_chunk"
+    },
+    {
+      "chance": 2.0,
+      "id": "create:precision_mechanism"
+    },
+    {
+      "id": "create:mechanical_drill"
+    },
+    {
+      "id": "minecraft:netherite_scrap"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_laser_drill_head"
+        },
+        {
+          "item": "minecraft:netherite_ingot"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_laser_drill_head"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_laser_drill_head"
+        },
+        {
+          "item": "adsdrill:steel_ingot"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_laser_drill_head"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_laser_drill_head"
+        },
+        {
+          "item": "adsdrill:rose_gold"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_laser_drill_head"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_laser_drill_head"
+        },
+        {
+          "item": "create:precision_mechanism"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_laser_drill_head"
+        }
+      ]
+    },
+    {
+      "type": "create:cutting",
+      "ingredients": [
+        {
+          "item": "adsdrill:incomplete_laser_drill_head"
+        }
+      ],
+      "results": [
+        {
+          "id": "adsdrill:incomplete_laser_drill_head"
+        }
+      ]
+    }
+  ],
+  "transitional_item": {
+    "id": "adsdrill:incomplete_laser_drill_head"
+  }
+}

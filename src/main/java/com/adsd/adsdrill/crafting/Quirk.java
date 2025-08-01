@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
@@ -72,7 +73,7 @@ public enum Quirk {
         }
     },
 
-    // [수정] PETRIFIED_HEART
+    // PETRIFIED_HEART
     PETRIFIED_HEART("petrified_heart", Tier.COMMON, AdsDrillItems.SILKY_JEWEL) {
         /**
          * 노드의 '기본' 경도에 비례하여 재생력을 증폭시킵니다.
@@ -84,8 +85,63 @@ public enum Quirk {
         }
     },
 
-    WILD_MAGIC("wild_magic", Tier.COMMON, AdsDrillItems.XOMV) {},
+    WILD_MAGIC("wild_magic", Tier.COMMON, AdsDrillItems.XOMV) {
+        // 효과 목록을 미리 만들어두어 매번 생성하는 비용을 줄입니다.
+        private static final List<ParticleOptions> VISUAL_EFFECTS = List.of(
+                ParticleTypes.NOTE,
+                ParticleTypes.HAPPY_VILLAGER,
+                ParticleTypes.POOF,
+                ParticleTypes.ENCHANT,
+                ParticleTypes.EXPLOSION,
+                ParticleTypes.END_ROD,
+                ParticleTypes.TOTEM_OF_UNDYING,
+                ParticleTypes.HEART,
+                ParticleTypes.SOUL,
+                ParticleTypes.BUBBLE,
+                ParticleTypes.DRAGON_BREATH
+        );
 
+        private static final List<SoundEvent> SOUND_EFFECTS = List.of(
+                SoundEvents.NOTE_BLOCK_BELL.value(),
+                SoundEvents.NOTE_BLOCK_CHIME.value(),
+                SoundEvents.NOTE_BLOCK_PLING.value(),
+                SoundEvents.NOTE_BLOCK_HARP.value(),
+                SoundEvents.GENERIC_EXPLODE.value(),
+                SoundEvents.ENDERMAN_TELEPORT,
+                SoundEvents.EXPERIENCE_ORB_PICKUP,
+                SoundEvents.AMETHYST_BLOCK_CHIME,
+                SoundEvents.CHICKEN_EGG,
+                SoundEvents.VILLAGER_AMBIENT,
+                SoundEvents.CAT_PURR,
+                SoundEvents.PLAYER_LEVELUP
+        );
+
+        @Override
+        public void onPeriodicTick(QuirkContext context) {
+            // 설정 파일에서 Wild Magic의 발동 확률을 가져옵니다.
+            var config = AdsDrillConfigs.getQuirkConfig(this);
+            RandomSource random = context.level().getRandom();
+
+            // 설정된 확률에 따라 효과를 발동시킵니다.
+            if (config.isEnabled() && random.nextFloat() < config.chance()) {
+
+                // 1. 시각 효과(파티클)를 무작위로 하나 선택합니다.
+                ParticleOptions particle = VISUAL_EFFECTS.get(random.nextInt(VISUAL_EFFECTS.size()));
+
+                // 2. 음향 효과(사운드)를 무작위로 하나 선택합니다.
+                SoundEvent sound = SOUND_EFFECTS.get(random.nextInt(SOUND_EFFECTS.size()));
+
+                // 3. 효과의 세부 사항(볼륨, 피치, 개수 등)도 무작위로 조절하여 더욱 다채롭게 만듭니다.
+                float volume = 0.4f + random.nextFloat() * 0.4f; // 0.4 ~ 0.8
+                float pitch = 1.0f + (random.nextFloat() - 0.5f) * 0.8f; // 0.6 ~ 1.4
+                int particleCount = 5 + random.nextInt(11); // 5 ~ 15
+                double particleSpeed = 0.1f + random.nextFloat() * 0.1f; // 0.1 ~ 0.2
+
+                // 4. 무작위로 조합된 효과를 재생합니다.
+                context.playEffects(particle, sound, volume, pitch, particleCount, particleSpeed);
+            }
+        }
+    },
 
     AQUIFER("aquifer", Tier.COMMON, AdsDrillItems.ULTRAMARINE) {
         @Override

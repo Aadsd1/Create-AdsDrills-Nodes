@@ -1,0 +1,35 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "B": {
+      "item": "adsdrill:rose_gold"
+    },
+    "C": {
+      "item": "create:precision_mechanism"
+    },
+    "D": {
+      "item": "adsdrill:koh_i_noor"
+    },
+    "E": {
+      "item": "adsdrill:fossil"
+    },
+    "F": {
+      "item": "adsdrill:steel_ingot"
+    }
+  },
+  "pattern": [
+    "AAAA",
+    "FBCF",
+    "FDEF",
+    "AAAA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:netherite_stabilizer_core"
+  }
+}

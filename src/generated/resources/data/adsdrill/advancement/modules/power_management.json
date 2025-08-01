@@ -1,0 +1,63 @@
+{
+  "parent": "adsdrill:modules/specialized",
+  "criteria": {
+    "get_buffer": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:energy_buffer_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_dynamo": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:kinetic_dynamo_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_input": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:energy_input_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.modules.power_management.description"
+    },
+    "frame": "task",
+    "hidden": false,
+    "icon": {
+      "id": "adsdrill:energy_input_module"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.modules.power_management.title"
+    }
+  },
+  "requirements": [
+    [
+      "get_input",
+      "get_buffer",
+      "get_dynamo"
+    ]
+  ]
+}

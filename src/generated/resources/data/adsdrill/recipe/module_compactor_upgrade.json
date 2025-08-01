@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "create:mechanical_press"
+    },
+    "C": {
+      "item": "minecraft:piston"
+    },
+    "D": {
+      "item": "minecraft:anvil"
+    },
+    "E": {
+      "item": "adsdrill:thunder_stone"
+    },
+    "F": {
+      "item": "create:basin"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "AFA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_compactor_upgrade"
+  }
+}

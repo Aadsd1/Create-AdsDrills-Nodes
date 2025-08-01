@@ -1,0 +1,27 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:diamond"
+    },
+    "B": {
+      "item": "minecraft:diamond_block"
+    },
+    "C": {
+      "item": "adsdrill:iron_rotary_drill_head"
+    }
+  },
+  "pattern": [
+    "  A  ",
+    " ABA ",
+    "ABCBA",
+    " ABA ",
+    "  A  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:diamond_rotary_drill_head"
+  }
+}

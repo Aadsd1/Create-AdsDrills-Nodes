@@ -1,0 +1,50 @@
+{
+  "parent": "adsdrill:modules/frame",
+  "criteria": {
+    "get_buffer_module": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:item_buffer_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_speed_module": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:speed_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.modules.specialized.description"
+    },
+    "frame": "task",
+    "hidden": false,
+    "icon": {
+      "id": "adsdrill:speed_module"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.modules.specialized.title"
+    }
+  },
+  "requirements": [
+    [
+      "get_speed_module",
+      "get_buffer_module"
+    ]
+  ]
+}

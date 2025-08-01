@@ -84,10 +84,31 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (level == null) return;
 
         Map<Quirk, Float> candidates = new HashMap<>();
-        for (Quirk quirk : Quirk.values()) {
-            candidates.put(quirk, 3.0f);
+        ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
+        StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
+
+        // 실제 생성 로직과 동일하게, 코어 등급에 따라 가능한 특성 Tier를 먼저 결정합니다.
+        List<Quirk.Tier> possibleTiers = new ArrayList<>();
+        switch (tier) {
+            case BRASS -> {
+                possibleTiers.add(Quirk.Tier.COMMON);
+                possibleTiers.add(Quirk.Tier.RARE);
+            }
+            case STEEL, NETHERITE -> {
+                possibleTiers.add(Quirk.Tier.COMMON);
+                possibleTiers.add(Quirk.Tier.RARE);
+                possibleTiers.add(Quirk.Tier.EPIC);
+            }
         }
 
+        // 가능한 Tier에 속하는 Quirk들만 초기 후보 목록에 추가합니다.
+        for (Quirk quirk : Quirk.values()) {
+            if (possibleTiers.contains(quirk.getTier())) {
+                candidates.put(quirk, 3.0f);
+            }
+        }
+
+        // 촉매 보너스 및 Steel 등급의 특수 제외 처리
         ItemStack catalyst1 = inventory.getStackInSlot(CATALYST_SLOT_1);
         ItemStack catalyst2 = inventory.getStackInSlot(CATALYST_SLOT_2);
         final float CATALYST_BONUS = 15.0f;
@@ -103,23 +124,17 @@ public class NodeFrameBlockEntity extends SmartBlockEntity implements IHaveGoggl
             );
         }
 
-        ItemStack coreStack = inventory.getStackInSlot(CORE_SLOT);
-        StabilizerCoreItem.Tier tier = (coreStack.getItem() instanceof StabilizerCoreItem sci) ? sci.getTier() : StabilizerCoreItem.Tier.BRASS;
-
-        switch (tier) {
-            case BRASS, NETHERITE:
-                break;
-            case STEEL:
-                candidates.put(Quirk.OVERLOAD_DISCHARGE, 0.0f);
-                candidates.put(Quirk.BONE_CHILL, 0.0f);
-                candidates.put(Quirk.WITHERING_ECHO, 0.0f);
-                candidates.put(Quirk.WILD_MAGIC,0.0f);
-                break;
+        if (tier == StabilizerCoreItem.Tier.STEEL) {
+            candidates.remove(Quirk.OVERLOAD_DISCHARGE);
+            candidates.remove(Quirk.BONE_CHILL);
+            candidates.remove(Quirk.WITHERING_ECHO);
+            candidates.remove(Quirk.WILD_MAGIC);
         }
 
         // 계산된 결과를 클라이언트 동기화용 필드에 저장
         this.clientQuirkCandidates = candidates;
     }
+
     public boolean isCatalystItem(ItemStack stack) {
         return stack.is(AdsDrillTags.CATALYSTS);
     }

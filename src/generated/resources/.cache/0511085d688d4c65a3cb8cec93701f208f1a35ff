@@ -1,0 +1,16 @@
+// 1.21.1	2025-07-19T15:36:09.0082128	Create's Processing Recipes: mixing
+df7e7efc67d7d2f2d410cf3685c9c6bf922ff10d data/create/recipe/mixing/andesite_alloy.json
+b484f6febeb2f966591591fcd93623916ca4f23c data/create/recipe/mixing/andesite_alloy_from_zinc.json
+8c2b237b7d0007da93c7c39a6e17d6980e3e777f data/create/recipe/mixing/brass_ingot.json
+f66662f29d13fac047adcaac3e30873b47bb4f00 data/create/recipe/mixing/cardboard_pulp.json
+ce588ebbe7c62afce5ae0854f71e4e1cebfbbd6d data/create/recipe/mixing/chocolate.json
+5b4406c5cfb8aaaf258ac1a21f15c7b05398a225 data/create/recipe/mixing/chocolate_melting.json
+71b551b239995f20b3633b1e4742a8bdd03b15df data/create/recipe/mixing/compat/ae2/fluix_crystal.json
+902d4864dc35589dda81a8a55ef61c9697c2f360 data/create/recipe/mixing/compat/regions_unexplored/peat_mud.json
+eac08af1003b191f851462ade2847c46c7ff1f40 data/create/recipe/mixing/compat/regions_unexplored/silt_mud.json
+436c8568ed661d434d43c609e9824cf4b39f9947 data/create/recipe/mixing/dough_by_mixing.json
+08cc8d63081a087c61ec535fc063afb2261800ce data/create/recipe/mixing/honey.json
+752c5523f77bba865e8ff555a753be7a9c8ec496 data/create/recipe/mixing/lava_from_cobble.json
+5663803d3d35541b4f699d4ae7c67afae8e7f7c5 data/create/recipe/mixing/mud_by_mixing.json
+00b7990b0348064853d6a4d5fb6816fe360d7bfc data/create/recipe/mixing/tea.json
+470ee136657145f2b69d947a7759e2e06734e125 data/minecraft/recipe/mixing/ore_node_neutralizer.json

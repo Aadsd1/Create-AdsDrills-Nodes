@@ -1,0 +1,17 @@
+{
+  "parent": "adsdrill:block/drill_core/brass",
+  "overrides": [
+    {
+      "model": "adsdrill:block/drill_core/steel",
+      "predicate": {
+        "adsdrill:tier": 1.0
+      }
+    },
+    {
+      "model": "adsdrill:block/drill_core/netherite",
+      "predicate": {
+        "adsdrill:tier": 2.0
+      }
+    }
+  ]
+}

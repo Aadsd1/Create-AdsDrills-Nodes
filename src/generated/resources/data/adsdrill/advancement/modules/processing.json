@@ -1,0 +1,50 @@
+{
+  "parent": "adsdrill:modules/specialized",
+  "criteria": {
+    "get_crusher_module": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:crusher_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "get_furnace_module": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:furnace_module"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.modules.processing.description"
+    },
+    "frame": "goal",
+    "hidden": false,
+    "icon": {
+      "id": "adsdrill:furnace_module"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.modules.processing.title"
+    }
+  },
+  "requirements": [
+    [
+      "get_furnace_module",
+      "get_crusher_module"
+    ]
+  ]
+}

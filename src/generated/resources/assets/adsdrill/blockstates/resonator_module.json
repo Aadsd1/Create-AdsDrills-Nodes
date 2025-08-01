@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "adsdrill:block/resonator_module/block"
+    }
+  }
+}

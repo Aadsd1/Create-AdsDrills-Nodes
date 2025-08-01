@@ -1,0 +1,37 @@
+{
+  "parent": "adsdrill:artificial_node/stabilizer",
+  "criteria": {
+    "get_artificial_node": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:artificial_node"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.artificial_node.complete.description"
+    },
+    "frame": "challenge",
+    "hidden": false,
+    "icon": {
+      "id": "adsdrill:artificial_node"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.artificial_node.complete.title"
+    }
+  },
+  "requirements": [
+    [
+      "get_artificial_node"
+    ]
+  ]
+}

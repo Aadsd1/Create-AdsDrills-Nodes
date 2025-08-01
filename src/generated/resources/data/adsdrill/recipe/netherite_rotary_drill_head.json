@@ -1,0 +1,30 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "B": {
+      "item": "minecraft:diamond_block"
+    },
+    "C": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "D": {
+      "item": "adsdrill:diamond_rotary_drill_head"
+    }
+  },
+  "pattern": [
+    "ACBCA",
+    "CBABC",
+    "BADAB",
+    "CBABC",
+    "ACBCA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:netherite_rotary_drill_head"
+  }
+}

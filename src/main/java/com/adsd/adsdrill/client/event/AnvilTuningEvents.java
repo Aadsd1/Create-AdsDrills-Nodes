@@ -8,6 +8,8 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.Item;
@@ -24,6 +26,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.event.AnvilUpdateEvent;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @EventBusSubscriber(modid = AdsDrillAddon.MOD_ID)
 public class AnvilTuningEvents {
@@ -49,13 +54,25 @@ public class AnvilTuningEvents {
                 ItemStack output = leftStack.copy();
                 CompoundTag nbt = output.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
 
-                nbt.putString("TargetOre", BuiltInRegistries.ITEM.getKey(targetItem).toString());
+                // NBT에서 'TargetOres' 목록을 가져오거나, 없으면 새로 만듭니다. (9 = ListTag, 8 = StringTag)
+                ListTag oreList = nbt.contains("TargetOres", 9) ? nbt.getList("TargetOres", 8) : new ListTag();
 
-                output.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+                // 중복 추가를 방지하기 위해 현재 목록을 Set으로 변환합니다.
+                Set<String> existingOres = new HashSet<>();
+                oreList.forEach(tag -> existingOres.add(tag.getAsString()));
 
-                event.setOutput(output);
-                event.setCost(5);
-                event.setMaterialCost(1);
+                String newOreId = BuiltInRegistries.ITEM.getKey(targetItem).toString();
+
+                // 이미 목록에 없는 광물일 경우에만 추가합니다.
+                if (!existingOres.contains(newOreId)) {
+                    oreList.add(StringTag.valueOf(newOreId));
+                    nbt.put("TargetOres", oreList);
+                    output.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+
+                    event.setOutput(output);
+                    event.setCost(5);
+                    event.setMaterialCost(1);
+                }
             }
         }
         // 2. 유체로 튜닝
@@ -76,8 +93,8 @@ public class AnvilTuningEvents {
         else if (rightStack.getItem() == Items.FLINT) {
             ItemStack output = leftStack.copy();
             CompoundTag nbt = output.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            if (nbt.contains("TargetOre") || nbt.contains("TargetFluid")) {
-                nbt.remove("TargetOre");
+            if (nbt.contains("TargetOres") || nbt.contains("TargetFluid")) {
+                nbt.remove("TargetOres");
                 nbt.remove("TargetFluid");
                 output.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
                 event.setOutput(output);
@@ -86,8 +103,4 @@ public class AnvilTuningEvents {
             }
         }
     }
-
-
-
-
 }

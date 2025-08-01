@@ -85,6 +85,8 @@ public class AdsDrillConfigs {
     ) {
     }
 
+    public record RatioPresetConfig(String name, double weight, List<Double> ratios) {}
+
     // 설정 데이터를 저장할 record
     public record DimensionGenerationProfile(
             ResourceLocation dimensionId,
@@ -119,6 +121,7 @@ public class AdsDrillConfigs {
         //월드 생성 관련 설정
         public final ModConfigSpec.ConfigValue<List<? extends String>> modBlacklist;
         public final ModConfigSpec.ConfigValue<List<? extends Config>> manualOreMappings;
+        public final ModConfigSpec.ConfigValue<List<? extends Config>> ratioPresets;
 
         // 차원 프로필 설정
         public final ModConfigSpec.ConfigValue<List<? extends Config>> dimensionProfiles;
@@ -239,13 +242,16 @@ public class AdsDrillConfigs {
 
                 builder.push(type.getSerializedName());
 
-                moduleSpeedBonuses.put(type, builder.comment("Speed bonus multiplier provided by this module (e.g., 0.1 for +10%).")
+                moduleSpeedBonuses.put(type, builder
+                        .comment("Speed bonus multiplier provided by this module (e.g., 0.1 for +10%).")
                         .defineInRange("speed_bonus", type.getDefaultSpeedBonus(), -1.0, 10.0));
 
-                moduleStressImpacts.put(type, builder.comment("Stress impact multiplier (e.g., 0.05 for +5%, -0.1 for -10%).")
+                moduleStressImpacts.put(type, builder
+                        .comment("Stress impact multiplier (e.g., 0.05 for +5%, -0.1 for -10%).")
                         .defineInRange("stress_impact", type.getDefaultStressImpact(), -1.0, 10.0));
 
-                moduleHeatModifiers.put(type, builder.comment("Heat generation multiplier (e.g., 0.05 for +5%, -0.15 for -15%).")
+                moduleHeatModifiers.put(type, builder
+                        .comment("Heat generation multiplier (e.g., 0.05 for +5%, -0.15 for -15%).")
                         .defineInRange("heat_modifier", type.getDefaultHeatModifier(), -1.0, 10.0));
 
                 builder.pop();
@@ -282,7 +288,35 @@ public class AdsDrillConfigs {
 
             builder.push("worldgen");
             minOreTypesPerNode = builder.comment("Minimum number of ore types a naturally generated node can have.").defineInRange("minOreTypesPerNode", 1, 1, 5);
-            maxOreTypesPerNode = builder.comment("Maximum number of ore types a naturally generated node can have.").defineInRange("maxOreTypesPerNode", 3, 1, 10);
+            maxOreTypesPerNode = builder.comment("Maximum number of ore types a naturally generated node can have.").defineInRange("maxOreTypesPerNode", 4, 1, 10);
+
+            ratioPresets = builder
+                    .comment(
+                            "Define the possible ore ratio presets for natural node generation.",
+                            "Each preset has a 'name' (for logging), a 'weight' (higher values are more common),",
+                            "and a list of 'ratios' that must sum to roughly 1.0.",
+                            "The number of elements in 'ratios' determines how many ore types will be mixed."
+                    )
+                    .defineList(
+                            List.of("ratioPresets"),
+                            () -> List.of(
+                                    // 1개 광물 프리셋
+                                    createPresetConfig("Dominant", 10.0, List.of(0.85)),
+                                    createPresetConfig("Rich Vein", 15.0, List.of(0.70)),
+                                    // 2개 광물 프리셋
+                                    createPresetConfig("Balanced Pair", 15.0, List.of(0.45, 0.45)),
+                                    createPresetConfig("Major/Minor", 15.0, List.of(0.60, 0.30)),
+                                    // 3개 광물 프리셋
+                                    createPresetConfig("Trio", 25.0, List.of(0.30, 0.30, 0.30)),
+                                    createPresetConfig("Tiered Trio", 20.0, List.of(0.50, 0.30, 0.15)),
+                                    // 4개 광물 프리셋
+                                    createPresetConfig("Complex Deposit", 5.0, List.of(0.30, 0.25, 0.20, 0.20))
+                            ),
+
+                            Config::inMemory,
+                            obj -> obj instanceof Config
+                    );
+
             allowedDimensions = builder
                     .comment(
                             "A list of dimension IDs where Ore Nodes are allowed to generate.",
@@ -375,6 +409,8 @@ public class AdsDrillConfigs {
                             Config::inMemory,
                             obj -> obj instanceof Config // 유효성 검사
                     );
+
+
 
             nodeCombinationRecipes = builder
                     .comment(
@@ -489,6 +525,20 @@ public class AdsDrillConfigs {
                     AdsDrillAddon.LOGGER.warn("Failed to parse a manual ore mapping from config: {}", e.getMessage());
                 }
             }
+
+            ratioPresetCache.clear();
+            List<? extends Config> presetConfigs = SERVER.ratioPresets.get();
+            for (Config config : presetConfigs) {
+                try {
+                    String name = config.get("name");
+                    double weight = config.get("weight");
+                    List<Double> ratios = config.get("ratios");
+                    ratioPresetCache.add(new RatioPresetConfig(name, weight, ratios));
+                } catch (Exception e) {
+                    AdsDrillAddon.LOGGER.warn("Failed to parse a ratio preset from config: {}", e.getMessage());
+                }
+            }
+            AdsDrillAddon.LOGGER.info("Loaded {} ratio presets from config.", ratioPresetCache.size());
 
             // 특성 설정 캐시 로드
             quirkConfigCache.clear();
@@ -736,19 +786,19 @@ public class AdsDrillConfigs {
         // 기본 광물 목록 설정 (오스뮴 포함)
         List<Config> orePool = new ArrayList<>();
         orePool.add(createOreEntry("minecraft:diamond", "minecraft:diamond_ore", 0.0, 0.5));
-        orePool.add(createOreEntry("draconicevolution:draconium_dust","draconicevolution:overworld_draconium_ore",0.0,0.01));
-        orePool.add(createOreEntry("draconicevolution:draconium_dust","draconicevolution:deepslate_draconium_ore",0.0,0.01));
+        orePool.add(createOreEntry("draconicevolution:draconium_dust","draconicevolution:overworld_draconium_ore",0.0,0.0001));
+        orePool.add(createOreEntry("draconicevolution:draconium_dust","draconicevolution:deepslate_draconium_ore",0.0,0.0001));
         orePool.add(createOreEntry("mekanism:raw_osmium", "mekanism:osmium_ore", 15.0, 1.0));
         profile.set("ore_pool", orePool);
         List<Config> biomeOverrides = new ArrayList<>();
 
-        Config desertOverride = Config.inMemory();
-        desertOverride.set("biomes", List.of("minecraft:desert"));
-        desertOverride.set("ore_pool", List.of(
-                createOreEntry("minecraft:coal", "minecraft:coal_ore", 0.0, 1.0),
-                createOreEntry("minecraft:lapis_lazuli", "minecraft:lapis_ore", 0.0, 1.0)
+        Config plainsOverride = Config.inMemory();
+        plainsOverride.set("biomes", List.of("minecraft:is_plains"));
+        plainsOverride.set("ore_pool", List.of(
+                createOreEntry("minecraft:coal", "minecraft:coal_ore", 10.0, 1.5),
+                createOreEntry("minecraft:lapis_lazuli", "minecraft:iron_ore", 10.0, 1.5)
         ));
-        biomeOverrides.add(desertOverride);
+        biomeOverrides.add(plainsOverride);
 
         Config jungleOverride = Config.inMemory();
         jungleOverride.set("biomes", List.of("#minecraft:is_jungle")); // '#'은 태그를 의미
@@ -764,6 +814,22 @@ public class AdsDrillConfigs {
 
         return profile;
     }
+
+
+    private static final List<RatioPresetConfig> ratioPresetCache = new ArrayList<>();
+
+    public static List<RatioPresetConfig> getRatioPresets() {
+        return ratioPresetCache;
+    }
+
+    private static Config createPresetConfig(String name, double weight, List<Double> ratios) {
+        Config config = Config.inMemory();
+        config.set("name", name);
+        config.set("weight", weight);
+        config.set("ratios", ratios);
+        return config;
+    }
+
     // 광물 풀 항목을 쉽게 만드는 헬퍼 메서드
     private static Config createOreEntry(String itemId, String blockId, double add, double multiplier) {
         Config ore = Config.inMemory();

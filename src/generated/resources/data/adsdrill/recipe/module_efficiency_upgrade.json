@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "B": {
+      "item": "adsdrill:rose_gold"
+    },
+    "C": {
+      "item": "adsdrill:reinforcement_module"
+    },
+    "D": {
+      "item": "adsdrill:steel_ingot"
+    },
+    "E": {
+      "item": "adsdrill:heatsink_module"
+    },
+    "F": {
+      "item": "adsdrill:silky_jewel"
+    }
+  },
+  "pattern": [
+    "ABA",
+    "CDE",
+    "AFA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:module_efficiency_upgrade"
+  }
+}

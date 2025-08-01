@@ -1,0 +1,32 @@
+{
+  "parent": "adsdrill:heads/basic_rotary_drill",
+  "criteria": {
+    "get_explosive_drill": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "adsdrill:explosive_drill_head"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "translate": "advancements.adsdrill.heads.unstable_mining.description"
+    },
+    "frame": "task",
+    "hidden": false,
+    "icon": {
+      "id": "adsdrill:explosive_drill_head"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.heads.unstable_mining.title"
+    }
+  }
+}

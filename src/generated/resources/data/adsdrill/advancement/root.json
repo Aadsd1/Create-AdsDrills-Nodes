@@ -1,0 +1,35 @@
+{
+  "criteria": {
+    "get_drill_core": {
+      "conditions": {
+        "items": [
+          {
+            "components": {
+              "minecraft:block_entity_data": {
+                "CoreTier": "BRASS"
+              }
+            },
+            "items": [
+              "adsdrill:drill_core"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png",
+    "description": {
+      "translate": "advancements.adsdrill.root.description"
+    },
+    "icon": {
+      "id": "adsdrill:drill_core"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.adsdrill.root.title"
+    }
+  }
+}

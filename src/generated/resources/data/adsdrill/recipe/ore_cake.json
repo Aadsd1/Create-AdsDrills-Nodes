@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "adsdrill:fossil"
+    },
+    "B": {
+      "item": "adsdrill:ore_node_neutralizer"
+    },
+    "C": {
+      "item": "adsdrill:raw_rose_gold_chunk"
+    },
+    "D": {
+      "item": "create:blaze_cake"
+    },
+    "E": {
+      "item": "adsdrill:ivory_crystal"
+    },
+    "F": {
+      "item": "adsdrill:raw_steel_chunk"
+    }
+  },
+  "pattern": [
+    "AFE",
+    "BCB",
+    " D "
+  ],
+  "result": {
+    "count": 1,
+    "id": "adsdrill:ore_cake"
+  }
+}

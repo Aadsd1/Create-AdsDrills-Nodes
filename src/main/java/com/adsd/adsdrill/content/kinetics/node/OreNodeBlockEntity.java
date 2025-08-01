@@ -239,12 +239,18 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             return Collections.emptyList();
         }
 
-        updateMiningState(miningDrillPos);
+        int finalFortuneLevel = fortuneLevel;
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                finalFortuneLevel = quirk.onCalculateFortune(finalFortuneLevel);
+            }
+        }
 
+        updateMiningState(miningDrillPos);
         double effectiveMiningAmount = calculateEffectiveMiningAmount(miningAmount);
         processMiningProgress(effectiveMiningAmount);
 
-        return executeMiningCycles(fortuneLevel, hasSilkTouch, null);
+        return executeMiningCycles(finalFortuneLevel, hasSilkTouch, null);
     }
 
     public List<ItemStack> applySpecificMiningTick(int miningAmount, int fortuneLevel, boolean hasSilkTouch,
@@ -253,12 +259,18 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
             return Collections.emptyList();
         }
 
-        updateMiningState(miningDrillPos);
+        int finalFortuneLevel = fortuneLevel;
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                finalFortuneLevel = quirk.onCalculateFortune(finalFortuneLevel);
+            }
+        }
 
+        updateMiningState(miningDrillPos);
         double effectiveMiningAmount = calculateEffectiveMiningAmount(miningAmount);
         processMiningProgress(effectiveMiningAmount);
 
-        return executeMiningCycles(fortuneLevel, hasSilkTouch, specificItemToMine);
+        return executeMiningCycles(finalFortuneLevel, hasSilkTouch, specificItemToMine);
     }
 
     /**
@@ -663,8 +675,21 @@ public class OreNodeBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
         finalDrop.setCount(dropCount);
 
-        // 최종적으로 생성된 아이템 리스트를 반환
-        return new ArrayList<>(Collections.singletonList(finalDrop));
+        // [5. 최종 드롭 리스트 생성 및 후처리 특성 적용]
+        // finalDrop을 포함하는 리스트를 먼저 생성합니다.
+        List<ItemStack> finalDrops = new ArrayList<>(Collections.singletonList(finalDrop));
+
+        // 이 노드가 인공 노드일 경우, 모든 특성을 순회하며 onAfterDropsCalculated를 호출합니다.
+        if (this instanceof ArtificialNodeBlockEntity artificialNode) {
+            Quirk.QuirkContext context = new Quirk.QuirkContext((ServerLevel) level, worldPosition, this, null);
+            for (Quirk quirk : artificialNode.getQuirks()) {
+                // BURIED_TREASURE, BOTTLED_KNOWLEDGE 등의 특성이 이 시점에 finalDrops 리스트에 아이템을 추가합니다.
+                quirk.onAfterDropsCalculated(finalDrops, context);
+            }
+        }
+
+        // 모든 특성 효과가 적용된 최종 리스트를 반환합니다.
+        return finalDrops;
     }
 
 

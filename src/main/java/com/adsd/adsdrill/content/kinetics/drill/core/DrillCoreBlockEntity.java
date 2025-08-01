@@ -837,7 +837,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
     /**
      * Visual이 출력축 렌더링 여부를 결정하는 데 사용합니다.
      *
-     * @return 헤드가 존재하고 캐시되었으면 true
+     * @return 헤드가 존재하고 캐시되었으면 false
      */
     public boolean hasHead() {
         return this.cachedHeadPos == null;
@@ -1277,6 +1277,7 @@ public class DrillCoreBlockEntity extends KineticBlockEntity implements IResourc
      */
     private void handleOverheatEvent(IDrillHead headBlock) {
         boolean eventHandledByHead = processHeadOverheatEvent(headBlock);
+
         processQuirkOverheatEvents();
 
         if (!eventHandledByHead) {

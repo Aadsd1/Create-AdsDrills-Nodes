@@ -5,7 +5,6 @@ import com.adsd.adsdrill.AdsDrillAddon;
 import com.adsd.adsdrill.compat.jei.recipe.DrillHeadUpgradeRecipe;
 import com.adsd.adsdrill.config.AdsDrillConfigs;
 import com.adsd.adsdrill.registry.AdsDrillBlocks;
-import com.adsd.adsdrill.registry.AdsDrillItems;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
